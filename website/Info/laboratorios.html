@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Laboratorios · Insuco LabControl</title>
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+<div class="app-layout">
+
+  <aside class="sidebar">
+    <div class="sidebar__brand">
+      <span class="icon" aria-hidden="true">🖥️</span>
+      Insuco LabControl
+    </div>
+    <nav class="sidebar__nav" id="sidebar-nav" aria-label="Navegación principal"></nav>
+    <div class="sidebar__user">
+      <div class="avatar">--</div>
+      <div>
+        <div class="name">Cargando…</div>
+        <div class="role">—</div>
+      </div>
+    </div>
+  </aside>
+
+  <main class="main-content">
+
+    <!------- Vista listado ------->
+    <div id="vista-listado">
+      <header class="page-header">
+        <div>
+          <h1>Laboratorios</h1>
+          <p>Los 5 laboratorios de computación del liceo</p>
+        </div>
+        <div class="page-header__meta">
+          <span>🔍</span>
+          <input class="form-input" id="filtro-busqueda" type="search"
+            placeholder="Buscar laboratorio…" style="width:200px;margin:0" />
+          <select class="form-input" id="filtro-estado" style="width:140px;margin:0">
+            <option value="">Todos los estados</option>
+            <option value="disponible">Disponible</option>
+            <option value="ocupado">Ocupado</option>
+            <option value="mantencion">Mantención</option>
+          </select>
+        </div>
+      </header>
+      <div class="lab-grid" id="lab-grid"></div>
+    </div>
+
+    <!------- Vista detalle ------->
+    <div id="vista-detalle" style="display:none">
+      <header class="page-header">
+        <div>
+          <h1 id="detalle-nombre">Laboratorio</h1>
+          <p><a href="laboratorios.html" style="color:var(--color-primary)">← Volver al listado</a></p>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <span class="badge" id="detalle-badge-header"></span>
+          <button class="btn btn--primary" id="btn-cambiar-estado">Cambiar estado</button>
+          <a class="btn" href="equipos.html" id="btn-ver-equipos">Ver equipos</a>
+        </div>
+      </header>
+
+      <div class="card">
+        <!-- Header fotográfico -->
+        <div class="detail-header">
+          <div class="detail-header__photo">
+            <span style="font-size:3rem">🖥️</span>
+          </div>
+          <div>
+            <div style="font-weight:700;font-size:1.15rem" id="detalle-sala"></div>
+            <div style="color:var(--color-text-muted);font-size:0.85rem;margin-top:4px" id="detalle-ubicacion"></div>
+            <div style="margin-top:8px">
+              <span class="badge" id="detalle-badge"></span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tabs -->
+        <div class="tabs">
+          <button class="tab-btn is-active" data-tab="general">Información general</button>
+          <button class="tab-btn" data-tab="hardware">Hardware</button>
+          <button class="tab-btn" data-tab="servicios">Servicios</button>
+          <button class="tab-btn" data-tab="agenda">Agenda</button>
+        </div>
+
+        <div class="tab-panel is-active" data-panel="general">
+          <dl class="info-grid" id="detalle-info-general"></dl>
+        </div>
+
+        <div class="tab-panel" data-panel="hardware">
+          <dl class="info-grid" id="detalle-info-hardware"></dl>
+          <div id="bloque-tecnico-lock" class="access-notice" style="display:none">
+            <span>🔒</span>
+            <div>
+              <strong>Información técnica restringida</strong>
+              <p>Solo los profesores de Programación y el Administrador pueden ver los detalles de hardware completos.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="tab-panel" data-panel="servicios">
+          <p style="font-weight:600;margin-bottom:10px;padding:0 4px">Servicios disponibles en este laboratorio</p>
+          <ul class="check-list" id="detalle-servicios"></ul>
+        </div>
+
+        <div class="tab-panel" data-panel="agenda">
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Fecha</th><th>Horario</th><th>Motivo</th><th>Solicitante</th><th>Estado</th>
+                </tr>
+              </thead>
+              <tbody id="detalle-agenda"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- Modal cambiar estado -->
+<div class="modal-overlay" id="modal-estado" style="display:none" role="dialog" aria-modal="true">
+  <div class="modal">
+    <div class="modal__header">
+      <span class="modal__title">Cambiar estado</span>
+      <button class="modal__close" id="btn-cerrar-modal">✕</button>
+    </div>
+    <div class="modal__body">
+      <div class="form-group">
+        <label class="form-label">Nuevo estado</label>
+        <select class="form-input" id="select-estado">
+          <option value="disponible">Disponible</option>
+          <option value="ocupado">Ocupado</option>
+          <option value="mantencion">Mantención</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal__footer">
+      <button class="btn" id="btn-modal-cancelar">Cancelar</button>
+      <button class="btn btn--primary" id="btn-modal-guardar">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<script src="data.js"></script>
+<script src="app.js"></script>
+<script>
+  renderSidebar("laboratorios.html");
+  initTabs();
+  const idSeleccionado = getQueryParam("id");
+  let labsCache = [];
+
+  cargarLaboratorios().then((labs) => {
+    labsCache = labs;
+    if (idSeleccionado) {
+      mostrarDetalle(Number(idSeleccionado));
+    } else {
+      document.getElementById("vista-listado").style.display = "block";
+      renderLabGrid(labs, "lab-grid", { linkTo: "laboratorios.html" });
+    }
+  });
+
+  // Filtros
+  ["filtro-busqueda", "filtro-estado"].forEach((id) => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener("input", filtrarLabs);
+  });
+
+  function filtrarLabs() {
+    const q      = document.getElementById("filtro-busqueda").value.toLowerCase();
+    const estado = document.getElementById("filtro-estado").value;
+    const filtrados = labsCache.filter((l) =>
+      (!q || l.nombre.toLowerCase().includes(q) || l.sala.toLowerCase().includes(q)) &&
+      (!estado || l.estado === estado)
+    );
+    renderLabGrid(filtrados, "lab-grid", { linkTo: "laboratorios.html" });
+  }
+
+  function mostrarDetalle(id) {
+    const lab = obtenerLaboratorioPorId(id);
+    if (!lab) return;
+
+    document.getElementById("vista-listado").style.display = "none";
+    document.getElementById("vista-detalle").style.display = "block";
+    document.title = `${lab.nombre} · LabControl`;
+
+    const estado = ESTADOS[lab.estado];
+    document.getElementById("detalle-nombre").textContent      = lab.nombre;
+    document.getElementById("detalle-sala").textContent        = lab.sala;
+    document.getElementById("detalle-ubicacion").textContent   = lab.ubicacion;
+
+    ["detalle-badge", "detalle-badge-header"].forEach((elId) => {
+      const b = document.getElementById(elId);
+      b.textContent = estado.label;
+      b.className   = `badge badge--${lab.estado}`;
+    });
+
+    // Info general
+    document.getElementById("detalle-info-general").innerHTML = `
+      <div><dt>Sala</dt><dd>${lab.sala}</dd></div>
+      <div><dt>Ubicación</dt><dd>${lab.ubicacion}</dd></div>
+      <div><dt>Capacidad</dt><dd>${lab.equipos} equipos</dd></div>
+      <div><dt>Responsable</dt><dd>${lab.responsable}</dd></div>
+      <div><dt>Horario disponible</dt><dd>${lab.horario}</dd></div>
+      <div style="grid-column:1/-1"><dt>Descripción</dt><dd style="font-weight:400">${lab.descripcion}</dd></div>
+    `;
+
+    // Hardware — solo si tiene permisos técnicos
+    const hardwareEl   = document.getElementById("detalle-info-hardware");
+    const lockEl       = document.getElementById("bloque-tecnico-lock");
+    if (AUTH.puedeVerTecnico()) {
+      lockEl.style.display = "none";
+      hardwareEl.innerHTML = `
+        <div><dt>Sistema operativo</dt><dd>${lab.so}</dd></div>
+        <div><dt>Procesador</dt><dd>${lab.procesador}</dd></div>
+        <div><dt>Memoria RAM</dt><dd>${lab.ram}</dd></div>
+        <div><dt>Almacenamiento</dt><dd>${lab.almacenamiento}</dd></div>
+        <div><dt>Red / Conectividad</dt><dd>${lab.red}</dd></div>
+        <div><dt>Estado de red</dt><dd>Operativa</dd></div>
+      `;
+    } else {
+      hardwareEl.innerHTML = "";
+      lockEl.style.display = "flex";
+    }
+
+    // Servicios
+    document.getElementById("detalle-servicios").innerHTML =
+      lab.servicios.map((s) => `<li>${s}</li>`).join("");
+
+    // Agenda del laboratorio
+    cargarAgenda().then((agenda) => {
+      const reservas = agenda.filter((r) => r.labId === lab.id);
+      const tbody = document.getElementById("detalle-agenda");
+      if (!reservas.length) {
+        tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;color:var(--color-text-muted);padding:20px">Sin reservas para este laboratorio</td></tr>`;
+        return;
+      }
+      tbody.innerHTML = reservas.map((r) => {
+        const usr = obtenerUsuarioPorId(r.usuarioId);
+        return `<tr>
+          <td>${formatFecha(r.fecha)}</td>
+          <td>${r.horaInicio} – ${r.horaFin}</td>
+          <td>${r.motivo}</td>
+          <td>${usr ? `${usr.nombre} ${usr.apellido}` : r.usuarioId}</td>
+          <td><span class="badge ${r.estado === "confirmada" ? "badge--disponible" : "badge--mantencion"}">${r.estado}</span></td>
+        </tr>`;
+      }).join("");
+    });
+
+    // Enlace de equipos
+    document.getElementById("btn-ver-equipos").href = `equipos.html?lab=${lab.id}`;
+  }
+
+  // Modal estado
+  document.getElementById("btn-cambiar-estado")?.addEventListener("click", () => {
+    const lab = obtenerLaboratorioPorId(Number(idSeleccionado));
+    if (lab) document.getElementById("select-estado").value = lab.estado;
+    document.getElementById("modal-estado").style.display = "flex";
+  });
+  document.getElementById("btn-cerrar-modal").addEventListener("click", () =>
+    document.getElementById("modal-estado").style.display = "none"
+  );
+  document.getElementById("btn-modal-cancelar").addEventListener("click", () =>
+    document.getElementById("modal-estado").style.display = "none"
+  );
+  document.getElementById("btn-modal-guardar").addEventListener("click", () => {
+    const nuevoEstado = document.getElementById("select-estado").value;
+    const lab = LABORATORIOS.find((l) => l.id === Number(idSeleccionado));
+    if (lab) {
+      lab.estado = nuevoEstado;
+      mostrarDetalle(Number(idSeleccionado));
+      showToast(`Estado actualizado a "${ESTADOS[nuevoEstado].label}".`);
+    }
+    document.getElementById("modal-estado").style.display = "none";
+  });
+
+  document.getElementById("modal-estado").addEventListener("click", (e) => {
+    if (e.target === document.getElementById("modal-estado"))
+      document.getElementById("modal-estado").style.display = "none";
+  });
+</script>
+</body>
+</html>

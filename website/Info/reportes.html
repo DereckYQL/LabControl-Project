@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Reportes · Insuco LabControl</title>
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+<div class="app-layout">
+
+  <aside class="sidebar">
+    <div class="sidebar__brand">
+      <span class="icon" aria-hidden="true">🖥️</span>
+      Insuco LabControl
+    </div>
+    <nav class="sidebar__nav" id="sidebar-nav" aria-label="Navegación principal"></nav>
+    <div class="sidebar__user">
+      <div class="avatar">--</div>
+      <div>
+        <div class="name">Cargando…</div>
+        <div class="role">—</div>
+      </div>
+    </div>
+  </aside>
+
+  <main class="main-content">
+    <header class="page-header">
+      <div>
+        <h1>Reportes</h1>
+        <p>Resúmenes de uso, fallas y disponibilidad de laboratorios</p>
+      </div>
+      <button class="btn btn--primary" id="btn-nuevo-reporte">+ Generar reporte</button>
+    </header>
+
+    <!-- Tarjetas de reportes recientes -->
+    <div class="rep-grid" id="rep-grid"></div>
+
+    <!-- Vista detalle de un reporte -->
+    <div id="vista-reporte" style="display:none;margin-top:20px">
+      <div style="margin-bottom:12px">
+        <button class="btn" id="btn-volver-rep">← Volver a reportes</button>
+      </div>
+      <div class="card">
+        <div style="padding:20px 20px 0">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px">
+            <div>
+              <div style="font-weight:700;font-size:1.1rem" id="rep-titulo"></div>
+              <div style="color:var(--color-text-muted);font-size:.85rem;margin-top:4px" id="rep-desc"></div>
+              <div style="margin-top:8px;display:flex;gap:10px;font-size:.8rem;color:var(--color-text-muted)">
+                <span id="rep-fecha"></span>
+                <span id="rep-autor"></span>
+              </div>
+            </div>
+            <button class="btn" onclick="imprimirReporte()">🖨 Imprimir</button>
+          </div>
+        </div>
+
+        <div style="padding:20px" id="rep-contenido"></div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- Modal nuevo reporte -->
+<div class="modal-overlay" id="modal-reporte" style="display:none" role="dialog" aria-modal="true">
+  <div class="modal">
+    <div class="modal__header">
+      <span class="modal__title">Generar nuevo reporte</span>
+      <button class="modal__close" id="btn-cerrar-rep-modal">✕</button>
+    </div>
+    <div class="modal__body">
+      <div class="form-group">
+        <label class="form-label">Tipo de reporte</label>
+        <select class="form-input" id="nuevo-rep-tipo">
+          <option value="uso">Uso de laboratorios</option>
+          <option value="disponibilidad">Disponibilidad</option>
+          <option value="fallas">Registro de fallas</option>
+          <option value="inventario">Inventario de equipos</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Título</label>
+        <input class="form-input" id="nuevo-rep-titulo" type="text" placeholder="Ej: Reporte de agosto 2026" />
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Fecha inicio</label>
+          <input class="form-input" type="date" id="nuevo-rep-desde" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Fecha fin</label>
+          <input class="form-input" type="date" id="nuevo-rep-hasta" />
+        </div>
+      </div>
+    </div>
+    <div class="modal__footer">
+      <button class="btn" id="btn-cancelar-rep">Cancelar</button>
+      <button class="btn btn--primary" id="btn-generar-rep">Generar</button>
+    </div>
+  </div>
+</div>
+
+<script src="data.js"></script>
+<script src="app.js"></script>
+<script>
+  renderSidebar("reportes.html");
+
+  const ICONOS_TIPO = { uso: "📊", fallas: "⚠️", disponibilidad: "🕒", inventario: "📦" };
+  const COLORES_TIPO = { uso: "primary", fallas: "danger", disponibilidad: "success", inventario: "warning" };
+
+  cargarReportes().then((reportes) => renderRepGrid(reportes));
+
+  function renderRepGrid(reportes) {
+    const grid = document.getElementById("rep-grid");
+    if (!reportes.length) {
+      grid.innerHTML = `<p style="color:var(--color-text-muted)">No hay reportes generados.</p>`;
+      return;
+    }
+    grid.innerHTML = reportes.map((rep) => {
+      const autor = obtenerUsuarioPorId(rep.generadoPor);
+      const color = COLORES_TIPO[rep.tipo] ?? "primary";
+      return `
+        <div class="card rep-card" role="button" tabindex="0"
+          onclick="abrirReporte('${rep.id}')"
+          onkeydown="if(event.key==='Enter')abrirReporte('${rep.id}')">
+          <div class="rep-card__icon stat-card__icon--${color}">
+            ${ICONOS_TIPO[rep.tipo] ?? "📄"}
+          </div>
+          <div class="rep-card__body">
+            <div class="rep-card__titulo">${rep.titulo}</div>
+            <div class="rep-card__desc">${rep.descripcion}</div>
+            <div class="rep-card__meta">
+              <span>📅 ${formatFecha(rep.fecha)}</span>
+              <span>👤 ${autor ? `${autor.nombre} ${autor.apellido}` : rep.generadoPor}</span>
+            </div>
+          </div>
+          <div class="rep-card__arrow">→</div>
+        </div>
+      `;
+    }).join("");
+  }
+
+  function abrirReporte(id) {
+    const rep   = REPORTES.find((r) => r.id === id);
+    if (!rep) return;
+    const autor = obtenerUsuarioPorId(rep.generadoPor);
+
+    document.getElementById("rep-grid").parentElement.style.display = "none";
+    document.getElementById("rep-grid").style.display = "none";
+    document.getElementById("vista-reporte").style.display = "block";
+    document.querySelector(".page-header").style.display = "none";
+
+    document.getElementById("rep-titulo").textContent = rep.titulo;
+    document.getElementById("rep-desc").textContent   = rep.descripcion;
+    document.getElementById("rep-fecha").textContent  = `📅 ${formatFecha(rep.fecha)}`;
+    document.getElementById("rep-autor").textContent  =
+      `👤 ${autor ? `${autor.nombre} ${autor.apellido}` : rep.generadoPor}`;
+
+    document.getElementById("rep-contenido").innerHTML = buildReporteHTML(rep);
+
+    // Dibujar gráfico si aplica
+    if (rep.datos?.labels && rep.datos?.valores) {
+      setTimeout(() => drawBarChart(rep.datos.labels, rep.datos.valores, "canvas-chart"), 50);
+    }
+  }
+
+  function buildReporteHTML(rep) {
+    if (rep.tipo === "uso" || rep.tipo === "disponibilidad") {
+      return `
+        <h3 style="margin:0 0 16px;font-size:.95rem">${rep.tipo === "uso" ? "Horas de uso por laboratorio" : "Porcentaje de disponibilidad por laboratorio"}</h3>
+        <canvas id="canvas-chart" width="600" height="220" style="max-width:100%"></canvas>
+        <div style="margin-top:16px">
+          <table>
+            <thead><tr><th>Laboratorio</th><th>${rep.tipo === "uso" ? "Horas de uso" : "Disponibilidad (%)"}</th></tr></thead>
+            <tbody>
+              ${rep.datos.labels.map((l, i) => `<tr><td>${l}</td><td><strong>${rep.datos.valores[i]}${rep.tipo === "disponibilidad" ? "%" : " h"}</strong></td></tr>`).join("")}
+            </tbody>
+          </table>
+        </div>
+      `;
+    }
+    if (rep.tipo === "fallas") {
+      return `
+        <h3 style="margin:0 0 16px;font-size:.95rem">Registro de fallas</h3>
+        <table>
+          <thead><tr><th>Equipo</th><th>Laboratorio</th><th>Descripción</th><th>Estado</th></tr></thead>
+          <tbody>
+            ${rep.datos.fallas.map((f) => `
+              <tr>
+                <td><strong>${f.equipo}</strong></td>
+                <td>${f.lab}</td>
+                <td>${f.descripcion}</td>
+                <td><span class="badge ${f.estado === "resuelto" ? "badge--disponible" : f.estado === "en reparación" ? "badge--mantencion" : "badge--ocupado"}">${f.estado}</span></td>
+              </tr>
+            `).join("")}
+          </tbody>
+        </table>
+      `;
+    }
+    if (rep.tipo === "inventario") {
+      const d = rep.datos;
+      return `
+        <h3 style="margin:0 0 16px;font-size:.95rem">Resumen de inventario</h3>
+        <div class="stat-grid">
+          <div class="card stat-card"><div><div class="stat-card__label">Total equipos</div><div class="stat-card__value">${d.total}</div></div><div class="stat-card__icon stat-card__icon--primary">💻</div></div>
+          <div class="card stat-card"><div><div class="stat-card__label">Activos</div><div class="stat-card__value">${d.activos}</div></div><div class="stat-card__icon stat-card__icon--success">✅</div></div>
+          <div class="card stat-card"><div><div class="stat-card__label">Con falla</div><div class="stat-card__value">${d.enFalla}</div></div><div class="stat-card__icon stat-card__icon--danger">⚠️</div></div>
+          <div class="card stat-card"><div><div class="stat-card__label">En mantención</div><div class="stat-card__value">${d.enMantencion}</div></div><div class="stat-card__icon stat-card__icon--warning">🔧</div></div>
+        </div>
+      `;
+    }
+    return `<p style="color:var(--color-text-muted)">Sin datos para mostrar.</p>`;
+  }
+
+  function drawBarChart(labels, valores, canvasId) {
+    const canvas = document.getElementById(canvasId);
+    if (!canvas) return;
+    const ctx    = canvas.getContext("2d");
+    const W      = canvas.width;
+    const H      = canvas.height;
+    const maxVal = Math.max(...valores);
+    const pad    = 40;
+    const barW   = (W - pad * 2) / labels.length - 10;
+    const colores= ["#2f6fed","#16a34a","#ef4444","#f59e0b","#8b5cf6"];
+
+    ctx.clearRect(0, 0, W, H);
+    ctx.fillStyle = "#f4f6fb";
+    ctx.fillRect(0, 0, W, H);
+
+    labels.forEach((label, i) => {
+      const x   = pad + i * ((W - pad * 2) / labels.length) + 5;
+      const pct = valores[i] / maxVal;
+      const bH  = pct * (H - 60);
+      const y   = H - bH - 30;
+
+      // Barra
+      ctx.fillStyle = colores[i % colores.length];
+      ctx.beginPath();
+      ctx.roundRect(x, y, barW, bH, [4, 4, 0, 0]);
+      ctx.fill();
+
+      // Valor encima
+      ctx.fillStyle = "#101828";
+      ctx.font = "bold 11px sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText(valores[i], x + barW / 2, y - 6);
+
+      // Etiqueta abajo
+      ctx.fillStyle = "#667085";
+      ctx.font = "10px sans-serif";
+      ctx.fillText(label, x + barW / 2, H - 10);
+    });
+  }
+
+  document.getElementById("btn-volver-rep").addEventListener("click", () => {
+    document.getElementById("vista-reporte").style.display     = "none";
+    document.getElementById("rep-grid").style.display          = "grid";
+    document.querySelector(".page-header").style.display       = "flex";
+  });
+
+  // Modal nuevo reporte
+  document.getElementById("btn-nuevo-reporte").addEventListener("click", () => {
+    const hoy = new Date().toISOString().split("T")[0];
+    document.getElementById("nuevo-rep-hasta").value = hoy;
+    document.getElementById("modal-reporte").style.display = "flex";
+  });
+  document.getElementById("btn-cerrar-rep-modal").addEventListener("click", () =>
+    document.getElementById("modal-reporte").style.display = "none"
+  );
+  document.getElementById("btn-cancelar-rep").addEventListener("click", () =>
+    document.getElementById("modal-reporte").style.display = "none"
+  );
+  document.getElementById("btn-generar-rep").addEventListener("click", () => {
+    const tipo   = document.getElementById("nuevo-rep-tipo").value;
+    const titulo = document.getElementById("nuevo-rep-titulo").value.trim();
+    if (!titulo) { showToast("Escribe un título para el reporte.", "error"); return; }
+    const sesion = AUTH.getSesion();
+    const nuevo  = {
+      id: `rep_${Date.now()}`,
+      tipo,
+      titulo,
+      descripcion: `Reporte generado el ${formatFecha(new Date().toISOString().split("T")[0])}.`,
+      fecha: new Date().toISOString().split("T")[0],
+      generadoPor: sesion?.id ?? "desconocido",
+      datos: generarDatosMock(tipo)
+    };
+    REPORTES.unshift(nuevo);
+    renderRepGrid(REPORTES);
+    showToast("Reporte generado correctamente.");
+    document.getElementById("modal-reporte").style.display = "none";
+  });
+
+  function generarDatosMock(tipo) {
+    if (tipo === "uso" || tipo === "disponibilidad") {
+      return {
+        labels:  ["Lab 1","Lab 2","Lab 3","Lab 4","Lab Redes"],
+        valores: [70,65,50,15,85].map((v) => v + Math.floor(Math.random() * 15))
+      };
+    }
+    if (tipo === "fallas") {
+      return { fallas: [{ equipo:"PC-nuevo", lab:"Lab 1", descripcion:"Falla simulada", estado:"pendiente" }] };
+    }
+    return { total:145, activos:141, enFalla:3, enMantencion:1 };
+  }
+
+  document.getElementById("modal-reporte").addEventListener("click", (e) => {
+    if (e.target === document.getElementById("modal-reporte"))
+      document.getElementById("modal-reporte").style.display = "none";
+  });
+
+  function imprimirReporte() {
+    window.print();
+  }
+</script>
+</body>
+</html>

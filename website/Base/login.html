@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Iniciar sesión · Insuco LabControl</title>
+<link rel="stylesheet" href="style.css" />
+</head>
+<body class="login-body">
+
+<div class="login-card">
+  <div class="login-brand">
+    <div class="login-brand__icon">🖥️</div>
+    <div>
+      <div class="login-brand__name">LabControl</div>
+      <div class="login-brand__sub">Instituto Superior de Comercio</div>
+    </div>
+  </div>
+
+  <h2 class="login-title">Iniciar sesión</h2>
+  <p class="login-desc">Ingresa con tu cuenta institucional</p>
+
+  <form id="login-form" autocomplete="off">
+    <div class="form-group">
+      <label class="form-label" for="input-user">Usuario o correo</label>
+      <input class="form-input" id="input-user" type="text" placeholder="ej. prof_juan" required />
+    </div>
+    <div class="form-group">
+      <label class="form-label" for="input-pass">Contraseña</label>
+      <input class="form-input" id="input-pass" type="password" placeholder="••••••••" required />
+    </div>
+    <div id="login-error" class="login-error" style="display:none">
+      Usuario o contraseña incorrectos.
+    </div>
+    <button class="btn btn--primary login-submit" type="submit">Ingresar</button>
+  </form>
+
+  <div class="login-hint">
+    <strong>Cuentas de prueba:</strong><br>
+    <code>admin</code> / <code>admin123</code> — Administrador<br>
+    <code>prof_juan</code> / <code>juan123</code> — Programación<br>
+    <code>prof_camila</code> / <code>camila123</code> — Otra área
+  </div>
+</div>
+
+<script src="data.js"></script>
+<script>
+  // Si ya hay sesión activa, redirigir al inicio
+  if (AUTH.getSesion()) {
+    window.location.href = "index.html";
+  }
+
+  document.getElementById("login-form").addEventListener("submit", (e) => {
+    e.preventDefault();
+    const user = document.getElementById("input-user").value.trim();
+    const pass = document.getElementById("input-pass").value;
+    const result = AUTH.login(user, pass);
+    if (result) {
+      window.location.href = "index.html";
+    } else {
+      document.getElementById("login-error").style.display = "block";
+    }
+  });
+</script>
+</body>
+</html>

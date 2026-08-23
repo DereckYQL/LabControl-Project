@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Configuración · Insuco LabControl</title>
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+<div class="app-layout">
+
+  <aside class="sidebar">
+    <div class="sidebar__brand">
+      <span class="icon" aria-hidden="true">🖥️</span>
+      Insuco LabControl
+    </div>
+    <nav class="sidebar__nav" id="sidebar-nav" aria-label="Navegación principal"></nav>
+    <div class="sidebar__user">
+      <div class="avatar">--</div>
+      <div>
+        <div class="name">Cargando…</div>
+        <div class="role">—</div>
+      </div>
+    </div>
+  </aside>
+
+  <main class="main-content">
+    <header class="page-header">
+      <div>
+        <h1>Configuración</h1>
+        <p id="cfg-subtitulo">Ajustes de tu cuenta y preferencias personales</p>
+      </div>
+      <button class="btn btn--primary" id="btn-guardar-cfg">Guardar cambios</button>
+    </header>
+
+    <div class="cfg-layout">
+      <!-- Tabs laterales -->
+      <nav class="cfg-sidenav" id="cfg-sidenav"></nav>
+
+      <!-- Paneles -->
+      <div class="cfg-panels" id="cfg-panels"></div>
+    </div>
+  </main>
+</div>
+
+<script src="data.js"></script>
+<script src="app.js"></script>
+<script>
+  renderSidebar("configuracion.html");
+  const esAdmin = AUTH.esAdmin();
+  const sesion  = AUTH.getSesion();
+  const usuario = obtenerUsuarioPorId(sesion?.id);
+
+  if (esAdmin) {
+    document.getElementById("cfg-subtitulo").textContent =
+      "Configuración completa del sistema — modo Administrador";
+  }
+
+  /* -------- Definición de secciones -------- */
+  const SECCIONES_BASE = [
+    { id: "perfil",           icon: "👤", label: "Mi perfil" },
+    { id: "apariencia",       icon: "🎨", label: "Apariencia" },
+    { id: "notificaciones",   icon: "🔔", label: "Notificaciones" },
+    { id: "seguridad",        icon: "🔒", label: "Seguridad" },
+  ];
+
+  const SECCIONES_ADMIN = [
+    { id: "sitio",            icon: "🏫", label: "Sitio web" },
+    { id: "laboratorios-cfg", icon: "🖥️", label: "Laboratorios" },
+    { id: "equipos-cfg",      icon: "💻", label: "Equipos" },
+    { id: "red",              icon: "🌐", label: "Red" },
+    { id: "usuarios-cfg",     icon: "👥", label: "Usuarios" },
+    { id: "sistema",          icon: "⚙️", label: "Sistema" },
+  ];
+
+  const secciones = esAdmin ? [...SECCIONES_BASE, ...SECCIONES_ADMIN] : SECCIONES_BASE;
+
+  /* -------- Construir nav lateral -------- */
+  const sidenav = document.getElementById("cfg-sidenav");
+  sidenav.innerHTML = secciones.map((s, i) => `
+    <button class="cfg-nav-btn ${i === 0 ? "is-active" : ""}"
+      data-section="${s.id}" onclick="cambiarSeccion('${s.id}')">
+      <span>${s.icon}</span> ${s.label}
+    </button>
+  `).join("");
+
+  /* -------- Construir paneles -------- */
+  const panels = document.getElementById("cfg-panels");
+  panels.innerHTML = secciones.map((s, i) => `
+    <div class="cfg-panel ${i === 0 ? "is-active" : ""}" id="panel-${s.id}">
+      ${buildPanel(s.id)}
+    </div>
+  `).join("");
+
+  function cambiarSeccion(id) {
+    document.querySelectorAll(".cfg-nav-btn").forEach((b) =>
+      b.classList.toggle("is-active", b.dataset.section === id)
+    );
+    document.querySelectorAll(".cfg-panel").forEach((p) =>
+      p.classList.toggle("is-active", p.id === `panel-${id}`)
+    );
+  }
+
+  function buildPanel(id) {
+    switch (id) {
+      /* ------- PERFIL ------- */
+      case "perfil": return `
+        <h2 class="cfg-panel__title">Mi perfil</h2>
+        <div class="cfg-section">
+          <div style="display:flex;gap:16px;align-items:center;margin-bottom:20px">
+            <div class="usr-avatar-lg" style="font-size:1.6rem">${usuario?.iniciales ?? "??"}</div>
+            <div>
+              <div style="font-weight:700;font-size:1rem">${usuario ? `${usuario.nombre} ${usuario.apellido}` : "—"}</div>
+              <div style="color:var(--color-text-muted);font-size:.85rem">${usuario?.email ?? "—"}</div>
+              <span class="badge" style="margin-top:6px">${rolLabel(sesion?.rol)}</span>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Nombre</label>
+              <input class="form-input" id="p-nombre" value="${usuario?.nombre ?? ""}" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Apellido</label>
+              <input class="form-input" id="p-apellido" value="${usuario?.apellido ?? ""}" />
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Correo institucional</label>
+            <input class="form-input" id="p-email" type="email" value="${usuario?.email ?? ""}" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Área / Departamento</label>
+            <input class="form-input" id="p-area" value="${usuario?.area ?? ""}" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Especialidad</label>
+            <input class="form-input" id="p-especialidad" value="${usuario?.especialidad ?? ""}" />
+          </div>
+        </div>
+      `;
+
+      /* ------- APARIENCIA ------- */
+      case "apariencia": return `
+        <h2 class="cfg-panel__title">Apariencia</h2>
+        <div class="cfg-section">
+          <div class="form-group">
+            <label class="form-label">Tema de color</label>
+            <div class="tema-grid" id="tema-grid">
+              ${[
+                { id:"dark-sidebar",  label:"Oscuro (por defecto)", bg:"#0f1b2e" },
+                { id:"blue-sidebar",  label:"Azul",                 bg:"#1e3a8a" },
+                { id:"green-sidebar", label:"Verde",                bg:"#14532d" },
+              ].map((t) => `
+                <div class="tema-item ${CONFIG.sitio.tema === t.id ? "is-active" : ""}"
+                  onclick="seleccionarTema('${t.id}', this)"
+                  style="--tema-bg:${t.bg}">
+                  <div class="tema-preview"></div>
+                  <span>${t.label}</span>
+                </div>
+              `).join("")}
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Tamaño de texto</label>
+            <select class="form-input" id="p-texto" style="max-width:200px">
+              <option value="normal">Normal</option>
+              <option value="grande">Grande</option>
+            </select>
+          </div>
+        </div>
+      `;
+
+      /* ------- NOTIFICACIONES ------- */
+      case "notificaciones": return `
+        <h2 class="cfg-panel__title">Notificaciones</h2>
+        <div class="cfg-section">
+          ${[
+            { id:"n-reservas",   label:"Confirmación de reservas",    checked: true },
+            { id:"n-cambios",    label:"Cambios de estado de laboratorio", checked: true },
+            { id:"n-fallas",     label:"Alertas de fallas de equipos", checked: CONFIG.notificaciones?.alertaFallas ?? true },
+            { id:"n-recordator", label:"Recordatorio 30 min antes de reserva", checked: false },
+          ].map((n) => `
+            <label class="toggle-row">
+              <span>${n.label}</span>
+              <div class="toggle ${n.checked ? "toggle--on" : ""}" id="${n.id}"
+                onclick="toggleSwitch('${n.id}')">
+                <div class="toggle__knob"></div>
+              </div>
+            </label>
+          `).join("")}
+        </div>
+      `;
+
+      /* ------- SEGURIDAD ------- */
+      case "seguridad": return `
+        <h2 class="cfg-panel__title">Seguridad de la cuenta</h2>
+        <div class="cfg-section">
+          <div class="form-group">
+            <label class="form-label">Contraseña actual</label>
+            <input class="form-input" id="s-pass-actual" type="password" placeholder="••••••••" style="max-width:280px" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Nueva contraseña</label>
+            <input class="form-input" id="s-pass-nueva" type="password" placeholder="Mínimo 6 caracteres" style="max-width:280px" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Confirmar contraseña</label>
+            <input class="form-input" id="s-pass-confirm" type="password" placeholder="Repite la nueva contraseña" style="max-width:280px" />
+          </div>
+          <button class="btn btn--primary" onclick="cambiarContrasena()" style="margin-top:4px">Cambiar contraseña</button>
+          <hr style="margin:24px 0;border-color:var(--color-border)">
+          <div style="font-weight:600;margin-bottom:10px">Sesión activa</div>
+          <p style="color:var(--color-text-muted);font-size:.88rem;margin-bottom:12px">Usuario: <strong>${sesion?.id}</strong> — Rol: ${rolLabel(sesion?.rol)}</p>
+          <button class="btn btn--danger" onclick="AUTH.logout()">Cerrar sesión</button>
+        </div>
+      `;
+
+      /* ------- SITIO (solo admin) ------- */
+      case "sitio": return `
+        <h2 class="cfg-panel__title">Configuración del sitio web</h2>
+        <div class="cfg-admin-badge">🔑 Solo administradores</div>
+        <div class="cfg-section">
+          <div class="form-group">
+            <label class="form-label">Nombre de la institución</label>
+            <input class="form-input" id="cfg-inst" value="${CONFIG.sitio.nombreInstitucion}" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Nombre del sistema</label>
+            <input class="form-input" id="cfg-sistema" value="${CONFIG.sitio.nombreSistema}" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Idioma</label>
+            <select class="form-input" id="cfg-idioma" style="max-width:200px">
+              <option value="es" selected>Español</option>
+              <option value="en">English</option>
+            </select>
+          </div>
+        </div>
+      `;
+
+      /* ------- LABORATORIOS CFG (solo admin) ------- */
+      case "laboratorios-cfg": return `
+        <h2 class="cfg-panel__title">Configuración de laboratorios</h2>
+        <div class="cfg-admin-badge">🔑 Solo administradores</div>
+        <div class="cfg-section">
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Hora de apertura</label>
+              <input class="form-input" type="time" id="cfg-apertura" value="${CONFIG.laboratorios.horaApertura}" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Hora de cierre</label>
+              <input class="form-input" type="time" id="cfg-cierre" value="${CONFIG.laboratorios.horaCierre}" />
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Anticipación máxima para reservas (días)</label>
+            <input class="form-input" type="number" id="cfg-anticip" value="${CONFIG.laboratorios.anticipacionMaxReserva}" style="max-width:120px" min="1" max="30" />
+          </div>
+          <label class="toggle-row">
+            <span>Permitir reservas de otras áreas</span>
+            <div class="toggle ${CONFIG.laboratorios.permitirReservaExterna ? "toggle--on" : ""}"
+              id="tog-reserva-ext" onclick="toggleSwitch('tog-reserva-ext')">
+              <div class="toggle__knob"></div>
+            </div>
+          </label>
+        </div>
+      `;
+
+      /* ------- EQUIPOS CFG (solo admin) ------- */
+      case "equipos-cfg": return `
+        <h2 class="cfg-panel__title">Configuración de equipos</h2>
+        <div class="cfg-admin-badge">🔑 Solo administradores</div>
+        <div class="cfg-section">
+          <label class="toggle-row">
+            <span>Habilitar control remoto global</span>
+            <div class="toggle toggle--on" id="tog-remoto" onclick="toggleSwitch('tog-remoto')">
+              <div class="toggle__knob"></div>
+            </div>
+          </label>
+          <label class="toggle-row">
+            <span>Apagado automático al cierre</span>
+            <div class="toggle" id="tog-apagado" onclick="toggleSwitch('tog-apagado')">
+              <div class="toggle__knob"></div>
+            </div>
+          </label>
+          <label class="toggle-row">
+            <span>Monitoreo de estado en tiempo real</span>
+            <div class="toggle toggle--on" id="tog-monitor" onclick="toggleSwitch('tog-monitor')">
+              <div class="toggle__knob"></div>
+            </div>
+          </label>
+          <div class="form-group" style="margin-top:14px">
+            <label class="form-label">Intervalo de actualización (segundos)</label>
+            <input class="form-input" type="number" id="cfg-intervalo" value="30" min="5" max="300" style="max-width:120px" />
+          </div>
+        </div>
+      `;
+
+      /* ------- RED (solo admin) ------- */
+      case "red": return `
+        <h2 class="cfg-panel__title">Configuración de red</h2>
+        <div class="cfg-admin-badge">🔑 Solo administradores</div>
+        <div class="cfg-section">
+          <div class="form-group">
+            <label class="form-label">Subred de laboratorios</label>
+            <input class="form-input" id="cfg-subred" value="${CONFIG.red.subredLabs}" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Servidor DNS</label>
+            <input class="form-input" id="cfg-dns" value="${CONFIG.red.servidorDNS}" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Puerta de enlace</label>
+            <input class="form-input" id="cfg-gateway" value="${CONFIG.red.puertaEnlace}" />
+          </div>
+          <label class="toggle-row">
+            <span>Red WiFi habilitada en laboratorios</span>
+            <div class="toggle ${CONFIG.red.wifiHabilitado ? "toggle--on" : ""}"
+              id="tog-wifi" onclick="toggleSwitch('tog-wifi')">
+              <div class="toggle__knob"></div>
+            </div>
+          </label>
+        </div>
+      `;
+
+      /* ------- USUARIOS CFG (solo admin) ------- */
+      case "usuarios-cfg": return `
+        <h2 class="cfg-panel__title">Configuración de usuarios</h2>
+        <div class="cfg-admin-badge">🔑 Solo administradores</div>
+        <div class="cfg-section">
+          <div class="form-group">
+            <label class="form-label">Correo del administrador</label>
+            <input class="form-input" id="cfg-email-admin" type="email" value="${CONFIG.notificaciones.emailAdmin}" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Tiempo de inactividad para cierre de sesión (minutos)</label>
+            <input class="form-input" type="number" id="cfg-timeout" value="${CONFIG.seguridad.sesionTimeout}" min="5" max="120" style="max-width:120px" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Intentos de login antes de bloqueo</label>
+            <input class="form-input" type="number" id="cfg-intentos" value="${CONFIG.seguridad.intentosLoginMax}" min="3" max="10" style="max-width:120px" />
+          </div>
+          <label class="toggle-row">
+            <span>Registro de actividad de usuarios</span>
+            <div class="toggle ${CONFIG.seguridad.registroActividad ? "toggle--on" : ""}"
+              id="tog-registro" onclick="toggleSwitch('tog-registro')">
+              <div class="toggle__knob"></div>
+            </div>
+          </label>
+        </div>
+      `;
+
+      /* ------- SISTEMA (solo admin) ------- */
+      case "sistema": return `
+        <h2 class="cfg-panel__title">Sistema</h2>
+        <div class="cfg-admin-badge">🔑 Solo administradores</div>
+        <div class="cfg-section">
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:20px">
+            <div class="cfg-sys-card">
+              <div class="cfg-sys-card__label">Versión del sistema</div>
+              <div class="cfg-sys-card__value">LabControl v1.0</div>
+            </div>
+            <div class="cfg-sys-card">
+              <div class="cfg-sys-card__label">Total laboratorios</div>
+              <div class="cfg-sys-card__value">5</div>
+            </div>
+            <div class="cfg-sys-card">
+              <div class="cfg-sys-card__label">Total equipos</div>
+              <div class="cfg-sys-card__value">145</div>
+            </div>
+            <div class="cfg-sys-card">
+              <div class="cfg-sys-card__label">Usuarios registrados</div>
+              <div class="cfg-sys-card__value">${USUARIOS.length}</div>
+            </div>
+          </div>
+          <hr style="border-color:var(--color-border);margin-bottom:16px">
+          <div style="font-weight:600;margin-bottom:10px;color:var(--color-danger)">Zona peligrosa</div>
+          <button class="btn btn--danger" onclick="if(confirm('¿Restablecer configuración de fábrica?'))showToast('Configuración restablecida.','success')">
+            ⚠ Restablecer configuración de fábrica
+          </button>
+        </div>
+      `;
+
+      default: return `<p style="color:var(--color-text-muted)">Sección no disponible.</p>`;
+    }
+  }
+
+  /* -------- Helpers de UI -------- */
+
+  function toggleSwitch(id) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.classList.toggle("toggle--on");
+  }
+
+  function seleccionarTema(temaId, el) {
+    document.querySelectorAll(".tema-item").forEach((t) => t.classList.remove("is-active"));
+    el.classList.add("is-active");
+    CONFIG.sitio.tema = temaId;
+  }
+
+  function cambiarContrasena() {
+    const actual   = document.getElementById("s-pass-actual").value;
+    const nueva    = document.getElementById("s-pass-nueva").value;
+    const confirma = document.getElementById("s-pass-confirm").value;
+    if (!actual || !nueva) { showToast("Completa todos los campos.", "error"); return; }
+    if (nueva !== confirma) { showToast("Las contraseñas no coinciden.", "error"); return; }
+    if (nueva.length < 6)   { showToast("La contraseña debe tener al menos 6 caracteres.", "error"); return; }
+    const usr = USUARIOS.find((u) => u.id === sesion?.id);
+    if (usr && usr.password !== actual) { showToast("La contraseña actual es incorrecta.", "error"); return; }
+    if (usr) usr.password = nueva;
+    showToast("Contraseña actualizada correctamente.");
+    ["s-pass-actual","s-pass-nueva","s-pass-confirm"].forEach((id) =>
+      document.getElementById(id).value = ""
+    );
+  }
+
+  /* -------- Guardar cambios -------- */
+  document.getElementById("btn-guardar-cfg").addEventListener("click", () => {
+    // Actualizar perfil si se ha editado
+    const usr = USUARIOS.find((u) => u.id === sesion?.id);
+    const nombre = document.getElementById("p-nombre")?.value.trim();
+    const apellido = document.getElementById("p-apellido")?.value.trim();
+    if (usr && nombre) { usr.nombre = nombre; }
+    if (usr && apellido) { usr.apellido = apellido; }
+
+    // Config admin — laboratorios
+    const apertura = document.getElementById("cfg-apertura")?.value;
+    const cierre   = document.getElementById("cfg-cierre")?.value;
+    if (apertura) CONFIG.laboratorios.horaApertura = apertura;
+    if (cierre)   CONFIG.laboratorios.horaCierre   = cierre;
+
+    showToast("Configuración guardada correctamente.");
+  });
+</script>
+</body>
+</html>

@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Equipos · Insuco LabControl</title>
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+<div class="app-layout">
+
+  <aside class="sidebar">
+    <div class="sidebar__brand">
+      <span class="icon" aria-hidden="true">🖥️</span>
+      Insuco LabControl
+    </div>
+    <nav class="sidebar__nav" id="sidebar-nav" aria-label="Navegación principal"></nav>
+    <div class="sidebar__user">
+      <div class="avatar">--</div>
+      <div>
+        <div class="name">Cargando…</div>
+        <div class="role">—</div>
+      </div>
+    </div>
+  </aside>
+
+  <main class="main-content">
+    <header class="page-header">
+      <div>
+        <h1>Equipos</h1>
+        <p>Inventario de equipos por laboratorio</p>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <select class="form-input" id="filtro-lab" style="width:200px;margin:0">
+          <option value="">Todos los laboratorios</option>
+        </select>
+        <select class="form-input" id="filtro-estado-eq" style="width:160px;margin:0">
+          <option value="">Todos los estados</option>
+          <option value="activo">Activo</option>
+          <option value="mantencion">Mantención</option>
+          <option value="falla">Falla</option>
+        </select>
+        <input class="form-input" id="filtro-busqueda-eq" type="search"
+          placeholder="Buscar equipo…" style="width:170px;margin:0" />
+      </div>
+    </header>
+
+    <!-- Aviso de acceso limitado (otros profesores) -->
+    <div id="aviso-basico" class="access-notice" style="display:none;margin-bottom:16px">
+      <span>ℹ️</span>
+      <div>
+        <strong>Información básica</strong>
+        <p>Estás viendo información superficial de los equipos. Los profesores de Programación y el Administrador tienen acceso a datos técnicos completos y control remoto.</p>
+      </div>
+    </div>
+
+    <!-- Stat cards rápidas -->
+    <div class="stat-grid" id="eq-stats" style="margin-bottom:20px"></div>
+
+    <!-- Vista de LISTADO -->
+    <div id="vista-listado-eq">
+      <div class="card">
+        <div class="table-wrap">
+          <table id="tabla-equipos">
+            <thead id="thead-equipos"></thead>
+            <tbody id="tbody-equipos"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Vista de DETALLE equipo -->
+    <div id="vista-detalle-eq" style="display:none">
+      <div style="margin-bottom:14px">
+        <button class="btn" id="btn-volver-eq">← Volver al listado</button>
+      </div>
+      <div class="card">
+        <div style="padding:20px 20px 0">
+          <div style="display:flex;gap:16px;align-items:center;flex-wrap:wrap">
+            <div style="width:64px;height:64px;border-radius:12px;background:#1a2740;
+              display:flex;align-items:center;justify-content:center;font-size:2rem;flex-shrink:0">💻</div>
+            <div style="flex:1">
+              <div style="font-weight:700;font-size:1.15rem" id="eq-nombre"></div>
+              <div style="color:var(--color-text-muted);font-size:.85rem" id="eq-lab-nombre"></div>
+              <span class="badge" id="eq-estado-badge" style="margin-top:6px"></span>
+            </div>
+            <!-- Controles remotos — solo programación/admin -->
+            <div id="panel-control-remoto" style="display:none">
+              <div class="remote-panel">
+                <div class="remote-panel__title">Control remoto</div>
+                <div class="remote-panel__btns">
+                  <button class="btn btn--success" onclick="accionRemota('encender')">▶ Encender</button>
+                  <button class="btn btn--danger"  onclick="accionRemota('apagar')">■ Apagar</button>
+                  <button class="btn"              onclick="accionRemota('reiniciar')">↺ Reiniciar</button>
+                  <button class="btn"              onclick="accionRemota('bloquear')">🔒 Bloquear</button>
+                  <button class="btn"              onclick="accionRemota('captura')">📷 Captura</button>
+                  <button class="btn"              onclick="accionRemota('shutdown_all')">⚠ Apagar todos</button>
+                </div>
+                <div class="remote-log" id="remote-log">
+                  <span style="color:var(--color-text-muted);font-size:.8rem">Historial de acciones remotas…</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="tabs" style="margin-top:16px">
+          <button class="tab-btn is-active" data-tab="eq-general">Información</button>
+          <button class="tab-btn" data-tab="eq-hardware">Hardware</button>
+          <button class="tab-btn" data-tab="eq-red">Red</button>
+          <button class="tab-btn" data-tab="eq-obs">Observaciones</button>
+        </div>
+
+        <div class="tab-panel is-active" data-panel="eq-general">
+          <dl class="info-grid" id="eq-info-general"></dl>
+        </div>
+        <div class="tab-panel" data-panel="eq-hardware">
+          <dl class="info-grid" id="eq-info-hardware"></dl>
+          <div id="eq-lock" class="access-notice" style="display:none">
+            <span>🔒</span>
+            <div>
+              <strong>Información técnica restringida</strong>
+              <p>Solo profesores de Programación y el Administrador pueden ver los datos de hardware.</p>
+            </div>
+          </div>
+        </div>
+        <div class="tab-panel" data-panel="eq-red">
+          <dl class="info-grid" id="eq-info-red"></dl>
+          <div id="eq-red-lock" class="access-notice" style="display:none">
+            <span>🔒</span>
+            <div>
+              <strong>Información de red restringida</strong>
+              <p>Solo profesores de Programación y el Administrador pueden ver los datos de red.</p>
+            </div>
+          </div>
+        </div>
+        <div class="tab-panel" data-panel="eq-obs">
+          <p id="eq-observaciones" style="color:var(--color-text-muted);font-size:.9rem;padding:0 4px"></p>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<script src="data.js"></script>
+<script src="app.js"></script>
+<script>
+  renderSidebar("equipos.html");
+  initTabs();
+
+  const esTecnico = AUTH.puedeVerTecnico();
+  const esRemoto  = AUTH.puedeControlRemoto();
+  const labFiltro = getQueryParam("lab");
+
+  // Aviso de acceso básico
+  if (!esTecnico) {
+    document.getElementById("aviso-basico").style.display = "flex";
+  }
+
+  // Cabecera de tabla según rol
+  function buildThead() {
+    const base = ["Equipo","Laboratorio","Tipo","Fabricante","Estado"];
+    const tecnico = ["Procesador","RAM","Almacenamiento","SO"];
+    const cols = esTecnico ? [...base, ...tecnico, "Acción"] : [...base, "Acción"];
+    document.getElementById("thead-equipos").innerHTML =
+      `<tr>${cols.map((c) => `<th>${c}</th>`).join("")}</tr>`;
+  }
+
+  let equiposCache = [];
+  let labsCache    = [];
+
+  Promise.all([cargarEquipos(), cargarLaboratorios()]).then(([equipos, labs]) => {
+    equiposCache = equipos;
+    labsCache    = labs;
+
+    // Llenar select de labs
+    const sel = document.getElementById("filtro-lab");
+    labs.forEach((l) => {
+      const opt = document.createElement("option");
+      opt.value       = l.id;
+      opt.textContent = l.nombre;
+      sel.appendChild(opt);
+    });
+    if (labFiltro) sel.value = labFiltro;
+
+    buildThead();
+    renderEstadisticas(equipos);
+    renderTabla(equipos, labs);
+  });
+
+  // Filtros
+  ["filtro-lab","filtro-estado-eq","filtro-busqueda-eq"].forEach((id) => {
+    document.getElementById(id).addEventListener("input", aplicarFiltros);
+  });
+
+  function aplicarFiltros() {
+    const lab    = document.getElementById("filtro-lab").value;
+    const estado = document.getElementById("filtro-estado-eq").value;
+    const q      = document.getElementById("filtro-busqueda-eq").value.toLowerCase();
+    const filtrados = equiposCache.filter((e) =>
+      (!lab    || e.labId === Number(lab)) &&
+      (!estado || e.estado === estado) &&
+      (!q      || e.nombre.toLowerCase().includes(q) || e.ip?.toLowerCase().includes(q))
+    );
+    renderTabla(filtrados, labsCache);
+  }
+
+  function renderEstadisticas(equipos) {
+    const activos    = equipos.filter((e) => e.estado === "activo").length;
+    const mantencion = equipos.filter((e) => e.estado === "mantencion").length;
+    const falla      = equipos.filter((e) => e.estado === "falla").length;
+    document.getElementById("eq-stats").innerHTML = `
+      <div class="card stat-card">
+        <div><div class="stat-card__label">Total</div><div class="stat-card__value">${equipos.length}</div></div>
+        <div class="stat-card__icon stat-card__icon--primary">💻</div>
+      </div>
+      <div class="card stat-card">
+        <div><div class="stat-card__label">Activos</div><div class="stat-card__value">${activos}</div></div>
+        <div class="stat-card__icon stat-card__icon--success">✅</div>
+      </div>
+      <div class="card stat-card">
+        <div><div class="stat-card__label">En mantención</div><div class="stat-card__value">${mantencion}</div></div>
+        <div class="stat-card__icon stat-card__icon--warning">🔧</div>
+      </div>
+      <div class="card stat-card">
+        <div><div class="stat-card__label">Con falla</div><div class="stat-card__value">${falla}</div></div>
+        <div class="stat-card__icon stat-card__icon--danger">⚠️</div>
+      </div>
+    `;
+  }
+
+  function renderTabla(equipos, labs) {
+    const tbody = document.getElementById("tbody-equipos");
+    if (!equipos.length) {
+      tbody.innerHTML = `<tr><td colspan="10" style="text-align:center;color:var(--color-text-muted);padding:24px">No hay equipos que mostrar</td></tr>`;
+      return;
+    }
+    const ee = ESTADOS_EQUIPO;
+    tbody.innerHTML = equipos.slice(0, 100).map((e) => {
+      const lab    = labs.find((l) => l.id === e.labId);
+      const estCls = ee[e.estado]?.clase ?? "badge--muted";
+      const estLbl = ee[e.estado]?.label ?? e.estado;
+      const base = `
+        <td><strong>${e.nombre}</strong></td>
+        <td>${lab?.nombre ?? "—"}</td>
+        <td>${e.tipo}</td>
+        <td>${e.fabricante} ${e.modelo}</td>
+        <td><span class="badge ${estCls}">${estLbl}</span></td>
+      `;
+      const tec = esTecnico ? `
+        <td>${e.procesador}</td>
+        <td>${e.ram}</td>
+        <td>${e.almacenamiento}</td>
+        <td>${e.so}</td>
+      ` : "";
+      return `<tr>${base}${tec}
+        <td><button class="btn btn--sm" onclick="abrirDetalle('${e.id}')">Detalles</button></td>
+      </tr>`;
+    }).join("");
+    if (equipos.length > 100) {
+      tbody.innerHTML += `<tr><td colspan="10" style="text-align:center;color:var(--color-text-muted);padding:12px;font-size:.82rem">
+        Mostrando primeros 100 de ${equipos.length} equipos. Usa los filtros para acotar.
+      </td></tr>`;
+    }
+  }
+
+  function abrirDetalle(eqId) {
+    const eq  = equiposCache.find((e) => e.id === eqId);
+    const lab = labsCache.find((l) => l.id === eq.labId);
+    if (!eq) return;
+
+    const ee = ESTADOS_EQUIPO;
+    document.getElementById("vista-listado-eq").style.display = "none";
+    document.getElementById("vista-detalle-eq").style.display = "block";
+
+    document.getElementById("eq-nombre").textContent      = eq.nombre;
+    document.getElementById("eq-lab-nombre").textContent  = lab?.nombre ?? "—";
+
+    const badge = document.getElementById("eq-estado-badge");
+    badge.textContent = ee[eq.estado]?.label ?? eq.estado;
+    badge.className   = `badge ${ee[eq.estado]?.clase ?? "badge--muted"}`;
+
+    // Control remoto
+    document.getElementById("panel-control-remoto").style.display = esRemoto ? "block" : "none";
+
+    // Info general (accesible para todos)
+    document.getElementById("eq-info-general").innerHTML = `
+      <div><dt>ID Equipo</dt><dd>${eq.id}</dd></div>
+      <div><dt>Tipo</dt><dd>${eq.tipo}</dd></div>
+      <div><dt>Fabricante</dt><dd>${eq.fabricante}</dd></div>
+      <div><dt>Modelo</dt><dd>${eq.modelo}</dd></div>
+      <div><dt>Laboratorio</dt><dd>${lab?.nombre ?? "—"}</dd></div>
+      <div><dt>Último encendido</dt><dd>${eq.ultimoEncendido}</dd></div>
+    `;
+
+    // Hardware — solo técnicos
+    const hwEl   = document.getElementById("eq-info-hardware");
+    const lockEl = document.getElementById("eq-lock");
+    if (esTecnico) {
+      lockEl.style.display = "none";
+      hwEl.innerHTML = `
+        <div><dt>Procesador</dt><dd>${eq.procesador}</dd></div>
+        <div><dt>RAM</dt><dd>${eq.ram}</dd></div>
+        <div><dt>Almacenamiento</dt><dd>${eq.almacenamiento}</dd></div>
+        <div><dt>Sistema operativo</dt><dd>${eq.so}</dd></div>
+        <div><dt>Monitor</dt><dd>${eq.monitor}</dd></div>
+        <div><dt>Teclado</dt><dd>${eq.teclado}</dd></div>
+        <div><dt>Mouse</dt><dd>${eq.mouse}</dd></div>
+        <div><dt>N° de serie</dt><dd>${eq.serie}</dd></div>
+      `;
+    } else {
+      hwEl.innerHTML = "";
+      lockEl.style.display = "flex";
+    }
+
+    // Red — solo técnicos
+    const redEl      = document.getElementById("eq-info-red");
+    const redLockEl  = document.getElementById("eq-red-lock");
+    if (esTecnico) {
+      redLockEl.style.display = "none";
+      redEl.innerHTML = `
+        <div><dt>Dirección IP</dt><dd>${eq.ip}</dd></div>
+        <div><dt>Dirección MAC</dt><dd>${eq.mac}</dd></div>
+        <div><dt>Estado de red</dt><dd>Conectado</dd></div>
+      `;
+    } else {
+      redEl.innerHTML = "";
+      redLockEl.style.display = "flex";
+    }
+
+    // Observaciones
+    document.getElementById("eq-observaciones").textContent =
+      eq.observaciones || "Sin observaciones registradas.";
+
+    document.getElementById("remote-log").innerHTML =
+      `<span style="color:var(--color-text-muted);font-size:.8rem">Historial de acciones remotas para ${eq.nombre}…</span>`;
+  }
+
+  document.getElementById("btn-volver-eq").addEventListener("click", () => {
+    document.getElementById("vista-listado-eq").style.display = "block";
+    document.getElementById("vista-detalle-eq").style.display = "none";
+  });
+
+  function accionRemota(accion) {
+    const nombres = {
+      encender:     "Encender equipo",
+      apagar:       "Apagar equipo",
+      reiniciar:    "Reiniciar equipo",
+      bloquear:     "Bloquear pantalla",
+      captura:      "Captura de pantalla",
+      shutdown_all: "Apagar TODOS los equipos del laboratorio"
+    };
+    const log   = document.getElementById("remote-log");
+    const ahora = new Date().toLocaleTimeString("es-CL");
+    const entry = document.createElement("div");
+    entry.style.cssText = "font-size:.8rem;padding:3px 0;border-bottom:1px solid var(--color-border)";
+    entry.innerHTML = `<span style="color:var(--color-text-muted)">${ahora}</span> — ${nombres[accion] ?? accion} <span style="color:var(--color-success)">✓ enviado</span>`;
+    // Remover placeholder si existe
+    log.querySelector("span")?.remove();
+    log.prepend(entry);
+    showToast(`Comando "${nombres[accion]}" enviado correctamente.`);
+  }
+</script>
+</body>
+</html>

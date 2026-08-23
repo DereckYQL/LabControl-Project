@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Disponibilidad · Insuco LabControl</title>
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+<div class="app-layout">
+
+  <aside class="sidebar">
+    <div class="sidebar__brand">
+      <span class="icon" aria-hidden="true">🖥️</span>
+      Insuco LabControl
+    </div>
+    <nav class="sidebar__nav" id="sidebar-nav" aria-label="Navegación principal"></nav>
+    <div class="sidebar__user">
+      <div class="avatar">--</div>
+      <div>
+        <div class="name">Cargando…</div>
+        <div class="role">—</div>
+      </div>
+    </div>
+  </aside>
+
+  <main class="main-content">
+    <header class="page-header">
+      <div>
+        <h1>Disponibilidad de laboratorios</h1>
+        <p>Estado actual, horarios y agenda de reservas</p>
+      </div>
+      <button class="btn btn--primary" id="btn-nueva-reserva">+ Nueva reserva</button>
+    </header>
+
+    <!-- Tarjetas de estado rápido -->
+    <div class="stat-grid" id="disp-stats"></div>
+
+    <!-- Tabla de disponibilidad -->
+    <div class="card" style="margin-bottom:20px">
+      <div class="section-title">Estado actual</div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Laboratorio</th>
+              <th>Sala</th>
+              <th>Equipos</th>
+              <th>Estado</th>
+              <th>Horario</th>
+              <th>Responsable</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody id="tabla-disponibilidad"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Agenda de reservas -->
+    <div class="card">
+      <div class="section-title">Agenda de reservas</div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Laboratorio</th>
+              <th>Fecha</th>
+              <th>Horario</th>
+              <th>Motivo</th>
+              <th>Solicitado por</th>
+              <th>Estado</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="tabla-agenda"></tbody>
+        </table>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- Modal: cambiar estado -->
+<div class="modal-overlay" id="modal-estado" style="display:none" role="dialog" aria-modal="true">
+  <div class="modal">
+    <div class="modal__header">
+      <span class="modal__title">Cambiar estado del laboratorio</span>
+      <button class="modal__close" id="btn-cerrar-estado">✕</button>
+    </div>
+    <div class="modal__body">
+      <p id="modal-estado-lab" style="font-weight:600;margin-bottom:12px"></p>
+      <div class="form-group">
+        <label class="form-label">Nuevo estado</label>
+        <select class="form-input" id="select-nuevo-estado">
+          <option value="disponible">Disponible</option>
+          <option value="ocupado">Ocupado</option>
+          <option value="mantencion">Mantención</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal__footer">
+      <button class="btn" id="btn-cancelar-estado">Cancelar</button>
+      <button class="btn btn--primary" id="btn-guardar-estado">Guardar cambio</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: nueva reserva -->
+<div class="modal-overlay" id="modal-reserva" style="display:none" role="dialog" aria-modal="true">
+  <div class="modal">
+    <div class="modal__header">
+      <span class="modal__title">Agendar uso de laboratorio</span>
+      <button class="modal__close" id="btn-cerrar-reserva">✕</button>
+    </div>
+    <div class="modal__body">
+      <div class="form-group">
+        <label class="form-label">Laboratorio</label>
+        <select class="form-input" id="res-lab"></select>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Fecha</label>
+          <input class="form-input" type="date" id="res-fecha" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Hora inicio</label>
+          <input class="form-input" type="time" id="res-inicio" value="08:00" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Hora fin</label>
+          <input class="form-input" type="time" id="res-fin" value="10:00" />
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Motivo / Actividad</label>
+        <input class="form-input" type="text" id="res-motivo" placeholder="Ej: Clase de Estadística aplicada" />
+      </div>
+    </div>
+    <div class="modal__footer">
+      <button class="btn" id="btn-cancelar-reserva">Cancelar</button>
+      <button class="btn btn--primary" id="btn-guardar-reserva">Confirmar reserva</button>
+    </div>
+  </div>
+</div>
+
+<script src="data.js"></script>
+<script src="app.js"></script>
+<script>
+  renderSidebar("disponibilidad.html");
+  const sesion = AUTH.getSesion();
+  let labSeleccionado = null;
+
+  function renderDispStats(labs) {
+    const el = document.getElementById("disp-stats");
+    const disponibles = labs.filter((l) => l.estado === "disponible").length;
+    const ocupados    = labs.filter((l) => l.estado === "ocupado").length;
+    const mantencion  = labs.filter((l) => l.estado === "mantencion").length;
+    el.innerHTML = `
+      <div class="card stat-card">
+        <div><div class="stat-card__label">Disponibles</div><div class="stat-card__value">${disponibles}</div></div>
+        <div class="stat-card__icon stat-card__icon--success">✅</div>
+      </div>
+      <div class="card stat-card">
+        <div><div class="stat-card__label">Ocupados</div><div class="stat-card__value">${ocupados}</div></div>
+        <div class="stat-card__icon stat-card__icon--danger">⛔</div>
+      </div>
+      <div class="card stat-card">
+        <div><div class="stat-card__label">Mantención</div><div class="stat-card__value">${mantencion}</div></div>
+        <div class="stat-card__icon stat-card__icon--warning">🔧</div>
+      </div>
+      <div class="card stat-card">
+        <div><div class="stat-card__label">Total</div><div class="stat-card__value">${labs.length}</div></div>
+        <div class="stat-card__icon stat-card__icon--primary">🏫</div>
+      </div>
+    `;
+  }
+
+  function renderTablaDisp(labs) {
+    const tbody = document.getElementById("tabla-disponibilidad");
+    tbody.innerHTML = labs.map((lab) => {
+      const est = ESTADOS[lab.estado];
+      return `
+        <tr>
+          <td><strong>${lab.nombre}</strong></td>
+          <td>${lab.sala}</td>
+          <td>${lab.equipos}</td>
+          <td><span class="badge badge--${lab.estado}">${est.label}</span></td>
+          <td>${lab.horario}</td>
+          <td>${lab.responsable}</td>
+          <td style="display:flex;gap:6px;flex-wrap:wrap">
+            <button class="btn btn--sm" onclick="abrirModalEstado(${lab.id})">Cambiar estado</button>
+            <a class="btn btn--sm" href="laboratorios.html?id=${lab.id}">Ver detalles</a>
+          </td>
+        </tr>
+      `;
+    }).join("");
+  }
+
+  function renderTablaAgenda(agenda, labs) {
+    const tbody = document.getElementById("tabla-agenda");
+    if (!agenda.length) {
+      tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;color:var(--color-text-muted);padding:24px">Sin reservas registradas</td></tr>`;
+      return;
+    }
+    tbody.innerHTML = agenda.map((res) => {
+      const lab = labs.find((l) => l.id === res.labId);
+      const usr = obtenerUsuarioPorId(res.usuarioId);
+      const claseEstado = res.estado === "confirmada" ? "badge--disponible" : "badge--mantencion";
+      return `
+        <tr>
+          <td>${lab?.nombre ?? "—"}</td>
+          <td>${formatFecha(res.fecha)}</td>
+          <td>${res.horaInicio} – ${res.horaFin}</td>
+          <td>${res.motivo}</td>
+          <td>${usr ? `${usr.nombre} ${usr.apellido}` : res.usuarioId}</td>
+          <td><span class="badge ${claseEstado}">${res.estado}</span></td>
+          <td>${res.usuarioId === sesion?.id || AUTH.esAdmin()
+            ? `<button class="btn btn--sm btn--danger" onclick="cancelarReserva('${res.id}')">Cancelar</button>`
+            : "—"}</td>
+        </tr>
+      `;
+    }).join("");
+  }
+
+  function abrirModalEstado(labId) {
+    labSeleccionado = labId;
+    const lab = obtenerLaboratorioPorId(labId);
+    document.getElementById("modal-estado-lab").textContent = `Laboratorio: ${lab.nombre} (${lab.sala})`;
+    document.getElementById("select-nuevo-estado").value = lab.estado;
+    document.getElementById("modal-estado").style.display = "flex";
+  }
+
+  function cancelarReserva(id) {
+    const idx = AGENDA.findIndex((r) => r.id === id);
+    if (idx !== -1) {
+      AGENDA.splice(idx, 1);
+      cargarAgenda().then((ag) => cargarLaboratorios().then((labs) => renderTablaAgenda(ag, labs)));
+      showToast("Reserva cancelada correctamente.");
+    }
+  }
+
+  // Modal estado
+  document.getElementById("btn-cerrar-estado").addEventListener("click", () =>
+    document.getElementById("modal-estado").style.display = "none"
+  );
+  document.getElementById("btn-cancelar-estado").addEventListener("click", () =>
+    document.getElementById("modal-estado").style.display = "none"
+  );
+  document.getElementById("btn-guardar-estado").addEventListener("click", () => {
+    const nuevoEstado = document.getElementById("select-nuevo-estado").value;
+    const lab = LABORATORIOS.find((l) => l.id === labSeleccionado);
+    if (lab) {
+      lab.estado = nuevoEstado;
+      cargarLaboratorios().then((labs) => {
+        renderDispStats(labs);
+        renderTablaDisp(labs);
+      });
+      showToast(`Estado actualizado a "${ESTADOS[nuevoEstado].label}".`);
+    }
+    document.getElementById("modal-estado").style.display = "none";
+  });
+
+  // Modal reserva
+  document.getElementById("btn-nueva-reserva").addEventListener("click", () => {
+    cargarLaboratorios().then((labs) => {
+      const sel = document.getElementById("res-lab");
+      sel.innerHTML = labs.map((l) => `<option value="${l.id}">${l.nombre} — ${l.sala}</option>`).join("");
+    });
+    // Fecha mínima: hoy
+    const hoy = new Date().toISOString().split("T")[0];
+    document.getElementById("res-fecha").value = hoy;
+    document.getElementById("res-fecha").min = hoy;
+    document.getElementById("modal-reserva").style.display = "flex";
+  });
+  document.getElementById("btn-cerrar-reserva").addEventListener("click", () =>
+    document.getElementById("modal-reserva").style.display = "none"
+  );
+  document.getElementById("btn-cancelar-reserva").addEventListener("click", () =>
+    document.getElementById("modal-reserva").style.display = "none"
+  );
+  document.getElementById("btn-guardar-reserva").addEventListener("click", () => {
+    const labId   = Number(document.getElementById("res-lab").value);
+    const fecha   = document.getElementById("res-fecha").value;
+    const inicio  = document.getElementById("res-inicio").value;
+    const fin     = document.getElementById("res-fin").value;
+    const motivo  = document.getElementById("res-motivo").value.trim();
+    if (!fecha || !motivo) { showToast("Completa todos los campos.", "error"); return; }
+    const nuevaRes = {
+      id: `res_${Date.now()}`,
+      labId,
+      usuarioId: sesion?.id ?? "desconocido",
+      fecha,
+      horaInicio: inicio,
+      horaFin: fin,
+      motivo,
+      estado: "pendiente"
+    };
+    AGENDA.push(nuevaRes);
+    cargarAgenda().then((ag) => cargarLaboratorios().then((labs) => renderTablaAgenda(ag, labs)));
+    showToast("Reserva agendada correctamente.");
+    document.getElementById("modal-reserva").style.display = "none";
+  });
+
+  // Cerrar modal al hacer clic en overlay
+  document.querySelectorAll(".modal-overlay").forEach((overlay) => {
+    overlay.addEventListener("click", (e) => {
+      if (e.target === overlay) overlay.style.display = "none";
+    });
+  });
+
+  // Carga inicial
+  Promise.all([cargarLaboratorios(), cargarAgenda()]).then(([labs, agenda]) => {
+    renderDispStats(labs);
+    renderTablaDisp(labs);
+    renderTablaAgenda(agenda, labs);
+  });
+</script>
+</body>
+</html>

@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Usuarios · LabControl Insuco </title>
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+<div class="app-layout">
+
+  <aside class="sidebar">
+    <div class="sidebar__brand">
+      <span class="icon" aria-hidden="true">🖥️</span>
+      Insuco LabControl
+    </div>
+    <nav class="sidebar__nav" id="sidebar-nav" aria-label="Navegación principal"></nav>
+    <div class="sidebar__user">
+      <div class="avatar">--</div>
+      <div>
+        <div class="name">Cargando…</div>
+        <div class="role">—</div>
+      </div>
+    </div>
+  </aside>
+
+  <main class="main-content">
+    <header class="page-header">
+      <div>
+        <h1>Usuarios</h1>
+        <p>Profesores del establecimiento, áreas y niveles de acceso</p>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+        <select class="form-input" id="filtro-rol" style="width:180px;margin:0">
+          <option value="">Todos los roles</option>
+          <option value="admin">Administrador</option>
+          <option value="programacion">Programación</option>
+          <option value="otro_area">Otra área</option>
+        </select>
+        <input class="form-input" id="filtro-busq-usr" type="search"
+          placeholder="Buscar…" style="width:170px;margin:0" />
+        <button class="btn btn--primary" id="btn-nuevo-usuario">+ Nuevo usuario</button>
+      </div>
+    </header>
+
+    <!-- Tarjetas de resumen -->
+    <div class="stat-grid" id="usr-stats" style="margin-bottom:20px"></div>
+
+    <!-- Grid de tarjetas de usuario -->
+    <div class="usr-grid" id="usr-grid"></div>
+
+    <!-- Vista detalle de usuario -->
+    <div id="vista-usr-detalle" style="display:none;margin-top:10px">
+      <div style="margin-bottom:14px">
+        <button class="btn" id="btn-volver-usr">← Volver a usuarios</button>
+      </div>
+      <div class="card">
+        <div style="padding:24px 24px 0">
+          <div style="display:flex;gap:20px;align-items:flex-start;flex-wrap:wrap">
+            <div class="usr-avatar-lg" id="det-avatar"></div>
+            <div style="flex:1">
+              <div style="font-weight:700;font-size:1.25rem" id="det-nombre"></div>
+              <div style="color:var(--color-text-muted);font-size:.9rem;margin-top:2px" id="det-email"></div>
+              <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
+                <span class="badge" id="det-rol-badge"></span>
+                <span class="badge badge--muted" id="det-nivel-badge"></span>
+              </div>
+            </div>
+            <div id="det-acciones-admin" style="display:none;gap:8px">
+              <button class="btn" id="btn-editar-usr">Editar</button>
+              <button class="btn btn--danger" id="btn-desactivar-usr">Desactivar</button>
+            </div>
+          </div>
+
+          <div class="tabs" style="margin-top:20px">
+            <button class="tab-btn is-active" data-tab="det-info">Información</button>
+            <button class="tab-btn" data-tab="det-permisos">Permisos</button>
+            <button class="tab-btn" data-tab="det-actividad">Actividad</button>
+          </div>
+        </div>
+
+        <div class="tab-panel is-active" data-panel="det-info" style="padding:20px">
+          <dl class="info-grid" id="det-info-grid"></dl>
+        </div>
+
+        <div class="tab-panel" data-panel="det-permisos" style="padding:20px">
+          <div id="det-permisos-list"></div>
+        </div>
+
+        <div class="tab-panel" data-panel="det-actividad" style="padding:20px">
+          <div id="det-actividad-list"></div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- Modal nuevo / editar usuario -->
+<div class="modal-overlay" id="modal-usuario" style="display:none" role="dialog" aria-modal="true">
+  <div class="modal modal--lg">
+    <div class="modal__header">
+      <span class="modal__title" id="modal-usr-titulo">Nuevo usuario</span>
+      <button class="modal__close" id="btn-cerrar-usr-modal">✕</button>
+    </div>
+    <div class="modal__body">
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Nombre</label>
+          <input class="form-input" id="usr-nombre" type="text" placeholder="Nombre" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Apellido</label>
+          <input class="form-input" id="usr-apellido" type="text" placeholder="Apellido" />
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Correo institucional</label>
+        <input class="form-input" id="usr-email" type="email" placeholder="nombre@liceo.cl" />
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Usuario (ID)</label>
+          <input class="form-input" id="usr-id" type="text" placeholder="prof_nombre" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Contraseña</label>
+          <input class="form-input" id="usr-pass" type="password" placeholder="Mínimo 6 caracteres" />
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Área</label>
+          <input class="form-input" id="usr-area" type="text" placeholder="Ej: Programación, Matemáticas…" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Especialidad</label>
+          <input class="form-input" id="usr-especialidad" type="text" placeholder="Ej: Desarrollo Web" />
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Rol</label>
+          <select class="form-input" id="usr-rol">
+            <option value="programacion">Profesor Programación</option>
+            <option value="otro_area">Profesor otra área</option>
+            <option value="admin">Administrador</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Nivel de acceso</label>
+          <select class="form-input" id="usr-nivel">
+            <option value="basico">Básico</option>
+            <option value="tecnico">Técnico</option>
+            <option value="total">Total (admin)</option>
+          </select>
+        </div>
+      </div>
+    </div>
+    <div class="modal__footer">
+      <button class="btn" id="btn-cancelar-usr-modal">Cancelar</button>
+      <button class="btn btn--primary" id="btn-guardar-usr">Guardar usuario</button>
+    </div>
+  </div>
+</div>
+
+<script src="data.js"></script>
+<script src="app.js"></script>
+<script>
+  renderSidebar("usuarios.html");
+  initTabs();
+
+  const esAdmin = AUTH.esAdmin();
+  if (!esAdmin) {
+    document.getElementById("btn-nuevo-usuario").style.display = "none";
+  }
+
+  let usuariosCache = [];
+
+  cargarUsuarios().then((usuarios) => {
+    usuariosCache = usuarios;
+    renderStats(usuarios);
+    renderGrid(usuarios);
+  });
+
+  ["filtro-rol","filtro-busq-usr"].forEach((id) =>
+    document.getElementById(id).addEventListener("input", filtrar)
+  );
+
+  function filtrar() {
+    const rol = document.getElementById("filtro-rol").value;
+    const q   = document.getElementById("filtro-busq-usr").value.toLowerCase();
+    const f   = usuariosCache.filter((u) =>
+      (!rol || u.rol === rol) &&
+      (!q   || `${u.nombre} ${u.apellido} ${u.area}`.toLowerCase().includes(q))
+    );
+    renderGrid(f);
+  }
+
+  function renderStats(usuarios) {
+    const admins = usuarios.filter((u) => u.rol === "admin").length;
+    const prog   = usuarios.filter((u) => u.rol === "programacion").length;
+    const otros  = usuarios.filter((u) => u.rol === "otro_area").length;
+    document.getElementById("usr-stats").innerHTML = `
+      <div class="card stat-card">
+        <div><div class="stat-card__label">Total</div><div class="stat-card__value">${usuarios.length}</div></div>
+        <div class="stat-card__icon stat-card__icon--primary">👥</div>
+      </div>
+      <div class="card stat-card">
+        <div><div class="stat-card__label">Administradores</div><div class="stat-card__value">${admins}</div></div>
+        <div class="stat-card__icon stat-card__icon--danger">🔑</div>
+      </div>
+      <div class="card stat-card">
+        <div><div class="stat-card__label">Programación</div><div class="stat-card__value">${prog}</div></div>
+        <div class="stat-card__icon stat-card__icon--primary">💻</div>
+      </div>
+      <div class="card stat-card">
+        <div><div class="stat-card__label">Otras áreas</div><div class="stat-card__value">${otros}</div></div>
+        <div class="stat-card__icon stat-card__icon--success">📚</div>
+      </div>
+    `;
+  }
+
+  const ROL_COLOR  = { admin:"danger", programacion:"primary", otro_area:"success" };
+  const ROL_ICON   = { admin:"🔑", programacion:"💻", otro_area:"📚" };
+
+  function renderGrid(usuarios) {
+    const grid = document.getElementById("usr-grid");
+    if (!usuarios.length) {
+      grid.innerHTML = `<p style="color:var(--color-text-muted)">Sin usuarios que mostrar.</p>`;
+      return;
+    }
+    grid.innerHTML = usuarios.map((u) => {
+      const color = ROL_COLOR[u.rol] ?? "primary";
+      return `
+        <div class="card usr-card" role="button" tabindex="0"
+          onclick="abrirDetalle('${u.id}')"
+          onkeydown="if(event.key==='Enter')abrirDetalle('${u.id}')">
+          <div class="usr-card__avatar" style="background:var(--color-${color === "danger" ? "danger-bg" : color === "success" ? "success-bg" : "primary-light"});color:var(--color-${color === "danger" ? "danger" : color === "success" ? "success" : "primary"})">
+            ${u.iniciales}
+          </div>
+          <div class="usr-card__body">
+            <div class="usr-card__nombre">${u.nombre} ${u.apellido}</div>
+            <div class="usr-card__area">${u.area}</div>
+            <div class="usr-card__especialidad">${u.especialidad}</div>
+            <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">
+              <span class="badge badge--${color === "danger" ? "ocupado" : color === "success" ? "disponible" : ""}">
+                ${ROL_ICON[u.rol]} ${rolLabel(u.rol)}
+              </span>
+              <span class="badge badge--muted">${nivelLabel(u.nivelAcceso)}</span>
+            </div>
+          </div>
+        </div>
+      `;
+    }).join("");
+  }
+
+  function abrirDetalle(id) {
+    const u = usuariosCache.find((x) => x.id === id);
+    if (!u) return;
+
+    document.getElementById("usr-grid").style.display        = "none";
+    document.getElementById("usr-stats").style.display       = "none";
+    document.querySelector(".page-header").style.display     = "none";
+    document.querySelector(".stat-grid")?.style &&
+      (document.querySelector("#usr-stats").style.display = "none");
+    document.getElementById("vista-usr-detalle").style.display = "block";
+
+    const color = ROL_COLOR[u.rol] ?? "primary";
+    const avatarEl = document.getElementById("det-avatar");
+    avatarEl.textContent    = u.iniciales;
+    avatarEl.style.background = `var(--color-${color === "danger" ? "danger-bg" : color === "success" ? "success-bg" : "primary-light"})`;
+    avatarEl.style.color      = `var(--color-${color === "danger" ? "danger" : color === "success" ? "success" : "primary"})`;
+
+    document.getElementById("det-nombre").textContent = `${u.nombre} ${u.apellido}`;
+    document.getElementById("det-email").textContent  = u.email;
+
+    const rolBadge  = document.getElementById("det-rol-badge");
+    rolBadge.textContent = `${ROL_ICON[u.rol]} ${rolLabel(u.rol)}`;
+    rolBadge.className   = `badge badge--${color === "danger" ? "ocupado" : color === "success" ? "disponible" : ""}`;
+
+    document.getElementById("det-nivel-badge").textContent = nivelLabel(u.nivelAcceso);
+
+    // Acciones admin
+    const accionesEl = document.getElementById("det-acciones-admin");
+    accionesEl.style.display = esAdmin ? "flex" : "none";
+
+    // Info
+    document.getElementById("det-info-grid").innerHTML = `
+      <div><dt>Nombre completo</dt><dd>${u.nombre} ${u.apellido}</dd></div>
+      <div><dt>ID usuario</dt><dd>${u.id}</dd></div>
+      <div><dt>Correo</dt><dd>${u.email}</dd></div>
+      <div><dt>Área</dt><dd>${u.area}</dd></div>
+      <div><dt>Especialidad</dt><dd>${u.especialidad}</dd></div>
+      <div><dt>Rol</dt><dd>${rolLabel(u.rol)}</dd></div>
+      <div><dt>Nivel de acceso</dt><dd>${nivelLabel(u.nivelAcceso)}</dd></div>
+      <div><dt>Estado</dt><dd>${u.activo ? "Activo" : "Inactivo"}</dd></div>
+    `;
+
+    // Permisos
+    const perms = getPermisosPorRol(u.rol, u.nivelAcceso);
+    document.getElementById("det-permisos-list").innerHTML = `
+      <div class="permisos-grid">
+        ${perms.map((p) => `
+          <div class="permiso-item">
+            <span class="permiso-item__icon">${p.ok ? "✅" : "🔒"}</span>
+            <div>
+              <div class="permiso-item__nombre">${p.nombre}</div>
+              <div class="permiso-item__desc">${p.desc}</div>
+            </div>
+          </div>
+        `).join("")}
+      </div>
+    `;
+
+    // Actividad reciente (mock)
+    document.getElementById("det-actividad-list").innerHTML = `
+      <div class="actividad-lista">
+        ${mockActividad(u).map((a) => `
+          <div class="actividad-item">
+            <span class="actividad-item__icono">${a.icono}</span>
+            <div>
+              <div class="actividad-item__texto">${a.texto}</div>
+              <div class="actividad-item__fecha">${a.fecha}</div>
+            </div>
+          </div>
+        `).join("")}
+      </div>
+    `;
+  }
+
+  function getPermisosPorRol(rol, nivel) {
+    const esProg  = rol === "programacion" || rol === "admin";
+    const esAdm   = rol === "admin";
+    return [
+      { nombre:"Ver laboratorios",              desc:"Estado y disponibilidad básica",                ok: true },
+      { nombre:"Ver mapa 2D",                   desc:"Plano del establecimiento",                     ok: true },
+      { nombre:"Cambiar estado del laboratorio",desc:"Marcar disponible / ocupado / mantención",      ok: true },
+      { nombre:"Agendar reserva",               desc:"Solicitar uso de un laboratorio",               ok: true },
+      { nombre:"Ver info técnica de hardware",  desc:"CPU, RAM, almacenamiento, red, IP, MAC",        ok: esProg },
+      { nombre:"Control remoto de equipos",     desc:"Encender, apagar, reiniciar, bloquear equipos", ok: esProg },
+      { nombre:"Ver reportes",                  desc:"Acceso a reportes de uso y fallas",             ok: esProg },
+      { nombre:"Generar reportes",              desc:"Crear nuevos reportes del sistema",             ok: esProg },
+      { nombre:"Gestionar usuarios",            desc:"Crear, editar y desactivar usuarios",           ok: esAdm },
+      { nombre:"Configuración del sistema",     desc:"Ajustes avanzados de red, seguridad y sitio",   ok: esAdm },
+    ];
+  }
+
+  function mockActividad(u) {
+    const base = [
+      { icono:"🔑", texto:"Inicio de sesión exitoso",               fecha:"22/08/2026 08:12" },
+      { icono:"🕒", texto:"Consultó disponibilidad del Lab 2",       fecha:"21/08/2026 14:35" },
+      { icono:"📅", texto:"Agendó reserva en Laboratorio 1",         fecha:"20/08/2026 10:00" },
+    ];
+    if (u.rol === "programacion" || u.rol === "admin") {
+      base.push({ icono:"💻", texto:"Ejecutó control remoto — PC-101",   fecha:"19/08/2026 09:45" });
+      base.push({ icono:"📊", texto:"Generó reporte de disponibilidad",   fecha:"18/08/2026 16:20" });
+    }
+    return base;
+  }
+
+  document.getElementById("btn-volver-usr").addEventListener("click", () => {
+    document.getElementById("vista-usr-detalle").style.display = "none";
+    document.getElementById("usr-grid").style.display          = "grid";
+    document.getElementById("usr-stats").style.display         = "grid";
+    document.querySelector(".page-header").style.display       = "flex";
+  });
+
+  // Modal nuevo usuario
+  document.getElementById("btn-nuevo-usuario").addEventListener("click", () => {
+    document.getElementById("modal-usr-titulo").textContent = "Nuevo usuario";
+    document.getElementById("modal-usuario").style.display = "flex";
+  });
+  document.getElementById("btn-cerrar-usr-modal").addEventListener("click", () =>
+    document.getElementById("modal-usuario").style.display = "none"
+  );
+  document.getElementById("btn-cancelar-usr-modal").addEventListener("click", () =>
+    document.getElementById("modal-usuario").style.display = "none"
+  );
+  document.getElementById("btn-guardar-usr").addEventListener("click", () => {
+    const nombre = document.getElementById("usr-nombre").value.trim();
+    const apellido = document.getElementById("usr-apellido").value.trim();
+    const email  = document.getElementById("usr-email").value.trim();
+    const id     = document.getElementById("usr-id").value.trim();
+    const pass   = document.getElementById("usr-pass").value;
+    const area   = document.getElementById("usr-area").value.trim();
+    const espec  = document.getElementById("usr-especialidad").value.trim();
+    const rol    = document.getElementById("usr-rol").value;
+    const nivel  = document.getElementById("usr-nivel").value;
+
+    if (!nombre || !apellido || !email || !id || !pass) {
+      showToast("Completa todos los campos obligatorios.", "error");
+      return;
+    }
+    if (USUARIOS.find((u) => u.id === id)) {
+      showToast("Ya existe un usuario con ese ID.", "error");
+      return;
+    }
+    const nuevo = {
+      id, nombre, apellido,
+      iniciales: `${nombre[0]}${apellido[0]}`.toUpperCase(),
+      email, password: pass, rol, area,
+      especialidad: espec, nivelAcceso: nivel, activo: true
+    };
+    USUARIOS.push(nuevo);
+    usuariosCache = USUARIOS;
+    renderStats(USUARIOS);
+    renderGrid(USUARIOS);
+    showToast(`Usuario ${nombre} ${apellido} creado correctamente.`);
+    document.getElementById("modal-usuario").style.display = "none";
+  });
+
+  document.getElementById("modal-usuario").addEventListener("click", (e) => {
+    if (e.target === document.getElementById("modal-usuario"))
+      document.getElementById("modal-usuario").style.display = "none";
+  });
+</script>
+</body>
+</html>
