@@ -4,7 +4,8 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Usuarios · Insuco LabControl</title>
-<link rel="stylesheet" href="style.css?v=3" />
+<link rel="stylesheet" href="style.css?v=6" />
+<script>try{var t=localStorage.getItem("lc_tema");if(t==="dark-sidebar")t="oscuro";if(t==="blue-sidebar")t="azul";if(t==="green-sidebar")t="verde";if(!["claro","azul","verde","oscuro"].includes(t))t="claro";document.documentElement.dataset.theme=t}catch(e){}</script>
 </head>
 <body>
 <div class="app-layout">
@@ -99,7 +100,7 @@
   <div class="modal modal--lg">
     <div class="modal__header">
       <span class="modal__title" id="modal-usr-titulo">Nuevo usuario</span>
-      <button class="modal__close" id="btn-cerrar-usr-modal">✕</button>
+      <button class="modal__close" id="btn-cerrar-usr-modal"><i data-lucide="x"></i></button>
     </div>
     <div class="modal__body">
       <div class="form-row">
@@ -163,7 +164,8 @@
 </div>
 
 <script src="data.js?v=3"></script>
-<script src="app.js?v=2"></script>
+<script src="lucide.min.js?v=1"></script>
+<script src="app.js?v=4"></script>
 <script>
   renderSidebar("usuarios.html");
   initTabs();
@@ -214,25 +216,25 @@
     document.getElementById("usr-stats").innerHTML = `
       <div class="card stat-card">
         <div><div class="stat-card__label">Total</div><div class="stat-card__value">${usuarios.length}</div></div>
-        <div class="stat-card__icon stat-card__icon--primary">👥</div>
+        <div class="stat-card__icon stat-card__icon--primary"><i data-lucide="users"></i></div>
       </div>
       <div class="card stat-card">
         <div><div class="stat-card__label">Administradores</div><div class="stat-card__value">${admins}</div></div>
-        <div class="stat-card__icon stat-card__icon--danger">🔑</div>
+        <div class="stat-card__icon stat-card__icon--danger"><i data-lucide="key-round"></i></div>
       </div>
       <div class="card stat-card">
         <div><div class="stat-card__label">Programación</div><div class="stat-card__value">${prog}</div></div>
-        <div class="stat-card__icon stat-card__icon--primary">💻</div>
+        <div class="stat-card__icon stat-card__icon--primary"><i data-lucide="monitor"></i></div>
       </div>
       <div class="card stat-card">
         <div><div class="stat-card__label">Otras áreas</div><div class="stat-card__value">${otros}</div></div>
-        <div class="stat-card__icon stat-card__icon--success">📚</div>
+        <div class="stat-card__icon stat-card__icon--success"><i data-lucide="book-open"></i></div>
       </div>
     `;
   }
 
   const ROL_COLOR  = { admin:"danger", programacion:"primary", otro_area:"success" };
-  const ROL_ICON   = { admin:"🔑", programacion:"💻", otro_area:"📚" };
+  const ROL_ICON   = { admin:"key-round", programacion:"monitor", otro_area:"book-open" };
 
   function renderGrid(usuarios) {
     const grid = document.getElementById("usr-grid");
@@ -255,7 +257,7 @@
             <div class="usr-card__especialidad">${u.especialidad}</div>
             <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">
               <span class="badge badge--${color === "danger" ? "ocupado" : color === "success" ? "disponible" : ""}">
-                ${ROL_ICON[u.rol]} ${rolLabel(u.rol)}
+                <i data-lucide="${ROL_ICON[u.rol]}"></i> ${rolLabel(u.rol)}
               </span>
               <span class="badge badge--muted">${nivelLabel(u.nivelAcceso)}</span>
             </div>
@@ -286,7 +288,7 @@
     document.getElementById("det-email").textContent  = u.email;
 
     const rolBadge  = document.getElementById("det-rol-badge");
-    rolBadge.textContent = `${ROL_ICON[u.rol]} ${rolLabel(u.rol)}`;
+    rolBadge.innerHTML = `<i data-lucide="${ROL_ICON[u.rol]}"></i> ${rolLabel(u.rol)}`;
     rolBadge.className   = `badge badge--${color === "danger" ? "ocupado" : color === "success" ? "disponible" : ""}`;
 
     document.getElementById("det-nivel-badge").textContent = nivelLabel(u.nivelAcceso);
@@ -329,7 +331,7 @@
       <div class="permisos-grid">
         ${perms.map((p) => `
           <div class="permiso-item">
-            <span class="permiso-item__icon">${p.ok ? "✅" : "🔒"}</span>
+            <span class="permiso-item__icon"><i data-lucide="${p.ok ? "circle-check" : "lock"}"></i></span>
             <div>
               <div class="permiso-item__nombre">${p.nombre}</div>
               <div class="permiso-item__desc">${p.desc}</div>
@@ -344,7 +346,7 @@
       <div class="actividad-lista">
         ${mockActividad(u).map((a) => `
           <div class="actividad-item">
-            <span class="actividad-item__icono">${a.icono}</span>
+            <span class="actividad-item__icono"><i data-lucide="${a.icono}"></i></span>
             <div>
               <div class="actividad-item__texto">${a.texto}</div>
               <div class="actividad-item__fecha">${a.fecha}</div>
@@ -374,13 +376,13 @@
 
   function mockActividad(u) {
     const base = [
-      { icono:"🔑", texto:"Inicio de sesión exitoso",               fecha:"22/08/2026 08:12" },
-      { icono:"🕒", texto:"Consultó disponibilidad del Lab 2",       fecha:"21/08/2026 14:35" },
-      { icono:"📅", texto:"Agendó reserva en Laboratorio 1",         fecha:"20/08/2026 10:00" },
+      { icono:"log-in",        texto:"Inicio de sesión exitoso",               fecha:"22/08/2026 08:12" },
+      { icono:"clock",         texto:"Consultó disponibilidad del Lab 2",       fecha:"21/08/2026 14:35" },
+      { icono:"calendar-days", texto:"Agendó reserva en Laboratorio 1",         fecha:"20/08/2026 10:00" },
     ];
     if (u.rol === "programacion" || u.rol === "admin") {
-      base.push({ icono:"💻", texto:"Ejecutó control remoto — PC-101",   fecha:"19/08/2026 09:45" });
-      base.push({ icono:"📊", texto:"Generó reporte de disponibilidad",   fecha:"18/08/2026 16:20" });
+      base.push({ icono:"monitor",     texto:"Ejecutó control remoto — PC-101",   fecha:"19/08/2026 09:45" });
+      base.push({ icono:"bar-chart-3", texto:"Generó reporte de disponibilidad",   fecha:"18/08/2026 16:20" });
     }
     return base;
   }

@@ -4,7 +4,8 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Mapa 2D · Insuco LabControl</title>
-<link rel="stylesheet" href="style.css?v=3" />
+<link rel="stylesheet" href="style.css?v=6" />
+<script>try{var t=localStorage.getItem("lc_tema");if(t==="dark-sidebar")t="oscuro";if(t==="blue-sidebar")t="azul";if(t==="green-sidebar")t="verde";if(!["claro","azul","verde","oscuro"].includes(t))t="claro";document.documentElement.dataset.theme=t}catch(e){}</script>
 </head>
 <body>
 <div class="app-layout">
@@ -51,10 +52,10 @@
       <svg id="mapa-svg" class="mapa-svg" viewBox="0 0 900 520" width="100%"
            xmlns="http://www.w3.org/2000/svg" aria-label="Plano del liceo">
         <rect x="30" y="30" width="840" height="460" rx="14"
-              fill="#243044" stroke="#4a5568" stroke-width="3"/>
+              fill="var(--map-floor)" stroke="var(--map-line)" stroke-width="3"/>
 
-        <rect x="30" y="245" width="840" height="34" fill="#2d3748"/>
-        <text x="450" y="266" text-anchor="middle" font-size="11" fill="#94a3b8">PASILLO PRINCIPAL</text>
+        <rect x="30" y="245" width="840" height="34" fill="var(--map-pasillo)"/>
+        <text x="450" y="266" text-anchor="middle" font-size="11" fill="var(--color-text-muted)">PASILLO PRINCIPAL</text>
 
         <g class="sala-lab" data-lab-id="1"><rect x="60" y="55" width="220" height="170" rx="10"/><text x="170" y="128" text-anchor="middle" font-size="15" font-weight="bold" fill="#fff">Laboratorio 1</text><text x="170" y="150" text-anchor="middle" font-size="11" fill="#e2e8f0">Sala 101</text></g>
         <g class="sala-lab" data-lab-id="2"><rect x="300" y="55" width="220" height="170" rx="10"/><text x="410" y="128" text-anchor="middle" font-size="15" font-weight="bold" fill="#fff">Laboratorio 2</text><text x="410" y="150" text-anchor="middle" font-size="11" fill="#e2e8f0">Sala 102</text></g>
@@ -65,15 +66,15 @@
 
         <g>
           <rect class="sala-otra" x="540" y="300" width="100" height="75" rx="8"/>
-          <text x="590" y="334" text-anchor="middle" font-size="10" fill="#a0aec0">Bodega</text>
-          <text x="590" y="350" text-anchor="middle" font-size="10" fill="#a0aec0">equipos</text>
+          <text x="590" y="334" text-anchor="middle" font-size="10" fill="var(--color-text-muted)">Bodega</text>
+          <text x="590" y="350" text-anchor="middle" font-size="10" fill="var(--color-text-muted)">equipos</text>
 
           <rect class="sala-otra" x="540" y="385" width="100" height="80" rx="8"/>
-          <text x="590" y="420" text-anchor="middle" font-size="10" fill="#a0aec0">Sala</text>
-          <text x="590" y="436" text-anchor="middle" font-size="10" fill="#a0aec0">profesores</text>
+          <text x="590" y="420" text-anchor="middle" font-size="10" fill="var(--color-text-muted)">Sala</text>
+          <text x="590" y="436" text-anchor="middle" font-size="10" fill="var(--color-text-muted)">profesores</text>
 
           <rect class="sala-otra" x="660" y="300" width="100" height="165" rx="8"/>
-          <text x="710" y="378" text-anchor="middle" font-size="10" fill="#a0aec0">Biblioteca</text>
+          <text x="710" y="378" text-anchor="middle" font-size="10" fill="var(--color-text-muted)">Biblioteca</text>
 
           <rect x="770" y="360" width="70" height="45" rx="8" fill="#dcfce7" stroke="#16a34a"/>
           <text x="805" y="378" text-anchor="middle" font-size="9" fill="#166534">ENTRADA</text>
@@ -91,7 +92,8 @@
 </div>
 
 <script src="data.js?v=3"></script>
-<script src="app.js?v=2"></script>
+<script src="lucide.min.js?v=1"></script>
+<script src="app.js?v=4"></script>
 <script>
   renderSidebar("mapa.html");
 

@@ -4,7 +4,8 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Disponibilidad · Insuco LabControl</title>
-<link rel="stylesheet" href="style.css?v=3" />
+<link rel="stylesheet" href="style.css?v=6" />
+<script>try{var t=localStorage.getItem("lc_tema");if(t==="dark-sidebar")t="oscuro";if(t==="blue-sidebar")t="azul";if(t==="green-sidebar")t="verde";if(!["claro","azul","verde","oscuro"].includes(t))t="claro";document.documentElement.dataset.theme=t}catch(e){}</script>
 </head>
 <body>
 <div class="app-layout">
@@ -84,7 +85,7 @@
   <div class="modal">
     <div class="modal__header">
       <span class="modal__title">Cambiar estado del laboratorio</span>
-      <button class="modal__close" id="btn-cerrar-estado">✕</button>
+      <button class="modal__close" id="btn-cerrar-estado"><i data-lucide="x"></i></button>
     </div>
     <div class="modal__body">
       <p id="modal-estado-lab" style="font-weight:600;margin-bottom:12px"></p>
@@ -109,7 +110,7 @@
   <div class="modal">
     <div class="modal__header">
       <span class="modal__title">Agendar uso de laboratorio</span>
-      <button class="modal__close" id="btn-cerrar-reserva">✕</button>
+      <button class="modal__close" id="btn-cerrar-reserva"><i data-lucide="x"></i></button>
     </div>
     <div class="modal__body">
       <div class="form-group">
@@ -143,7 +144,8 @@
 </div>
 
 <script src="data.js?v=3"></script>
-<script src="app.js?v=2"></script>
+<script src="lucide.min.js?v=1"></script>
+<script src="app.js?v=4"></script>
 <script>
   renderSidebar("disponibilidad.html");
   const sesion = AUTH.getSesion();
@@ -159,19 +161,19 @@
     el.innerHTML = `
       <div class="card stat-card">
         <div><div class="stat-card__label">Disponibles</div><div class="stat-card__value">${disponibles}</div></div>
-        <div class="stat-card__icon stat-card__icon--success">✅</div>
+        <div class="stat-card__icon stat-card__icon--success"><i data-lucide="circle-check"></i></div>
       </div>
       <div class="card stat-card">
         <div><div class="stat-card__label">Ocupados</div><div class="stat-card__value">${ocupados}</div></div>
-        <div class="stat-card__icon stat-card__icon--danger">⛔</div>
+        <div class="stat-card__icon stat-card__icon--danger"><i data-lucide="ban"></i></div>
       </div>
       <div class="card stat-card">
         <div><div class="stat-card__label">Mantención</div><div class="stat-card__value">${mantencion}</div></div>
-        <div class="stat-card__icon stat-card__icon--warning">🔧</div>
+        <div class="stat-card__icon stat-card__icon--warning"><i data-lucide="wrench"></i></div>
       </div>
       <div class="card stat-card">
         <div><div class="stat-card__label">Total</div><div class="stat-card__value">${labs.length}</div></div>
-        <div class="stat-card__icon stat-card__icon--primary">🏫</div>
+        <div class="stat-card__icon stat-card__icon--primary"><i data-lucide="school"></i></div>
       </div>
     `;
   }

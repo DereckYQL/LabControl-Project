@@ -4,7 +4,8 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Reportes · Insuco LabControl</title>
-<link rel="stylesheet" href="style.css?v=3" />
+<link rel="stylesheet" href="style.css?v=6" />
+<script>try{var t=localStorage.getItem("lc_tema");if(t==="dark-sidebar")t="oscuro";if(t==="blue-sidebar")t="azul";if(t==="green-sidebar")t="verde";if(!["claro","azul","verde","oscuro"].includes(t))t="claro";document.documentElement.dataset.theme=t}catch(e){}</script>
 </head>
 <body>
 <div class="app-layout">
@@ -51,7 +52,7 @@
                 <span id="rep-autor"></span>
               </div>
             </div>
-            <button class="btn" onclick="imprimirReporte()">🖨 Imprimir</button>
+            <button class="btn" onclick="imprimirReporte()"><i data-lucide="printer"></i> Imprimir</button>
           </div>
         </div>
 
@@ -66,7 +67,7 @@
   <div class="modal">
     <div class="modal__header">
       <span class="modal__title">Generar nuevo reporte</span>
-      <button class="modal__close" id="btn-cerrar-rep-modal">✕</button>
+      <button class="modal__close" id="btn-cerrar-rep-modal"><i data-lucide="x"></i></button>
     </div>
     <div class="modal__body">
       <div class="form-group">
@@ -101,11 +102,12 @@
 </div>
 
 <script src="data.js?v=3"></script>
-<script src="app.js?v=2"></script>
+<script src="lucide.min.js?v=1"></script>
+<script src="app.js?v=4"></script>
 <script>
   renderSidebar("reportes.html");
 
-  const ICONOS_TIPO = { uso: "📊", fallas: "⚠️", disponibilidad: "🕒", inventario: "📦" };
+  const ICONOS_TIPO = { uso: "bar-chart-3", fallas: "triangle-alert", disponibilidad: "clock", inventario: "package" };
   const COLORES_TIPO = { uso: "primary", fallas: "danger", disponibilidad: "success", inventario: "warning" };
 
   let reportesCache = [];
@@ -131,17 +133,17 @@
           onclick="abrirReporte('${rep.id}')"
           onkeydown="if(event.key==='Enter')abrirReporte('${rep.id}')">
           <div class="rep-card__icon stat-card__icon--${color}">
-            ${ICONOS_TIPO[rep.tipo] ?? "📄"}
+            <i data-lucide="${ICONOS_TIPO[rep.tipo] ?? "file-text"}"></i>
           </div>
           <div class="rep-card__body">
             <div class="rep-card__titulo">${rep.titulo}</div>
             <div class="rep-card__desc">${rep.descripcion}</div>
             <div class="rep-card__meta">
-              <span>📅 ${formatFecha(rep.fecha)}</span>
-              <span>👤 ${autor ? `${autor.nombre} ${autor.apellido}` : rep.generadoPor}</span>
+              <span><i data-lucide="calendar-days"></i> ${formatFecha(rep.fecha)}</span>
+              <span><i data-lucide="user"></i> ${autor ? `${autor.nombre} ${autor.apellido}` : rep.generadoPor}</span>
             </div>
           </div>
-          <div class="rep-card__arrow">→</div>
+          <i class="rep-card__arrow" data-lucide="chevron-right"></i>
         </div>
       `;
     }).join("");
@@ -159,9 +161,9 @@
 
     document.getElementById("rep-titulo").textContent = rep.titulo;
     document.getElementById("rep-desc").textContent   = rep.descripcion;
-    document.getElementById("rep-fecha").textContent  = `📅 ${formatFecha(rep.fecha)}`;
-    document.getElementById("rep-autor").textContent  =
-      `👤 ${autor ? `${autor.nombre} ${autor.apellido}` : rep.generadoPor}`;
+    document.getElementById("rep-fecha").innerHTML  = `<i data-lucide="calendar-days"></i> ${formatFecha(rep.fecha)}`;
+    document.getElementById("rep-autor").innerHTML  =
+      `<i data-lucide="user"></i> ${autor ? `${autor.nombre} ${autor.apellido}` : rep.generadoPor}`;
 
     document.getElementById("rep-contenido").innerHTML = buildReporteHTML(rep);
 
@@ -209,10 +211,10 @@
       return `
         <h3 style="margin:0 0 16px;font-size:.95rem">Resumen de inventario</h3>
         <div class="stat-grid">
-          <div class="card stat-card"><div><div class="stat-card__label">Total equipos</div><div class="stat-card__value">${d.total}</div></div><div class="stat-card__icon stat-card__icon--primary">💻</div></div>
-          <div class="card stat-card"><div><div class="stat-card__label">Activos</div><div class="stat-card__value">${d.activos}</div></div><div class="stat-card__icon stat-card__icon--success">✅</div></div>
-          <div class="card stat-card"><div><div class="stat-card__label">Con falla</div><div class="stat-card__value">${d.enFalla}</div></div><div class="stat-card__icon stat-card__icon--danger">⚠️</div></div>
-          <div class="card stat-card"><div><div class="stat-card__label">En mantención</div><div class="stat-card__value">${d.enMantencion}</div></div><div class="stat-card__icon stat-card__icon--warning">🔧</div></div>
+          <div class="card stat-card"><div><div class="stat-card__label">Total equipos</div><div class="stat-card__value">${d.total}</div></div><div class="stat-card__icon stat-card__icon--primary"><i data-lucide="monitor"></i></div></div>
+          <div class="card stat-card"><div><div class="stat-card__label">Activos</div><div class="stat-card__value">${d.activos}</div></div><div class="stat-card__icon stat-card__icon--success"><i data-lucide="circle-check"></i></div></div>
+          <div class="card stat-card"><div><div class="stat-card__label">Con falla</div><div class="stat-card__value">${d.enFalla}</div></div><div class="stat-card__icon stat-card__icon--danger"><i data-lucide="triangle-alert"></i></div></div>
+          <div class="card stat-card"><div><div class="stat-card__label">En mantención</div><div class="stat-card__value">${d.enMantencion}</div></div><div class="stat-card__icon stat-card__icon--warning"><i data-lucide="wrench"></i></div></div>
         </div>
       `;
     }
@@ -229,9 +231,13 @@
     const pad    = 40;
     const barW   = (W - pad * 2) / labels.length - 10;
     const colores= ["#2f6fed","#16a34a","#ef4444","#f59e0b","#8b5cf6"];
+    const estilos = getComputedStyle(document.documentElement);
+    const cFondo  = estilos.getPropertyValue("--chart-bg").trim()    || "#f4f6fb";
+    const cEje    = estilos.getPropertyValue("--chart-axis").trim()  || "#667085";
+    const cValor  = estilos.getPropertyValue("--chart-value").trim() || "#101828";
 
     ctx.clearRect(0, 0, W, H);
-    ctx.fillStyle = "#2d3748";
+    ctx.fillStyle = cFondo;
     ctx.fillRect(0, 0, W, H);
 
     labels.forEach((label, i) => {
@@ -247,13 +253,13 @@
       ctx.fill();
 
       // Valor encima
-      ctx.fillStyle = "#f7f9fc";
+      ctx.fillStyle = cValor;
       ctx.font = "bold 11px sans-serif";
       ctx.textAlign = "center";
       ctx.fillText(valores[i], x + barW / 2, y - 6);
 
       // Etiqueta abajo
-      ctx.fillStyle = "#a0aec0";
+      ctx.fillStyle = cEje;
       ctx.font = "10px sans-serif";
       ctx.fillText(label, x + barW / 2, H - 10);
     });

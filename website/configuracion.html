@@ -4,7 +4,8 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Configuración · Insuco LabControl</title>
-<link rel="stylesheet" href="style.css?v=3" />
+<link rel="stylesheet" href="style.css?v=6" />
+<script>try{var t=localStorage.getItem("lc_tema");if(t==="dark-sidebar")t="oscuro";if(t==="blue-sidebar")t="azul";if(t==="green-sidebar")t="verde";if(!["claro","azul","verde","oscuro"].includes(t))t="claro";document.documentElement.dataset.theme=t}catch(e){}</script>
 </head>
 <body>
 <div class="app-layout">
@@ -43,7 +44,8 @@
 </div>
 
 <script src="data.js?v=3"></script>
-<script src="app.js?v=2"></script>
+<script src="lucide.min.js?v=1"></script>
+<script src="app.js?v=4"></script>
 <script>
   renderSidebar("configuracion.html");
   const esAdmin = AUTH.esAdmin();
@@ -71,21 +73,26 @@
         "Configuración completa del sistema — modo Administrador";
     }
 
+    /* -------- Sincronizar tema activo -------- */
+    const activo = temaActivo();
+    document.documentElement.dataset.theme = activo;
+    if (config?.sitio) config.sitio.tema = activo;
+
     /* -------- Definición de secciones -------- */
     const SECCIONES_BASE = [
-      { id: "perfil",           icon: "👤", label: "Mi perfil" },
-      { id: "apariencia",       icon: "🎨", label: "Apariencia" },
-      { id: "notificaciones",   icon: "🔔", label: "Notificaciones" },
-      { id: "seguridad",        icon: "🔒", label: "Seguridad" },
+      { id: "perfil",           icon: "user",     label: "Mi perfil" },
+      { id: "apariencia",       icon: "palette",  label: "Apariencia" },
+      { id: "notificaciones",   icon: "bell",     label: "Notificaciones" },
+      { id: "seguridad",        icon: "shield",   label: "Seguridad" },
     ];
 
     const SECCIONES_ADMIN = [
-      { id: "sitio",            icon: "🏫", label: "Sitio web" },
-      { id: "laboratorios-cfg", icon: "🖥️", label: "Laboratorios" },
-      { id: "equipos-cfg",      icon: "💻", label: "Equipos" },
-      { id: "red",              icon: "🌐", label: "Red" },
-      { id: "usuarios-cfg",     icon: "👥", label: "Usuarios" },
-      { id: "sistema",          icon: "⚙️", label: "Sistema" },
+      { id: "sitio",            icon: "school",   label: "Sitio web" },
+      { id: "laboratorios-cfg", icon: "monitor",  label: "Laboratorios" },
+      { id: "equipos-cfg",      icon: "laptop",   label: "Equipos" },
+      { id: "red",              icon: "globe",    label: "Red" },
+      { id: "usuarios-cfg",     icon: "users",    label: "Usuarios" },
+      { id: "sistema",          icon: "wrench",   label: "Sistema" },
     ];
 
     secciones = esAdmin ? [...SECCIONES_BASE, ...SECCIONES_ADMIN] : SECCIONES_BASE;
@@ -95,7 +102,7 @@
     sidenav.innerHTML = secciones.map((s, i) => `
       <button class="cfg-nav-btn ${i === 0 ? "is-active" : ""}"
         data-section="${s.id}" onclick="cambiarSeccion('${s.id}')">
-        <span>${s.icon}</span> ${s.label}
+        <i data-lucide="${s.icon}"></i> ${s.label}
       </button>
     `).join("");
 
@@ -106,6 +113,8 @@
         ${buildPanel(s.id)}
       </div>
     `).join("");
+
+    actualizarIconosLucide();
   }
 
   function cambiarSeccion(id) {
@@ -164,11 +173,12 @@
             <label class="form-label">Tema de color</label>
             <div class="tema-grid" id="tema-grid">
               ${[
-                { id:"dark-sidebar",  label:"Oscuro (por defecto)", bg:"#0f1b2e" },
-                { id:"blue-sidebar",  label:"Azul",                 bg:"#1e3a8a" },
-                { id:"green-sidebar", label:"Verde",                bg:"#14532d" },
+                { id:"claro",  label:"Claro (por defecto)", bg:"#eef2f9" },
+                { id:"azul",   label:"Azul",                bg:"#dbe7fb" },
+                { id:"verde",  label:"Verde",               bg:"#dcf3e7" },
+                { id:"oscuro", label:"Oscuro",              bg:"#0f1b2e" },
               ].map((t) => `
-                <div class="tema-item ${config.sitio.tema === t.id ? "is-active" : ""}"
+                <div class="tema-item ${temaActivo() === t.id ? "is-active" : ""}"
                   onclick="seleccionarTema('${t.id}', this)"
                   style="--tema-bg:${t.bg}">
                   <div class="tema-preview"></div>
@@ -235,7 +245,7 @@
       /* ===== SITIO (solo admin) ===== */
       case "sitio": return `
         <h2 class="cfg-panel__title">Configuración del sitio web</h2>
-        <div class="cfg-admin-badge">🔑 Solo administradores</div>
+        <div class="cfg-admin-badge"><i data-lucide="key-round"></i> Solo administradores</div>
         <div class="cfg-section">
           <div class="form-group">
             <label class="form-label">Nombre de la institución</label>
@@ -258,7 +268,7 @@
       /* ===== LABORATORIOS CFG (solo admin) ===== */
       case "laboratorios-cfg": return `
         <h2 class="cfg-panel__title">Configuración de laboratorios</h2>
-        <div class="cfg-admin-badge">🔑 Solo administradores</div>
+        <div class="cfg-admin-badge"><i data-lucide="key-round"></i> Solo administradores</div>
         <div class="cfg-section">
           <div class="form-row">
             <div class="form-group">
@@ -287,7 +297,7 @@
       /* ===== EQUIPOS CFG (solo admin) ===== */
       case "equipos-cfg": return `
         <h2 class="cfg-panel__title">Configuración de equipos</h2>
-        <div class="cfg-admin-badge">🔑 Solo administradores</div>
+        <div class="cfg-admin-badge"><i data-lucide="key-round"></i> Solo administradores</div>
         <div class="cfg-section">
           <label class="toggle-row">
             <span>Habilitar control remoto global</span>
@@ -317,7 +327,7 @@
       /* ===== RED (solo admin) ===== */
       case "red": return `
         <h2 class="cfg-panel__title">Configuración de red</h2>
-        <div class="cfg-admin-badge">🔑 Solo administradores</div>
+        <div class="cfg-admin-badge"><i data-lucide="key-round"></i> Solo administradores</div>
         <div class="cfg-section">
           <div class="form-group">
             <label class="form-label">Subred de laboratorios</label>
@@ -344,7 +354,7 @@
       /* ===== USUARIOS CFG (solo admin) ===== */
       case "usuarios-cfg": return `
         <h2 class="cfg-panel__title">Configuración de usuarios</h2>
-        <div class="cfg-admin-badge">🔑 Solo administradores</div>
+        <div class="cfg-admin-badge"><i data-lucide="key-round"></i> Solo administradores</div>
         <div class="cfg-section">
           <div class="form-group">
             <label class="form-label">Correo del administrador</label>
@@ -371,12 +381,12 @@
       /* ===== SISTEMA (solo admin) ===== */
       case "sistema": return `
         <h2 class="cfg-panel__title">Sistema</h2>
-        <div class="cfg-admin-badge">🔑 Solo administradores</div>
+        <div class="cfg-admin-badge"><i data-lucide="key-round"></i> Solo administradores</div>
         <div class="cfg-section">
           <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:20px">
             <div class="cfg-sys-card">
               <div class="cfg-sys-card__label">Versión del sistema</div>
-              <div class="cfg-sys-card__value">LabControl v1.5</div>
+              <div class="cfg-sys-card__value">LabControl v1.6</div>
             </div>
             <div class="cfg-sys-card">
               <div class="cfg-sys-card__label">Total laboratorios</div>
@@ -394,7 +404,7 @@
           <hr style="border-color:var(--color-border);margin-bottom:16px">
           <div style="font-weight:600;margin-bottom:10px;color:var(--color-danger)">Zona peligrosa</div>
           <button class="btn btn--danger" onclick="if(confirm('¿Restablecer configuración de fábrica?'))showToast('Configuración restablecida.','success')">
-            ⚠ Restablecer configuración de fábrica
+            <i data-lucide="triangle-alert"></i> Restablecer configuración de fábrica
           </button>
         </div>
       `;
@@ -411,9 +421,27 @@
     el.classList.toggle("toggle--on");
   }
 
+  const TEMAS_VALIDOS = ["claro", "azul", "verde", "oscuro"];
+  const MAPA_TEMAS_LEGADO = {
+    "dark-sidebar": "oscuro",
+    "blue-sidebar": "azul",
+    "green-sidebar": "verde",
+  };
+
+  function temaActivo() {
+    let t;
+    try { t = localStorage.getItem("lc_tema"); } catch (e) {}
+    if (!TEMAS_VALIDOS.includes(t)) {
+      t = MAPA_TEMAS_LEGADO[config?.sitio?.tema] || config?.sitio?.tema;
+    }
+    return TEMAS_VALIDOS.includes(t) ? t : "claro";
+  }
+
   function seleccionarTema(temaId, el) {
     document.querySelectorAll(".tema-item").forEach((t) => t.classList.remove("is-active"));
     el.classList.add("is-active");
+    document.documentElement.dataset.theme = temaId;
+    try { localStorage.setItem("lc_tema", temaId); } catch (e) {}
     config.sitio.tema = temaId;
   }
 

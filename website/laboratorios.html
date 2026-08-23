@@ -4,7 +4,8 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Laboratorios · Insuco LabControl</title>
-<link rel="stylesheet" href="style.css?v=3" />
+<link rel="stylesheet" href="style.css?v=6" />
+<script>try{var t=localStorage.getItem("lc_tema");if(t==="dark-sidebar")t="oscuro";if(t==="blue-sidebar")t="azul";if(t==="green-sidebar")t="verde";if(!["claro","azul","verde","oscuro"].includes(t))t="claro";document.documentElement.dataset.theme=t}catch(e){}</script>
 </head>
 <body>
 <div class="app-layout">
@@ -33,7 +34,7 @@
           <p>Los 5 laboratorios de computación del liceo</p>
         </div>
         <div class="page-header__meta">
-          <span>🔍</span>
+          <span class="input-icon"><i data-lucide="search"></i></span>
           <input class="form-input" id="filtro-busqueda" type="search"
             placeholder="Buscar laboratorio…" style="width:200px;margin:0" />
           <select class="form-input" id="filtro-estado" style="width:140px;margin:0">
@@ -65,7 +66,7 @@
         <!-- Header fotográfico -->
         <div class="detail-header">
           <div class="detail-header__photo">
-            <span style="font-size:3rem">🖥️</span>
+            <span class="photo-icon"><i data-lucide="monitor"></i></span>
           </div>
           <div>
             <div style="font-weight:700;font-size:1.15rem" id="detalle-sala"></div>
@@ -91,7 +92,7 @@
         <div class="tab-panel" data-panel="hardware">
           <dl class="info-grid" id="detalle-info-hardware"></dl>
           <div id="bloque-tecnico-lock" class="access-notice" style="display:none">
-            <span>🔒</span>
+            <span><i data-lucide="lock"></i></span>
             <div>
               <strong>Información técnica restringida</strong>
               <p>Solo los profesores de Programación y el Administrador pueden ver los detalles de hardware completos.</p>
@@ -127,7 +128,7 @@
   <div class="modal">
     <div class="modal__header">
       <span class="modal__title">Cambiar estado</span>
-      <button class="modal__close" id="btn-cerrar-modal">✕</button>
+      <button class="modal__close" id="btn-cerrar-modal"><i data-lucide="x"></i></button>
     </div>
     <div class="modal__body">
       <div class="form-group">
@@ -147,7 +148,8 @@
 </div>
 
 <script src="data.js?v=3"></script>
-<script src="app.js?v=2"></script>
+<script src="lucide.min.js?v=1"></script>
+<script src="app.js?v=4"></script>
 <script>
   renderSidebar("laboratorios.html");
   initTabs();
@@ -231,7 +233,7 @@
 
     // Servicios
     document.getElementById("detalle-servicios").innerHTML =
-      lab.servicios.map((s) => `<li>${s}</li>`).join("");
+      lab.servicios.map((s) => `<li><i data-lucide="check"></i>${s}</li>`).join("");
 
     // Agenda del laboratorio
     cargarAgenda().then((agenda) => {

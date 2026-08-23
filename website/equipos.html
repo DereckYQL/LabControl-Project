@@ -4,7 +4,8 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Equipos · Insuco LabControl</title>
-<link rel="stylesheet" href="style.css?v=3" />
+<link rel="stylesheet" href="style.css?v=6" />
+<script>try{var t=localStorage.getItem("lc_tema");if(t==="dark-sidebar")t="oscuro";if(t==="blue-sidebar")t="azul";if(t==="green-sidebar")t="verde";if(!["claro","azul","verde","oscuro"].includes(t))t="claro";document.documentElement.dataset.theme=t}catch(e){}</script>
 </head>
 <body>
 <div class="app-layout">
@@ -75,12 +76,12 @@
             <span class="badge" id="rem-badge"></span>
           </div>
           <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:16px">
-            <button class="btn btn--sm" data-cmd="encender">⏻ Encender</button>
-            <button class="btn btn--sm" data-cmd="apagar">⏼ Apagar</button>
-            <button class="btn btn--sm" data-cmd="reiniciar">🔄 Reiniciar</button>
-            <button class="btn btn--sm" data-cmd="bloquear">🔒 Bloquear</button>
-            <button class="btn btn--sm" data-cmd="captura">📷 Capturar pantalla</button>
-            <button class="btn btn--sm btn--danger" data-cmd="apagar_todos">⛔ Apagar todos (lab)</button>
+            <button class="btn btn--sm" data-cmd="encender"><i data-lucide="power"></i> Encender</button>
+            <button class="btn btn--sm" data-cmd="apagar"><i data-lucide="power-off"></i> Apagar</button>
+            <button class="btn btn--sm" data-cmd="reiniciar"><i data-lucide="refresh-cw"></i> Reiniciar</button>
+            <button class="btn btn--sm" data-cmd="bloquear"><i data-lucide="lock"></i> Bloquear</button>
+            <button class="btn btn--sm" data-cmd="captura"><i data-lucide="camera"></i> Capturar pantalla</button>
+            <button class="btn btn--sm btn--danger" data-cmd="apagar_todos"><i data-lucide="ban"></i> Apagar todos (lab)</button>
           </div>
         </div>
         <div class="remote-log" id="remote-log"></div>
@@ -89,7 +90,7 @@
 
     <!-- Aviso para usuarios sin permisos técnicos -->
     <div id="aviso-sin-permiso" class="access-notice" style="display:none">
-      <span>🔒</span>
+      <span><i data-lucide="lock"></i></span>
       <div>
         <strong>Información técnica restringida</strong>
         <p>Tu cuenta no tiene acceso al detalle técnico ni al control remoto de los equipos. Consulta con el administrador.</p>
@@ -99,7 +100,8 @@
 </div>
 
 <script src="data.js?v=3"></script>
-<script src="app.js?v=2"></script>
+<script src="lucide.min.js?v=1"></script>
+<script src="app.js?v=4"></script>
 <script>
   renderSidebar("equipos.html");
 
@@ -151,10 +153,10 @@
     const enFalla = lista.filter((e) => e.estado === "falla").length;
     const enMant  = lista.filter((e) => e.estado === "mantencion").length;
     document.getElementById("eq-stats").innerHTML = `
-      <div class="card stat-card"><div><div class="stat-card__label">Equipos mostrados</div><div class="stat-card__value">${lista.length}</div></div><div class="stat-card__icon stat-card__icon--primary">💻</div></div>
-      <div class="card stat-card"><div><div class="stat-card__label">Activos</div><div class="stat-card__value">${activos}</div></div><div class="stat-card__icon stat-card__icon--success">✅</div></div>
-      <div class="card stat-card"><div><div class="stat-card__label">En falla</div><div class="stat-card__value">${enFalla}</div></div><div class="stat-card__icon stat-card__icon--danger">⚠️</div></div>
-      <div class="card stat-card"><div><div class="stat-card__label">Mantención</div><div class="stat-card__value">${enMant}</div></div><div class="stat-card__icon stat-card__icon--warning">🔧</div></div>
+      <div class="card stat-card"><div><div class="stat-card__label">Equipos mostrados</div><div class="stat-card__value">${lista.length}</div></div><div class="stat-card__icon stat-card__icon--primary"><i data-lucide="monitor"></i></div></div>
+      <div class="card stat-card"><div><div class="stat-card__label">Activos</div><div class="stat-card__value">${activos}</div></div><div class="stat-card__icon stat-card__icon--success"><i data-lucide="circle-check"></i></div></div>
+      <div class="card stat-card"><div><div class="stat-card__label">En falla</div><div class="stat-card__value">${enFalla}</div></div><div class="stat-card__icon stat-card__icon--danger"><i data-lucide="triangle-alert"></i></div></div>
+      <div class="card stat-card"><div><div class="stat-card__label">Mantención</div><div class="stat-card__value">${enMant}</div></div><div class="stat-card__icon stat-card__icon--warning"><i data-lucide="wrench"></i></div></div>
     `;
   }
 
@@ -172,10 +174,10 @@
       const estEq = ESTADOS_EQUIPO[e.estado] ?? { label: e.estado, clase: "badge--muted" };
       const tecnico = puedeTecnico
         ? `<span class="tech-cell">${e.procesador}<br>${e.ram} · ${e.almacenamiento}</span>`
-        : `<span class="locked-cell">🔒 Restringido</span>`;
+        : `<span class="locked-cell"><i data-lucide="lock"></i> Restringido</span>`;
       const red = puedeTecnico
         ? `<span class="tech-cell">${e.ip}<br>${e.mac}</span>`
-        : `<span class="locked-cell">🔒 Restringido</span>`;
+        : `<span class="locked-cell"><i data-lucide="lock"></i> Restringido</span>`;
       return `
         <tr>
           <td><strong>${e.nombre}</strong><br><span style="font-size:.74rem;color:var(--color-text-muted)">${lab ? lab.nombre : "—"}</span></td>

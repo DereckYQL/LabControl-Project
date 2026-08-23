@@ -10,15 +10,31 @@
    ====================================================== */
 
 const NAV_ITEMS_ALL = [
-  { href: "index.html",          label: "Inicio",         icon: "🏠",  roles: ["admin","programacion","otro_area"] },
-  { href: "laboratorios.html",   label: "Laboratorios",   icon: "🖥️",  roles: ["admin","programacion","otro_area"] },
-  { href: "disponibilidad.html", label: "Disponibilidad", icon: "🕒",  roles: ["admin","programacion","otro_area"] },
-  { href: "mapa.html",           label: "Mapa 2D",        icon: "🗺️",  roles: ["admin","programacion","otro_area"] },
-  { href: "equipos.html",        label: "Equipos",        icon: "💻",  roles: ["admin","programacion","otro_area"] },
-  { href: "reportes.html",       label: "Reportes",       icon: "📊",  roles: ["admin","programacion"] },
-  { href: "usuarios.html",       label: "Usuarios",       icon: "👤",  roles: ["admin","programacion","otro_area"] },
-  { href: "configuracion.html",  label: "Configuración",  icon: "⚙️",  roles: ["admin","programacion","otro_area"] }
+  { href: "index.html",          label: "Inicio",         icon: "layout-dashboard", roles: ["admin","programacion","otro_area"] },
+  { href: "laboratorios.html",   label: "Laboratorios",   icon: "building-2",       roles: ["admin","programacion","otro_area"] },
+  { href: "disponibilidad.html", label: "Disponibilidad", icon: "clock",            roles: ["admin","programacion","otro_area"] },
+  { href: "mapa.html",           label: "Mapa 2D",        icon: "map",              roles: ["admin","programacion","otro_area"] },
+  { href: "equipos.html",        label: "Equipos",        icon: "monitor",          roles: ["admin","programacion","otro_area"] },
+  { href: "reportes.html",       label: "Reportes",       icon: "bar-chart-3",      roles: ["admin","programacion"] },
+  { href: "usuarios.html",       label: "Usuarios",       icon: "users",            roles: ["admin","programacion","otro_area"] },
+  { href: "configuracion.html",  label: "Configuración",  icon: "settings",         roles: ["admin","programacion","otro_area"] }
 ];
+
+let __iconsObserver = null;
+function actualizarIconosLucide() {
+  if (!window.lucide || typeof window.lucide.createIcons !== "function") return;
+  try {
+    window.lucide.createIcons();
+    if (!__iconsObserver) {
+      let pendiente = null;
+      __iconsObserver = new MutationObserver(() => {
+        clearTimeout(pendiente);
+        pendiente = setTimeout(actualizarIconosLucide, 60);
+      });
+      __iconsObserver.observe(document.body, { childList: true, subtree: true });
+    }
+  } catch (e) {}
+}
 
 /**
  * Construye el sidebar. Si se llama desde una página que requiere login,
@@ -42,10 +58,12 @@ function renderSidebar(activeHref, requireAuth = true) {
 
   nav.innerHTML = items.map((item) => `
     <a class="sidebar__link ${item.href === activeHref ? "is-active" : ""}" href="${item.href}">
-      <span class="icon" aria-hidden="true">${item.icon}</span>
+      <span class="icon" aria-hidden="true"><i data-lucide="${item.icon}"></i></span>
       <span class="label">${item.label}</span>
     </a>
   `).join("");
+
+  actualizarIconosLucide();
 
   // Actualizar bloque de usuario en sidebar (con lo que ya viene en la sesión,
   // sin pedirle otra vez el usuario a la API)
@@ -66,7 +84,7 @@ function renderSidebar(activeHref, requireAuth = true) {
       const btn = document.createElement("button");
       btn.className = "logout-btn";
       btn.title = "Cerrar sesión";
-      btn.textContent = "↩";
+      btn.innerHTML = '<i data-lucide="log-out"></i>';
       btn.addEventListener("click", () => AUTH.logout());
       userEl.appendChild(btn);
     }
@@ -80,12 +98,12 @@ function renderSidebar(activeHref, requireAuth = true) {
     toggle.className = "sidebar__toggle";
     toggle.setAttribute("aria-label", "Abrir menú de navegación");
     toggle.setAttribute("aria-expanded", "false");
-    toggle.textContent = "☰";
+    toggle.innerHTML = '<i data-lucide="menu"></i>';
 
     const setMenu = (open) => {
       sidebar.classList.toggle("nav-open", open);
       toggle.setAttribute("aria-expanded", String(open));
-      toggle.textContent = open ? "✕" : "☰";
+      toggle.innerHTML = open ? '<i data-lucide="x"></i>' : '<i data-lucide="menu"></i>';
     };
 
     toggle.addEventListener("click", () =>
@@ -127,7 +145,7 @@ function renderStatCards(labs, containerId) {
         <div class="stat-card__value">${labs.length}</div>
         <div class="stat-card__sub">Total</div>
       </div>
-      <div class="stat-card__icon stat-card__icon--primary">🖥️</div>
+      <div class="stat-card__icon stat-card__icon--primary"><i data-lucide="building-2"></i></div>
     </div>
     <div class="card stat-card">
       <div>
@@ -135,7 +153,7 @@ function renderStatCards(labs, containerId) {
         <div class="stat-card__value">${totalEquipos}</div>
         <div class="stat-card__sub">Total</div>
       </div>
-      <div class="stat-card__icon stat-card__icon--primary">💻</div>
+      <div class="stat-card__icon stat-card__icon--primary"><i data-lucide="monitor"></i></div>
     </div>
     <div class="card stat-card">
       <div>
@@ -143,7 +161,7 @@ function renderStatCards(labs, containerId) {
         <div class="stat-card__value">${disponibles}</div>
         <div class="stat-card__sub">En este momento</div>
       </div>
-      <div class="stat-card__icon stat-card__icon--success">✅</div>
+      <div class="stat-card__icon stat-card__icon--success"><i data-lucide="circle-check"></i></div>
     </div>
     <div class="card stat-card">
       <div>
@@ -151,7 +169,7 @@ function renderStatCards(labs, containerId) {
         <div class="stat-card__value">${ocupados}</div>
         <div class="stat-card__sub">En este momento</div>
       </div>
-      <div class="stat-card__icon stat-card__icon--danger">⛔</div>
+      <div class="stat-card__icon stat-card__icon--danger"><i data-lucide="ban"></i></div>
     </div>
     <div class="card stat-card">
       <div>
@@ -159,7 +177,7 @@ function renderStatCards(labs, containerId) {
         <div class="stat-card__value">${mantencion}</div>
         <div class="stat-card__sub">Fuera de servicio</div>
       </div>
-      <div class="stat-card__icon stat-card__icon--warning">🔧</div>
+      <div class="stat-card__icon stat-card__icon--warning"><i data-lucide="wrench"></i></div>
     </div>
   `;
 }
@@ -176,7 +194,7 @@ function renderStatusList(labs, containerId) {
     const pct    = lab.estado === "ocupado" ? 100 : lab.estado === "mantencion" ? 50 : 15;
     return `
       <div class="status-row">
-        <div class="status-row__icon" style="background:${estado.color}22;color:${estado.color}">🖥️</div>
+        <div class="status-row__icon" style="background:${estado.color}22;color:${estado.color}"><i data-lucide="monitor"></i></div>
         <div style="flex:1">
           <div class="status-row__name">${lab.nombre}</div>
           <div class="status-row__room">${lab.sala}</div>
@@ -243,7 +261,7 @@ function renderLabGrid(labs, containerId, { linkTo = "laboratorios.html" } = {})
     return `
       <div class="card lab-card">
         <div class="lab-card__photo">
-          <span style="font-size:2.5rem">🖥️</span>
+          <span class="photo-icon"><i data-lucide="monitor"></i></span>
         </div>
         <div class="lab-card__body">
           <div class="lab-card__title">${lab.nombre}</div>
