@@ -18,9 +18,9 @@ Solo el **Administrador** puede gestionar usuarios y acceder a la configuración
 
 ## Cambios
 
-> **v1.3** — Restricción de visibilidad entre roles en *Usuarios*: los profesores de otras
-> áreas no pueden ver los permisos ni la actividad de los profesores de Programación ni del
-> Administrador, y los de Programación no pueden ver la actividad del Administrador.
+> **v1.4** — Sidebar adaptado a celulares: barra superior fija con el logo, el usuario al lado
+> y un botón ☰ que despliega el menú de navegación (ya no se ve en vertical). Además, las
+> páginas usan versionado en sus CSS/JS (`?v=2`) para evitar que el navegador guarde versiones viejas.
 
 ## Estructura del proyecto
 

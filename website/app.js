@@ -71,6 +71,41 @@ function renderSidebar(activeHref, requireAuth = true) {
       userEl.appendChild(btn);
     }
   }
+
+  // Botón hamburguesa: menú desplegable en móvil
+  const sidebar = document.querySelector(".sidebar");
+  if (sidebar && !sidebar.querySelector(".sidebar__toggle")) {
+    const toggle = document.createElement("button");
+    toggle.type = "button";
+    toggle.className = "sidebar__toggle";
+    toggle.setAttribute("aria-label", "Abrir menú de navegación");
+    toggle.setAttribute("aria-expanded", "false");
+    toggle.textContent = "☰";
+
+    const setMenu = (open) => {
+      sidebar.classList.toggle("nav-open", open);
+      toggle.setAttribute("aria-expanded", String(open));
+      toggle.textContent = open ? "✕" : "☰";
+    };
+
+    toggle.addEventListener("click", () =>
+      setMenu(!sidebar.classList.contains("nav-open"))
+    );
+
+    nav.addEventListener("click", (e) => {
+      if (e.target.closest(".sidebar__link")) setMenu(false);
+    });
+
+    document.addEventListener("click", (e) => {
+      if (sidebar.classList.contains("nav-open") && !sidebar.contains(e.target)) {
+        setMenu(false);
+      }
+    });
+
+    sidebar.appendChild(toggle);
+  }
+
+  return sesion;
 }
 
 /* ======================================================
