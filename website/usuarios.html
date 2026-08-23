@@ -169,8 +169,20 @@
   initTabs();
 
   const esAdmin = AUTH.esAdmin();
+  const miRol   = AUTH.getSesion()?.rol ?? "otro_area";
   if (!esAdmin) {
     document.getElementById("btn-nuevo-usuario").style.display = "none";
+  }
+
+  // Restricciones de visibilidad entre roles:
+  // - "otro_area": no ve Permisos ni Actividad de profes de Programación ni del Admin.
+  // - "programacion": no ve Actividad del Admin.
+  // - El admin ve todo.
+  function puedeVerSeccion(rolUsuario, seccion) {
+    if (miRol === "admin") return true;
+    if (miRol === "programacion")
+      return rolUsuario === "admin" ? seccion !== "actividad" : true;
+    return !(rolUsuario === "admin" || rolUsuario === "programacion");
   }
 
   let usuariosCache = [];
@@ -282,6 +294,22 @@
     // Acciones admin
     const accionesEl = document.getElementById("det-acciones-admin");
     accionesEl.style.display = esAdmin ? "flex" : "none";
+
+    // Ocultar pestañas restringidas según el rol del usuario en sesión
+    const btnPermisos  = document.querySelector('.tab-btn[data-tab="det-permisos"]');
+    const btnActividad = document.querySelector('.tab-btn[data-tab="det-actividad"]');
+    const verPermisos  = puedeVerSeccion(u.rol, "permisos");
+    const verActividad = puedeVerSeccion(u.rol, "actividad");
+    btnPermisos.style.display  = verPermisos  ? "" : "none";
+    btnActividad.style.display = verActividad ? "" : "none";
+    if ((!verPermisos && btnPermisos.classList.contains("is-active")) ||
+        (!verActividad && btnActividad.classList.contains("is-active"))) {
+      document.querySelectorAll(".tabs .tab-btn").forEach((b) => b.classList.remove("is-active"));
+      document.querySelector('.tab-btn[data-tab="det-info"]').classList.add("is-active");
+      document.querySelectorAll(".tab-panel").forEach((p) => {
+        p.classList.toggle("is-active", p.dataset.panel === "det-info");
+      });
+    }
 
     // Info
     document.getElementById("det-info-grid").innerHTML = `

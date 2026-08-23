@@ -18,9 +18,9 @@ Solo el **Administrador** puede gestionar usuarios y acceder a la configuración
 
 ## Cambios
 
-> **v1.2** — Nuevo fondo tecnológico decorativo en todo el sitio: imagen SVG de circuitos
-> (`website/img/bg-tech.svg`) en el login y una versión sutil (`bg-tech-light.svg`) detrás
-> de las páginas internas, manteniendo la legibilidad del contenido claro.
+> **v1.3** — Restricción de visibilidad entre roles en *Usuarios*: los profesores de otras
+> áreas no pueden ver los permisos ni la actividad de los profesores de Programación ni del
+> Administrador, y los de Programación no pueden ver la actividad del Administrador.
 
 ## Estructura del proyecto
 
