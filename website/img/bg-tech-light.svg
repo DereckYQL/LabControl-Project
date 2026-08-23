@@ -1,0 +1,64 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080" preserveAspectRatio="xMidYMid slice">
+  <defs>
+    <radialGradient id="glowA" cx=".88" cy=".06" r=".5">
+      <stop offset="0" stop-color="#0ea5e9" stop-opacity=".1"/>
+      <stop offset="1" stop-color="#0ea5e9" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="glowB" cx=".05" cy=".97" r=".5">
+      <stop offset="0" stop-color="#2456f0" stop-opacity=".09"/>
+      <stop offset="1" stop-color="#2456f0" stop-opacity="0"/>
+    </radialGradient>
+    <pattern id="grid" width="46" height="46" patternUnits="userSpaceOnUse">
+      <path d="M46 0H0v46" fill="none" stroke="#2456f0" stroke-opacity=".038"/>
+    </pattern>
+  </defs>
+
+  <rect width="1920" height="1080" fill="url(#glowA)"/>
+  <rect width="1920" height="1080" fill="url(#glowB)"/>
+  <rect width="1920" height="1080" fill="url(#grid)"/>
+
+  <!-- Circuito superior derecho -->
+  <g fill="none" stroke="#2456f0" stroke-width="2">
+    <path d="M1210 60h300l70 70h260" stroke-opacity=".14"/>
+    <path d="M1380 150l60 60h220" stroke-opacity=".1"/>
+    <path d="M1470 10v100l50 50h190" stroke-opacity=".08"/>
+  </g>
+  <g fill="#0ea5e9">
+    <circle cx="1210" cy="60" r="4" opacity=".3"/>
+    <circle cx="1840" cy="130" r="5" opacity=".32"/>
+    <circle cx="1660" cy="210" r="4" opacity=".22"/>
+    <circle cx="1710" cy="160" r="3" opacity=".2"/>
+  </g>
+
+  <!-- Circuito inferior izquierdo -->
+  <g fill="none" stroke="#2456f0" stroke-width="2">
+    <path d="M-20 880h260l80 80h320" stroke-opacity=".12"/>
+    <path d="M120 1050V920l60-60h250" stroke-opacity=".09"/>
+    <path d="M-20 750h140l60 60" stroke-opacity=".08"/>
+  </g>
+  <g fill="#2456f0">
+    <circle cx="640" cy="960" r="4" opacity=".26"/>
+    <circle cx="430" cy="860" r="3" opacity=".2"/>
+    <circle cx="120" cy="1050" r="4" opacity=".22"/>
+  </g>
+
+  <!-- Hexágonos -->
+  <g fill="none" stroke="#2456f0">
+    <polygon points="170,110 204,129 204,167 170,186 136,167 136,129" stroke-opacity=".1"/>
+    <polygon points="1760,930 1806,957 1806,1009 1760,1036 1714,1009 1714,957" stroke-opacity=".09"/>
+    <polygon points="960,50 986,65 986,95 960,110 934,95 934,65" stroke-opacity=".07"/>
+  </g>
+
+  <!-- Marcas + -->
+  <g stroke="#2456f0" stroke-width="2" stroke-linecap="round">
+    <path d="M330 320v22M319 331h22" stroke-opacity=".14"/>
+    <path d="M1600 470v18M1591 479h18" stroke-opacity=".12"/>
+    <path d="M240 600v18M231 609h18" stroke-opacity=".1"/>
+  </g>
+  <g fill="#2456f0">
+    <circle cx="480" cy="170" r="2.5" opacity=".18"/>
+    <circle cx="1340" cy="430" r="2.5" opacity=".14"/>
+    <circle cx="300" cy="660" r="2.5" opacity=".16"/>
+    <circle cx="1540" cy="880" r="2.5" opacity=".15"/>
+  </g>
+</svg>

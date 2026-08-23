@@ -1,7 +1,8 @@
 /* ==========================================================
-   Insuco LabControl — hoja de estilos compartida
+   Insuco LabControl v1.2 — hoja de estilos compartida
    Diseño institucional-tecnológico: azul profundo + acentos
-   cian eléctrico, degradados, glassmorphism y micro-animaciones
+   cian eléctrico, degradados, glassmorphism, micro-animaciones
+   e imagen de fondo tecnológica (SVG) en todo el sitio
    ========================================================== */
 
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap');
@@ -45,9 +46,11 @@ html, body { margin: 0; padding: 0; }
 body {
   font-family: "Plus Jakarta Sans", "Segoe UI", system-ui, -apple-system, Roboto, sans-serif;
   background:
+    url("img/bg-tech-light.svg") center / cover no-repeat,
     radial-gradient(900px 420px at 110% -5%, rgba(14, 165, 233, .09), transparent 60%),
     radial-gradient(700px 380px at -10% 108%, rgba(36, 86, 240, .07), transparent 60%),
     var(--color-bg);
+  background-attachment: fixed;
   color: var(--color-text);
   font-size: 15px;
   line-height: 1.55;
@@ -258,13 +261,14 @@ h1 + p { margin: 4px 0 0; color: var(--color-text-muted); font-size: .9rem; }
   justify-content: center;
   padding: 20px;
   background:
+    url("img/bg-tech.svg") center / cover no-repeat,
     radial-gradient(900px 500px at 85% 0%, rgba(14, 165, 233, .35), transparent 55%),
     radial-gradient(800px 500px at 0% 100%, rgba(36, 86, 240, .4), transparent 55%),
-    radial-gradient(500px 300px at 100% 90%, rgba(99, 102, 241, .25), transparent 60%),
     #070d1d;
+  background-attachment: fixed;
 }
 
-/* malla tecnológica de fondo */
+/* malla tecnológica de fondo (refuerzo sobre la imagen) */
 .login-body::before {
   content: "";
   position: fixed;

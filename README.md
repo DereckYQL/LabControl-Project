@@ -16,6 +16,12 @@ Los profesores de **Programación** (y el Administrador) pueden además ver la i
 
 Solo el **Administrador** puede gestionar usuarios y acceder a la configuración avanzada del sitio.
 
+## Cambios
+
+> **v1.2** — Nuevo fondo tecnológico decorativo en todo el sitio: imagen SVG de circuitos
+> (`website/img/bg-tech.svg`) en el login y una versión sutil (`bg-tech-light.svg`) detrás
+> de las páginas internas, manteniendo la legibilidad del contenido claro.
+
 ## Estructura del proyecto
 
 ```
