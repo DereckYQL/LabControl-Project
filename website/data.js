@@ -187,9 +187,9 @@ async function apiSend(method, path, body) {
    ====================================================== */
 
 const ESTADOS = {
-  disponible: { label: "Disponible", color: "var(--color-success)" },
-  ocupado:    { label: "Ocupado",    color: "var(--color-danger)" },
-  mantencion: { label: "Mantención", color: "var(--color-warning)" }
+  disponible: { label: "Disponible", color: "#48bb78" },
+  ocupado:    { label: "Ocupado",    color: "#f56565" },
+  mantencion: { label: "Mantención", color: "#ed8936" }
 };
 
 const ESTADOS_EQUIPO = {

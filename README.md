@@ -18,9 +18,11 @@ Solo el **Administrador** puede gestionar usuarios y acceder a la configuración
 
 ## Cambios
 
-> **v1.4** — Sidebar adaptado a celulares: barra superior fija con el logo, el usuario al lado
-> y un botón ☰ que despliega el menú de navegación (ya no se ve en vertical). Además, las
-> páginas usan versionado en sus CSS/JS (`?v=2`) para evitar que el navegador guarde versiones viejas.
+> **v1.6** — **Íconos vectoriales Lucide en todo el sistema**: sidebar, tarjetas, botones,
+> modales, mapa y reportes ahora usan SVG profesionales (incluidos localmente, sin emojis ni
+> dependencia de internet). Junto con el selector de temas funcional de la v1.5
+> (**Claro (original)** / Azul / Verde / Oscuro) y `celular.js` con QR para abrir
+> LabControl desde el teléfono en la misma red Wi-Fi.
 
 ## Estructura del proyecto
 

@@ -4,7 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Reportes · Insuco LabControl</title>
-<link rel="stylesheet" href="style.css?v=2" />
+<link rel="stylesheet" href="style.css?v=3" />
 </head>
 <body>
 <div class="app-layout">
@@ -100,7 +100,7 @@
   </div>
 </div>
 
-<script src="data.js?v=2"></script>
+<script src="data.js?v=3"></script>
 <script src="app.js?v=2"></script>
 <script>
   renderSidebar("reportes.html");
@@ -231,7 +231,7 @@
     const colores= ["#2f6fed","#16a34a","#ef4444","#f59e0b","#8b5cf6"];
 
     ctx.clearRect(0, 0, W, H);
-    ctx.fillStyle = "#f4f6fb";
+    ctx.fillStyle = "#2d3748";
     ctx.fillRect(0, 0, W, H);
 
     labels.forEach((label, i) => {
@@ -247,13 +247,13 @@
       ctx.fill();
 
       // Valor encima
-      ctx.fillStyle = "#101828";
+      ctx.fillStyle = "#f7f9fc";
       ctx.font = "bold 11px sans-serif";
       ctx.textAlign = "center";
       ctx.fillText(valores[i], x + barW / 2, y - 6);
 
       // Etiqueta abajo
-      ctx.fillStyle = "#667085";
+      ctx.fillStyle = "#a0aec0";
       ctx.font = "10px sans-serif";
       ctx.fillText(label, x + barW / 2, H - 10);
     });
