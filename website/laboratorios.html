@@ -11,8 +11,7 @@
 
   <aside class="sidebar">
     <div class="sidebar__brand">
-      <span class="icon" aria-hidden="true">🖥️</span>
-      Insuco LabControl
+      <img src="img/logo-insuco.png" alt="Insuco LabControl" title="Insuco LabControl" />
     </div>
     <nav class="sidebar__nav" id="sidebar-nav" aria-label="Navegación principal"></nav>
     <div class="sidebar__user">
@@ -26,7 +25,7 @@
 
   <main class="main-content">
 
-    <!------- Vista listado ------->
+    <!-- ===== Vista listado ===== -->
     <div id="vista-listado">
       <header class="page-header">
         <div>
@@ -48,7 +47,7 @@
       <div class="lab-grid" id="lab-grid"></div>
     </div>
 
-    <!------- Vista detalle ------->
+    <!-- ===== Vista detalle ===== -->
     <div id="vista-detalle" style="display:none">
       <header class="page-header">
         <div>
@@ -154,9 +153,11 @@
   initTabs();
   const idSeleccionado = getQueryParam("id");
   let labsCache = [];
+  let usuariosCache = [];
 
-  cargarLaboratorios().then((labs) => {
+  Promise.all([cargarLaboratorios(), cargarUsuarios()]).then(([labs, usuarios]) => {
     labsCache = labs;
+    usuariosCache = usuarios;
     if (idSeleccionado) {
       mostrarDetalle(Number(idSeleccionado));
     } else {
@@ -182,7 +183,7 @@
   }
 
   function mostrarDetalle(id) {
-    const lab = obtenerLaboratorioPorId(id);
+    const lab = labsCache.find((l) => l.id === id);
     if (!lab) return;
 
     document.getElementById("vista-listado").style.display = "none";
@@ -241,7 +242,7 @@
         return;
       }
       tbody.innerHTML = reservas.map((r) => {
-        const usr = obtenerUsuarioPorId(r.usuarioId);
+        const usr = usuariosCache.find((u) => u.id === r.usuarioId);
         return `<tr>
           <td>${formatFecha(r.fecha)}</td>
           <td>${r.horaInicio} – ${r.horaFin}</td>
@@ -258,7 +259,7 @@
 
   // Modal estado
   document.getElementById("btn-cambiar-estado")?.addEventListener("click", () => {
-    const lab = obtenerLaboratorioPorId(Number(idSeleccionado));
+    const lab = labsCache.find((l) => l.id === Number(idSeleccionado));
     if (lab) document.getElementById("select-estado").value = lab.estado;
     document.getElementById("modal-estado").style.display = "flex";
   });
@@ -270,12 +271,14 @@
   );
   document.getElementById("btn-modal-guardar").addEventListener("click", () => {
     const nuevoEstado = document.getElementById("select-estado").value;
-    const lab = LABORATORIOS.find((l) => l.id === Number(idSeleccionado));
-    if (lab) {
-      lab.estado = nuevoEstado;
-      mostrarDetalle(Number(idSeleccionado));
-      showToast(`Estado actualizado a "${ESTADOS[nuevoEstado].label}".`);
-    }
+    actualizarEstadoLaboratorio(Number(idSeleccionado), nuevoEstado)
+      .then((labActualizado) => {
+        const idx = labsCache.findIndex((l) => l.id === labActualizado.id);
+        if (idx !== -1) labsCache[idx] = labActualizado;
+        mostrarDetalle(labActualizado.id);
+        showToast(`Estado actualizado a "${ESTADOS[nuevoEstado].label}".`);
+      })
+      .catch(() => showToast("No se pudo actualizar el estado.", "error"));
     document.getElementById("modal-estado").style.display = "none";
   });
 

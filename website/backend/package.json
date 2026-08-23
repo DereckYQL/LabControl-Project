@@ -1,0 +1,16 @@
+{
+  "name": "labcontrol-backend",
+  "version": "1.0.0",
+  "description": "API REST + base de datos SQLite para LabControl Liceo",
+  "main": "server.js",
+  "engines": {
+    "node": ">=22.5.0"
+  },
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2"
+  }
+}

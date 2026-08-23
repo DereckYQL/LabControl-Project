@@ -10,9 +10,9 @@
 
 <div class="login-card">
   <div class="login-brand">
-    <div class="login-brand__icon">🖥️</div>
+    <div class="login-brand__icon"><img src="img/logo-insuco.png" alt="Logo INSUCO" /></div>
     <div>
-      <div class="login-brand__name">LabControl</div>
+      <div class="login-brand__name">Insuco LabControl</div>
       <div class="login-brand__sub">Instituto Superior de Comercio</div>
     </div>
   </div>
@@ -50,11 +50,17 @@
     window.location.href = "index.html";
   }
 
-  document.getElementById("login-form").addEventListener("submit", (e) => {
+  document.getElementById("login-form").addEventListener("submit", async (e) => {
     e.preventDefault();
     const user = document.getElementById("input-user").value.trim();
     const pass = document.getElementById("input-pass").value;
-    const result = AUTH.login(user, pass);
+    const btn = document.querySelector(".login-submit");
+    document.getElementById("login-error").style.display = "none";
+    btn.disabled = true;
+    btn.textContent = "Ingresando…";
+    const result = await AUTH.login(user, pass);
+    btn.disabled = false;
+    btn.textContent = "Ingresar";
     if (result) {
       window.location.href = "index.html";
     } else {

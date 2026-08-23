@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Usuarios · LabControl Insuco </title>
+<title>Usuarios · Insuco LabControl</title>
 <link rel="stylesheet" href="style.css" />
 </head>
 <body>
@@ -11,8 +11,7 @@
 
   <aside class="sidebar">
     <div class="sidebar__brand">
-      <span class="icon" aria-hidden="true">🖥️</span>
-      Insuco LabControl
+      <img src="img/logo-insuco.png" alt="Insuco LabControl" title="Insuco LabControl" />
     </div>
     <nav class="sidebar__nav" id="sidebar-nav" aria-label="Navegación principal"></nav>
     <div class="sidebar__user">
@@ -391,22 +390,22 @@
       showToast("Completa todos los campos obligatorios.", "error");
       return;
     }
-    if (USUARIOS.find((u) => u.id === id)) {
-      showToast("Ya existe un usuario con ese ID.", "error");
-      return;
-    }
     const nuevo = {
       id, nombre, apellido,
       iniciales: `${nombre[0]}${apellido[0]}`.toUpperCase(),
       email, password: pass, rol, area,
-      especialidad: espec, nivelAcceso: nivel, activo: true
+      especialidad: espec, nivelAcceso: nivel
     };
-    USUARIOS.push(nuevo);
-    usuariosCache = USUARIOS;
-    renderStats(USUARIOS);
-    renderGrid(USUARIOS);
-    showToast(`Usuario ${nombre} ${apellido} creado correctamente.`);
-    document.getElementById("modal-usuario").style.display = "none";
+    crearUsuario(nuevo)
+      .then(() => cargarUsuarios())
+      .then((usuarios) => {
+        usuariosCache = usuarios;
+        renderStats(usuarios);
+        renderGrid(usuarios);
+        showToast(`Usuario ${nombre} ${apellido} creado correctamente.`);
+        document.getElementById("modal-usuario").style.display = "none";
+      })
+      .catch((err) => showToast(err.message || "No se pudo crear el usuario.", "error"));
   });
 
   document.getElementById("modal-usuario").addEventListener("click", (e) => {

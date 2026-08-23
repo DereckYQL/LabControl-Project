@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Mapa 2D · Insuco LabControl</title>
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+<div class="app-layout">
+
+  <aside class="sidebar">
+    <div class="sidebar__brand">
+      <img src="img/logo-insuco.png" alt="Insuco LabControl" title="Insuco LabControl" />
+    </div>
+    <nav class="sidebar__nav" id="sidebar-nav" aria-label="Navegación principal"></nav>
+    <div class="sidebar__user">
+      <div class="avatar">--</div>
+      <div>
+        <div class="name">Cargando…</div>
+        <div class="role">—</div>
+      </div>
+    </div>
+  </aside>
+
+  <main class="main-content">
+    <header class="page-header">
+      <div>
+        <h1>Mapa 2D del establecimiento</h1>
+        <p>Haz clic en un laboratorio para ver su estado y detalle</p>
+      </div>
+      <span class="badge badge--muted">Vista de planta — Piso 1 y 2</span>
+    </header>
+
+    <!-- Panel del laboratorio seleccionado -->
+    <div class="card" id="panel-lab" style="display:none;margin-bottom:16px;padding:18px 20px">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
+        <div>
+          <strong id="panel-nombre" style="font-size:1.05rem"></strong>
+          <div style="color:var(--color-text-muted);font-size:.82rem;margin-top:2px" id="panel-sala"></div>
+        </div>
+        <div style="display:flex;gap:10px;align-items:center">
+          <span class="badge" id="panel-badge"></span>
+          <a class="btn btn--sm btn--primary" id="panel-link" href="#">Ver detalles →</a>
+        </div>
+      </div>
+    </div>
+
+    <!-- Mapa -->
+    <div class="mapa-wrap">
+      <svg id="mapa-svg" class="mapa-svg" viewBox="0 0 900 520" width="100%"
+           xmlns="http://www.w3.org/2000/svg" aria-label="Plano del liceo">
+        <rect x="30" y="30" width="840" height="460" rx="14"
+              fill="#fbfcfe" stroke="#c9d3e0" stroke-width="3"/>
+
+        <rect x="30" y="245" width="840" height="34" fill="#eef2f8"/>
+        <text x="450" y="266" text-anchor="middle" font-size="11" fill="#94a3b8">PASILLO PRINCIPAL</text>
+
+        <g class="sala-lab" data-lab-id="1"><rect x="60" y="55" width="220" height="170" rx="10"/><text x="170" y="128" text-anchor="middle" font-size="15" font-weight="bold" fill="#fff">Laboratorio 1</text><text x="170" y="150" text-anchor="middle" font-size="11" fill="#e2e8f0">Sala 101</text></g>
+        <g class="sala-lab" data-lab-id="2"><rect x="300" y="55" width="220" height="170" rx="10"/><text x="410" y="128" text-anchor="middle" font-size="15" font-weight="bold" fill="#fff">Laboratorio 2</text><text x="410" y="150" text-anchor="middle" font-size="11" fill="#e2e8f0">Sala 102</text></g>
+        <g class="sala-lab" data-lab-id="3"><rect x="540" y="55" width="220" height="170" rx="10"/><text x="650" y="128" text-anchor="middle" font-size="15" font-weight="bold" fill="#fff">Laboratorio 3</text><text x="650" y="150" text-anchor="middle" font-size="11" fill="#e2e8f0">Sala 103</text></g>
+
+        <g class="sala-lab" data-lab-id="4"><rect x="60" y="300" width="220" height="165" rx="10"/><text x="170" y="372" text-anchor="middle" font-size="15" font-weight="bold" fill="#fff">Laboratorio 4</text><text x="170" y="394" text-anchor="middle" font-size="11" fill="#e2e8f0">Sala 201</text></g>
+        <g class="sala-lab" data-lab-id="5"><rect x="300" y="300" width="220" height="165" rx="10"/><text x="410" y="372" text-anchor="middle" font-size="13" font-weight="bold" fill="#fff">Lab Redes</text><text x="410" y="394" text-anchor="middle" font-size="11" fill="#e2e8f0">Sala 202</text></g>
+
+        <g>
+          <rect class="sala-otra" x="540" y="300" width="100" height="75" rx="8"/>
+          <text x="590" y="334" text-anchor="middle" font-size="10" fill="#667085">Bodega</text>
+          <text x="590" y="350" text-anchor="middle" font-size="10" fill="#667085">equipos</text>
+
+          <rect class="sala-otra" x="540" y="385" width="100" height="80" rx="8"/>
+          <text x="590" y="420" text-anchor="middle" font-size="10" fill="#667085">Sala</text>
+          <text x="590" y="436" text-anchor="middle" font-size="10" fill="#667085">profesores</text>
+
+          <rect class="sala-otra" x="660" y="300" width="100" height="165" rx="8"/>
+          <text x="710" y="378" text-anchor="middle" font-size="10" fill="#667085">Biblioteca</text>
+
+          <rect x="770" y="360" width="70" height="45" rx="8" fill="#dcfce7" stroke="#16a34a"/>
+          <text x="805" y="378" text-anchor="middle" font-size="9" fill="#166534">ENTRADA</text>
+          <text x="805" y="392" text-anchor="middle" font-size="9" fill="#166534">PRINCIPAL</text>
+        </g>
+      </svg>
+
+      <div class="mapa-leyenda">
+        <span><i style="background:var(--color-success)"></i> Disponible</span>
+        <span><i style="background:var(--color-danger)"></i> Ocupado</span>
+        <span><i style="background:var(--color-warning)"></i> Mantención</span>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script src="data.js"></script>
+<script src="app.js"></script>
+<script>
+  renderSidebar("mapa.html");
+
+  const COLORES_MAPA = {
+    disponible: "#16a34a",
+    ocupado: "#ef4444",
+    mantencion: "#f59e0b"
+  };
+
+  let labsCache = [];
+
+  cargarLaboratorios().then((labs) => {
+    labsCache = labs;
+
+    labs.forEach((lab) => {
+      const g = document.querySelector('[data-lab-id="' + lab.id + '"]');
+      if (!g) return;
+      const rect = g.querySelector("rect");
+      rect.style.fill = COLORES_MAPA[lab.estado];
+      rect.setAttribute("stroke", "#ffffff");
+      rect.setAttribute("stroke-width", "2");
+      g.addEventListener("click", () => seleccionarLab(lab.id));
+    });
+  });
+
+  function seleccionarLab(id) {
+    const lab = labsCache.find((l) => l.id === id);
+    if (!lab) return;
+
+    document.querySelectorAll(".sala-lab").forEach((g) => g.classList.remove("selected"));
+    document.querySelector('[data-lab-id="' + id + '"]').classList.add("selected");
+
+    document.getElementById("panel-lab").style.display = "block";
+    document.getElementById("panel-nombre").textContent = lab.nombre;
+    document.getElementById("panel-sala").textContent = lab.sala + " · " + lab.equipos + " equipos";
+
+    const badge = document.getElementById("panel-badge");
+    badge.textContent = ESTADOS[lab.estado].label;
+    badge.className = "badge badge--" + lab.estado;
+
+    document.getElementById("panel-link").href = "laboratorios.html?id=" + lab.id;
+
+    document.getElementById("panel-lab").scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }
+</script>
+</body>
+</html>

@@ -11,8 +11,7 @@
 
   <aside class="sidebar">
     <div class="sidebar__brand">
-      <span class="icon" aria-hidden="true">🖥️</span>
-      Insuco LabControl
+      <img src="img/logo-insuco.png" alt="Insuco LabControl" title="Insuco LabControl" />
     </div>
     <nav class="sidebar__nav" id="sidebar-nav" aria-label="Navegación principal"></nav>
     <div class="sidebar__user">
@@ -109,7 +108,14 @@
   const ICONOS_TIPO = { uso: "📊", fallas: "⚠️", disponibilidad: "🕒", inventario: "📦" };
   const COLORES_TIPO = { uso: "primary", fallas: "danger", disponibilidad: "success", inventario: "warning" };
 
-  cargarReportes().then((reportes) => renderRepGrid(reportes));
+  let reportesCache = [];
+  let usuariosCache = [];
+
+  Promise.all([cargarReportes(), cargarUsuarios()]).then(([reportes, usuarios]) => {
+    reportesCache = reportes;
+    usuariosCache = usuarios;
+    renderRepGrid(reportes);
+  });
 
   function renderRepGrid(reportes) {
     const grid = document.getElementById("rep-grid");
@@ -118,7 +124,7 @@
       return;
     }
     grid.innerHTML = reportes.map((rep) => {
-      const autor = obtenerUsuarioPorId(rep.generadoPor);
+      const autor = usuariosCache.find((u) => u.id === rep.generadoPor);
       const color = COLORES_TIPO[rep.tipo] ?? "primary";
       return `
         <div class="card rep-card" role="button" tabindex="0"
@@ -142,9 +148,9 @@
   }
 
   function abrirReporte(id) {
-    const rep   = REPORTES.find((r) => r.id === id);
+    const rep   = reportesCache.find((r) => r.id === id);
     if (!rep) return;
-    const autor = obtenerUsuarioPorId(rep.generadoPor);
+    const autor = usuariosCache.find((u) => u.id === rep.generadoPor);
 
     document.getElementById("rep-grid").parentElement.style.display = "none";
     document.getElementById("rep-grid").style.display = "none";
@@ -277,7 +283,6 @@
     if (!titulo) { showToast("Escribe un título para el reporte.", "error"); return; }
     const sesion = AUTH.getSesion();
     const nuevo  = {
-      id: `rep_${Date.now()}`,
       tipo,
       titulo,
       descripcion: `Reporte generado el ${formatFecha(new Date().toISOString().split("T")[0])}.`,
@@ -285,10 +290,15 @@
       generadoPor: sesion?.id ?? "desconocido",
       datos: generarDatosMock(tipo)
     };
-    REPORTES.unshift(nuevo);
-    renderRepGrid(REPORTES);
-    showToast("Reporte generado correctamente.");
-    document.getElementById("modal-reporte").style.display = "none";
+    crearReporte(nuevo)
+      .then(() => cargarReportes())
+      .then((reportes) => {
+        reportesCache = reportes;
+        renderRepGrid(reportes);
+        showToast("Reporte generado correctamente.");
+        document.getElementById("modal-reporte").style.display = "none";
+      })
+      .catch(() => showToast("No se pudo generar el reporte.", "error"));
   });
 
   function generarDatosMock(tipo) {

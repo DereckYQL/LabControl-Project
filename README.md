@@ -1,6 +1,8 @@
 # LabControl Liceo
 
-Sitio web para el control y supervisión de los 5 laboratorios de computación del liceo, con inicio de sesión, roles de profesor y acceso diferenciado a la información técnica. Proyecto de la asignatura *Diseño y Aplicaciones Web*.
+Sitio web para el control y supervisión de los 5 laboratorios de computación del liceo, con inicio de sesión, roles de profesor, acceso diferenciado a la información técnica y una **base de datos real (SQLite)** en el backend. Proyecto de la asignatura *Diseño y Aplicaciones Web*.
+
+Link web: https://dereckyql.github.io/Insuco-LabControl/login.html
 
 ## Objetivo
 
@@ -17,39 +19,31 @@ Solo el **Administrador** puede gestionar usuarios y acceder a la configuración
 ## Estructura del proyecto
 
 ```
-Website/
-│
-├── Base/
-│   ├── login.html            # Inicio de sesión de profesores y administradores
-│   ├── index.html            # Dashboard principal con resumen general del sistema
-│   └── style.css             # Estilos globales compartidos por todo el sitio
-│
-├── Config/
-│   ├── app.js                # Funciones generales, navegación y control de interfaz
-│   ├── data.js               # Datos simulados (laboratorios, equipos, usuarios, reservas)
-│   └── configuracion.html    # Configuración personal y ajustes avanzados del sistema
-│
-├── Info/
-│   ├── laboratorios.html     # Información detallada de cada laboratorio
-│   ├── disponibilidad.html   # Estado actual de las salas y gestión de reservas
-│   ├── equipos.html          # Inventario de computadores y dispositivos
-│   └── reportes.html         # Estadísticas, uso, fallas e historial de actividad
-│
-├── Shift/
-│   ├── mapa.html             # Mapa interactivo del establecimiento con ubicación de laboratorios
-│   └── usuarios.html         # Gestión de usuarios, roles y permisos de acceso
-│
-└── Assets/
-    ├── img/                  # Imágenes utilizadas en el sistema
-    ├── icons/                # Iconos para menús y tarjetas
-    ├── logos/                # Logotipos institucionales
-    └── svg/                  # Recursos SVG para el mapa interactivo y gráficos
+labcontrol/
+├── login.html            Inicio de sesión
+├── index.html             Dashboard: resumen, estado en tiempo real, distribución de equipos
+├── laboratorios.html      Listado + detalle de laboratorio (tabs: general/hardware/servicios/agenda)
+├── disponibilidad.html    Estado actual + agenda de reservas (cambiar estado, agendar uso)
+├── mapa.html               Mapa 2D interactivo del establecimiento (SVG)
+├── equipos.html            Inventario de equipos, con control remoto para Programación/Admin
+├── reportes.html           Reportes de uso, disponibilidad, fallas e inventario
+├── usuarios.html           Profesores, área, especialidad y nivel de acceso
+├── configuracion.html      Configuración personal + configuración avanzada (solo Admin)
+├── style.css               Estilos compartidos
+├── app.js                   Sidebar dinámico por rol + funciones de render reutilizadas
+├── data.js                  Cliente de la API (fetch) — reemplaza al antiguo array hardcodeado
+└── backend/                 Servidor + base de datos
+    ├── server.js             API REST (Express) — también sirve el sitio estático
+    ├── db.js                  Conexión SQLite + creación de tablas + datos de ejemplo
+    ├── package.json
+    └── database/
+        └── labcontrol.db      (se crea solo la primera vez que se ejecuta el servidor)
 ```
 
 ## Próximos pasos sugeridos
 
-1. Reemplazar las funciones `cargar*()` de `data.js` por `fetch()` a una API real (Node/Express + base de datos).
-2. Hashear contraseñas y mover la autenticación a un backend real (hoy es solo demostrativa, en el cliente).
-3. Subir fotos reales de cada laboratorio.
-4. Conectar el control remoto a un agente real instalado en cada equipo (hoy solo registra el comando en un log simulado).
-5. Evaluar la app móvil (etapa 2 del proyecto), reutilizando `data.js` como capa de datos.
+1. **Seguridad**: hashear las contraseñas (ej. `bcrypt`) y mover la sesión a cookies firmadas o JWT en vez de guardar todo en `localStorage`. Hoy, por simplicidad de demostración, la contraseña viaja igual que en la versión anterior (sin hash).
+2. Subir fotos reales de cada laboratorio.
+3. Conectar el control remoto a un agente real instalado en cada equipo (hoy solo registra el comando en un log simulado, no se guarda en la base de datos).
+4. Agregar un `backend/database/schema.sql` versionado en control de código si se quiere llevar historial de migraciones.
+5. Evaluar la app móvil (etapa 2 del proyecto), consumiendo la misma API REST.

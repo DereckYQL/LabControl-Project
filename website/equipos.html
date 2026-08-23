@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Equipos · Insuco LabControl</title>
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+<div class="app-layout">
+
+  <aside class="sidebar">
+    <div class="sidebar__brand">
+      <img src="img/logo-insuco.png" alt="Insuco LabControl" title="Insuco LabControl" />
+    </div>
+    <nav class="sidebar__nav" id="sidebar-nav" aria-label="Navegación principal"></nav>
+    <div class="sidebar__user">
+      <div class="avatar">--</div>
+      <div>
+        <div class="name">Cargando…</div>
+        <div class="role">—</div>
+      </div>
+    </div>
+  </aside>
+
+  <main class="main-content">
+    <header class="page-header">
+      <div>
+        <h1>Inventario de equipos</h1>
+        <p>Equipos por laboratorio, estado e información técnica</p>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+        <select class="form-input" id="filtro-lab" style="width:190px;margin:0"></select>
+        <input class="form-input" id="filtro-busq-eq" type="search"
+          placeholder="Buscar equipo…" style="width:170px;margin:0" />
+      </div>
+    </header>
+
+    <!-- Tarjetas resumen -->
+    <div class="stat-grid" id="eq-stats" style="margin-bottom:20px"></div>
+
+    <!-- Tabla de equipos -->
+    <div class="card" style="margin-bottom:20px">
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Laboratorio</th>
+              <th>Tipo</th>
+              <th>Estado</th>
+              <th id="th-tecnico">Procesador / RAM</th>
+              <th id="th-red">IP / MAC</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="tabla-equipos"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Panel de control remoto (solo Programación/Admin) -->
+    <div id="seccion-remoto" style="display:none">
+      <div class="section-title" style="padding:0 4px 10px">Control remoto — simulado</div>
+      <div class="card" id="panel-remoto-vacio" style="padding:20px;color:var(--color-text-muted);font-size:.88rem">
+        Selecciona un equipo en la tabla (botón "Control") para enviarle comandos remotos.
+      </div>
+      <div id="panel-remoto" style="display:none">
+        <div class="card" style="padding:20px;margin-bottom:14px">
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
+            <div>
+              <strong id="rem-nombre" style="font-size:1rem"></strong>
+              <div style="color:var(--color-text-muted);font-size:.8rem;margin-top:2px" id="rem-detalle"></div>
+            </div>
+            <span class="badge" id="rem-badge"></span>
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:16px">
+            <button class="btn btn--sm" data-cmd="encender">⏻ Encender</button>
+            <button class="btn btn--sm" data-cmd="apagar">⏼ Apagar</button>
+            <button class="btn btn--sm" data-cmd="reiniciar">🔄 Reiniciar</button>
+            <button class="btn btn--sm" data-cmd="bloquear">🔒 Bloquear</button>
+            <button class="btn btn--sm" data-cmd="captura">📷 Capturar pantalla</button>
+            <button class="btn btn--sm btn--danger" data-cmd="apagar_todos">⛔ Apagar todos (lab)</button>
+          </div>
+        </div>
+        <div class="remote-log" id="remote-log"></div>
+      </div>
+    </div>
+
+    <!-- Aviso para usuarios sin permisos técnicos -->
+    <div id="aviso-sin-permiso" class="access-notice" style="display:none">
+      <span>🔒</span>
+      <div>
+        <strong>Información técnica restringida</strong>
+        <p>Tu cuenta no tiene acceso al detalle técnico ni al control remoto de los equipos. Consulta con el administrador.</p>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script src="data.js"></script>
+<script src="app.js"></script>
+<script>
+  renderSidebar("equipos.html");
+
+  const puedeTecnico = AUTH.puedeVerTecnico();
+  const labFiltroInicial = getQueryParam("lab");
+
+  let equiposCache = [];
+  let labsCache = [];
+  let eqSeleccionado = null;
+
+  if (!puedeTecnico) {
+    document.getElementById("aviso-sin-permiso").style.display = "flex";
+    document.getElementById("seccion-remoto").style.display = "none";
+    document.getElementById("th-tecnico").textContent = "Hardware";
+    document.getElementById("th-red").textContent = "Red";
+  }
+
+  Promise.all([cargarLaboratorios(), cargarEquipos()]).then(([labs, equipos]) => {
+    labsCache = labs;
+    equiposCache = equipos;
+
+    const sel = document.getElementById("filtro-lab");
+    sel.innerHTML =
+      '<option value="">Todos los laboratorios</option>' +
+      labs.map((l) => `<option value="${l.id}">${l.nombre}</option>`).join("");
+    if (labFiltroInicial) sel.value = labFiltroInicial;
+
+    renderEqStats();
+    renderTabla();
+  });
+
+  ["filtro-lab", "filtro-busq-eq"].forEach((id) =>
+    document.getElementById(id).addEventListener("input", () => { renderEqStats(); renderTabla(); })
+  );
+
+  function equiposFiltrados() {
+    const labId = document.getElementById("filtro-lab").value;
+    const q = document.getElementById("filtro-busq-eq").value.toLowerCase();
+    return equiposCache.filter((e) => {
+      const lab = labsCache.find((l) => l.id === e.labId);
+      return (!labId || String(e.labId) === labId) &&
+        (!q || `${e.nombre} ${e.tipo} ${lab ? lab.nombre : ""}`.toLowerCase().includes(q));
+    });
+  }
+
+  function renderEqStats() {
+    const lista = equiposFiltrados();
+    const activos = lista.filter((e) => e.estado === "activo").length;
+    const enFalla = lista.filter((e) => e.estado === "falla").length;
+    const enMant  = lista.filter((e) => e.estado === "mantencion").length;
+    document.getElementById("eq-stats").innerHTML = `
+      <div class="card stat-card"><div><div class="stat-card__label">Equipos mostrados</div><div class="stat-card__value">${lista.length}</div></div><div class="stat-card__icon stat-card__icon--primary">💻</div></div>
+      <div class="card stat-card"><div><div class="stat-card__label">Activos</div><div class="stat-card__value">${activos}</div></div><div class="stat-card__icon stat-card__icon--success">✅</div></div>
+      <div class="card stat-card"><div><div class="stat-card__label">En falla</div><div class="stat-card__value">${enFalla}</div></div><div class="stat-card__icon stat-card__icon--danger">⚠️</div></div>
+      <div class="card stat-card"><div><div class="stat-card__label">Mantención</div><div class="stat-card__value">${enMant}</div></div><div class="stat-card__icon stat-card__icon--warning">🔧</div></div>
+    `;
+  }
+
+  function renderTabla() {
+    const tbody = document.getElementById("tabla-equipos");
+    const lista = equiposFiltrados();
+
+    if (!lista.length) {
+      tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;color:var(--color-text-muted);padding:24px">Sin equipos que mostrar.</td></tr>`;
+      return;
+    }
+
+    tbody.innerHTML = lista.map((e) => {
+      const lab = labsCache.find((l) => l.id === e.labId);
+      const estEq = ESTADOS_EQUIPO[e.estado] ?? { label: e.estado, clase: "badge--muted" };
+      const tecnico = puedeTecnico
+        ? `<span class="tech-cell">${e.procesador}<br>${e.ram} · ${e.almacenamiento}</span>`
+        : `<span class="locked-cell">🔒 Restringido</span>`;
+      const red = puedeTecnico
+        ? `<span class="tech-cell">${e.ip}<br>${e.mac}</span>`
+        : `<span class="locked-cell">🔒 Restringido</span>`;
+      return `
+        <tr>
+          <td><strong>${e.nombre}</strong><br><span style="font-size:.74rem;color:var(--color-text-muted)">${lab ? lab.nombre : "—"}</span></td>
+          <td>${e.tipo ?? "PC"}</td>
+          <td><span class="badge ${estEq.clase}">${estEq.label}</span></td>
+          <td>${tecnico}</td>
+          <td>${red}</td>
+          <td>${puedeTecnico
+            ? `<button class="btn btn--sm" onclick="abrirControl(${e.id})">Control</button>`
+            : "—"}</td>
+        </tr>
+      `;
+    }).join("");
+  }
+
+  /* ---------- Control remoto simulado ---------- */
+
+  function abrirControl(eqId) {
+    const eq = equiposCache.find((e) => e.id === eqId);
+    if (!eq) return;
+    eqSeleccionado = eq;
+
+    const lab = labsCache.find((l) => l.id === eq.labId);
+    const estEq = ESTADOS_EQUIPO[eq.estado] ?? { label: eq.estado, clase: "badge--muted" };
+
+    document.getElementById("panel-remoto-vacio").style.display = "none";
+    document.getElementById("panel-remoto").style.display = "block";
+    document.getElementById("rem-nombre").textContent = eq.nombre;
+    document.getElementById("rem-detalle").textContent =
+      `${lab ? lab.nombre : "Lab"} · ${eq.so} · ${eq.ip}`;
+    document.getElementById("rem-badge").textContent = estEq.label;
+    document.getElementById("rem-badge").className = "badge " + estEq.clase;
+
+    logRemoto(`Sesión de control iniciada sobre ${eq.nombre}.`);
+    document.getElementById("panel-remoto").scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }
+
+  function logRemoto(msg) {
+    const log = document.getElementById("remote-log");
+    const hora = new Date().toLocaleTimeString("es-CL", { hour12: false });
+    const line = document.createElement("div");
+    line.innerHTML = `<span class="log-time">[${hora}]</span>${msg}`;
+    log.appendChild(line);
+    log.scrollTop = log.scrollHeight;
+  }
+
+  const MENSAJES_CMD = {
+    encender:     (eq) => `Comando ENCIENDER enviado a ${eq.nombre}… respuesta OK.`,
+    apagar:       (eq) => `Comando APAGAR enviado a ${eq.nombre}… apagado correcto.`,
+    reiniciar:    (eq) => `Comando REINICIAR enviado a ${eq.nombre}… reinicio en curso.`,
+    bloquear:     (eq) => `Comando BLOQUEAR enviado a ${eq.nombre}… pantalla bloqueada.`,
+    captura:      (eq) => `Captura de pantalla de ${eq.nombre} obtenida (simulada).`,
+    apagar_todos: (eq) => `Apagando TODOS los equipos del laboratorio de ${eq.nombre}…`
+  };
+
+  if (puedeTecnico) {
+    document.querySelectorAll("[data-cmd]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        if (!eqSeleccionado) return;
+        const cmd = btn.dataset.cmd;
+        logRemoto(MENSAJES_CMD[cmd](eqSeleccionado));
+        showToast(`Comando ejecutado: ${cmd.replaceAll("_", " ")}`);
+      });
+    });
+
+    // Abrir panel automáticamente si viene ?lab=N&equipo=ID (futuro)
+    if (getQueryParam("lab")) {
+      document.getElementById("seccion-remoto").style.display = "block";
+    }
+  }
+</script>
+</body>
+</html>

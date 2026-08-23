@@ -11,8 +11,7 @@
 
   <aside class="sidebar">
     <div class="sidebar__brand">
-      <span class="icon" aria-hidden="true">🖥️</span>
-      Insuco LabControl
+      <img src="img/logo-insuco.png" alt="Insuco LabControl" title="Insuco LabControl" />
     </div>
     <nav class="sidebar__nav" id="sidebar-nav" aria-label="Navegación principal"></nav>
     <div class="sidebar__user">
@@ -149,6 +148,8 @@
   renderSidebar("disponibilidad.html");
   const sesion = AUTH.getSesion();
   let labSeleccionado = null;
+  let labsCache = [];
+  let usuariosCache = [];
 
   function renderDispStats(labs) {
     const el = document.getElementById("disp-stats");
@@ -204,7 +205,7 @@
     }
     tbody.innerHTML = agenda.map((res) => {
       const lab = labs.find((l) => l.id === res.labId);
-      const usr = obtenerUsuarioPorId(res.usuarioId);
+      const usr = usuariosCache.find((u) => u.id === res.usuarioId);
       const claseEstado = res.estado === "confirmada" ? "badge--disponible" : "badge--mantencion";
       return `
         <tr>
@@ -224,19 +225,20 @@
 
   function abrirModalEstado(labId) {
     labSeleccionado = labId;
-    const lab = obtenerLaboratorioPorId(labId);
+    const lab = labsCache.find((l) => l.id === labId);
     document.getElementById("modal-estado-lab").textContent = `Laboratorio: ${lab.nombre} (${lab.sala})`;
     document.getElementById("select-nuevo-estado").value = lab.estado;
     document.getElementById("modal-estado").style.display = "flex";
   }
 
   function cancelarReserva(id) {
-    const idx = AGENDA.findIndex((r) => r.id === id);
-    if (idx !== -1) {
-      AGENDA.splice(idx, 1);
-      cargarAgenda().then((ag) => cargarLaboratorios().then((labs) => renderTablaAgenda(ag, labs)));
-      showToast("Reserva cancelada correctamente.");
-    }
+    eliminarReserva(id)
+      .then(() => cargarAgenda())
+      .then((ag) => {
+        renderTablaAgenda(ag, labsCache);
+        showToast("Reserva cancelada correctamente.");
+      })
+      .catch(() => showToast("No se pudo cancelar la reserva.", "error"));
   }
 
   // Modal estado
@@ -248,24 +250,22 @@
   );
   document.getElementById("btn-guardar-estado").addEventListener("click", () => {
     const nuevoEstado = document.getElementById("select-nuevo-estado").value;
-    const lab = LABORATORIOS.find((l) => l.id === labSeleccionado);
-    if (lab) {
-      lab.estado = nuevoEstado;
-      cargarLaboratorios().then((labs) => {
+    actualizarEstadoLaboratorio(labSeleccionado, nuevoEstado)
+      .then(() => cargarLaboratorios())
+      .then((labs) => {
+        labsCache = labs;
         renderDispStats(labs);
         renderTablaDisp(labs);
-      });
-      showToast(`Estado actualizado a "${ESTADOS[nuevoEstado].label}".`);
-    }
+        showToast(`Estado actualizado a "${ESTADOS[nuevoEstado].label}".`);
+      })
+      .catch(() => showToast("No se pudo actualizar el estado.", "error"));
     document.getElementById("modal-estado").style.display = "none";
   });
 
   // Modal reserva
   document.getElementById("btn-nueva-reserva").addEventListener("click", () => {
-    cargarLaboratorios().then((labs) => {
-      const sel = document.getElementById("res-lab");
-      sel.innerHTML = labs.map((l) => `<option value="${l.id}">${l.nombre} — ${l.sala}</option>`).join("");
-    });
+    const sel = document.getElementById("res-lab");
+    sel.innerHTML = labsCache.map((l) => `<option value="${l.id}">${l.nombre} — ${l.sala}</option>`).join("");
     // Fecha mínima: hoy
     const hoy = new Date().toISOString().split("T")[0];
     document.getElementById("res-fecha").value = hoy;
@@ -286,7 +286,6 @@
     const motivo  = document.getElementById("res-motivo").value.trim();
     if (!fecha || !motivo) { showToast("Completa todos los campos.", "error"); return; }
     const nuevaRes = {
-      id: `res_${Date.now()}`,
       labId,
       usuarioId: sesion?.id ?? "desconocido",
       fecha,
@@ -295,9 +294,13 @@
       motivo,
       estado: "pendiente"
     };
-    AGENDA.push(nuevaRes);
-    cargarAgenda().then((ag) => cargarLaboratorios().then((labs) => renderTablaAgenda(ag, labs)));
-    showToast("Reserva agendada correctamente.");
+    crearReserva(nuevaRes)
+      .then(() => cargarAgenda())
+      .then((ag) => {
+        renderTablaAgenda(ag, labsCache);
+        showToast("Reserva agendada correctamente.");
+      })
+      .catch(() => showToast("No se pudo agendar la reserva.", "error"));
     document.getElementById("modal-reserva").style.display = "none";
   });
 
@@ -309,7 +312,9 @@
   });
 
   // Carga inicial
-  Promise.all([cargarLaboratorios(), cargarAgenda()]).then(([labs, agenda]) => {
+  Promise.all([cargarLaboratorios(), cargarAgenda(), cargarUsuarios()]).then(([labs, agenda, usuarios]) => {
+    labsCache = labs;
+    usuariosCache = usuarios;
     renderDispStats(labs);
     renderTablaDisp(labs);
     renderTablaAgenda(agenda, labs);

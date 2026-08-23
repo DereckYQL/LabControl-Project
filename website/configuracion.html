@@ -11,8 +11,7 @@
 
   <aside class="sidebar">
     <div class="sidebar__brand">
-      <span class="icon" aria-hidden="true">🖥️</span>
-      Insuco LabControl
+      <img src="img/logo-insuco.png" alt="Insuco LabControl" title="Insuco LabControl" />
     </div>
     <nav class="sidebar__nav" id="sidebar-nav" aria-label="Navegación principal"></nav>
     <div class="sidebar__user">
@@ -49,48 +48,65 @@
   renderSidebar("configuracion.html");
   const esAdmin = AUTH.esAdmin();
   const sesion  = AUTH.getSesion();
-  const usuario = obtenerUsuarioPorId(sesion?.id);
 
-  if (esAdmin) {
-    document.getElementById("cfg-subtitulo").textContent =
-      "Configuración completa del sistema — modo Administrador";
+  // Estos tres se llenan una vez que llega la respuesta de la API;
+  // las funciones de abajo (buildPanel, guardar, etc.) los usan luego,
+  // cuando el usuario ya interactuó con la pantalla.
+  let config = null;
+  let usuario = null;
+  let usuariosTotal = [];
+
+  let secciones = [];
+
+  Promise.all([cargarConfig(), cargarUsuarios()]).then(([cfg, usuarios]) => {
+    config = cfg;
+    usuariosTotal = usuarios;
+    usuario = usuarios.find((u) => u.id === sesion?.id) || null;
+    iniciarPantalla();
+  });
+
+  function iniciarPantalla() {
+    if (esAdmin) {
+      document.getElementById("cfg-subtitulo").textContent =
+        "Configuración completa del sistema — modo Administrador";
+    }
+
+    /* -------- Definición de secciones -------- */
+    const SECCIONES_BASE = [
+      { id: "perfil",           icon: "👤", label: "Mi perfil" },
+      { id: "apariencia",       icon: "🎨", label: "Apariencia" },
+      { id: "notificaciones",   icon: "🔔", label: "Notificaciones" },
+      { id: "seguridad",        icon: "🔒", label: "Seguridad" },
+    ];
+
+    const SECCIONES_ADMIN = [
+      { id: "sitio",            icon: "🏫", label: "Sitio web" },
+      { id: "laboratorios-cfg", icon: "🖥️", label: "Laboratorios" },
+      { id: "equipos-cfg",      icon: "💻", label: "Equipos" },
+      { id: "red",              icon: "🌐", label: "Red" },
+      { id: "usuarios-cfg",     icon: "👥", label: "Usuarios" },
+      { id: "sistema",          icon: "⚙️", label: "Sistema" },
+    ];
+
+    secciones = esAdmin ? [...SECCIONES_BASE, ...SECCIONES_ADMIN] : SECCIONES_BASE;
+
+    /* -------- Construir nav lateral -------- */
+    const sidenav = document.getElementById("cfg-sidenav");
+    sidenav.innerHTML = secciones.map((s, i) => `
+      <button class="cfg-nav-btn ${i === 0 ? "is-active" : ""}"
+        data-section="${s.id}" onclick="cambiarSeccion('${s.id}')">
+        <span>${s.icon}</span> ${s.label}
+      </button>
+    `).join("");
+
+    /* -------- Construir paneles -------- */
+    const panels = document.getElementById("cfg-panels");
+    panels.innerHTML = secciones.map((s, i) => `
+      <div class="cfg-panel ${i === 0 ? "is-active" : ""}" id="panel-${s.id}">
+        ${buildPanel(s.id)}
+      </div>
+    `).join("");
   }
-
-  /* -------- Definición de secciones -------- */
-  const SECCIONES_BASE = [
-    { id: "perfil",           icon: "👤", label: "Mi perfil" },
-    { id: "apariencia",       icon: "🎨", label: "Apariencia" },
-    { id: "notificaciones",   icon: "🔔", label: "Notificaciones" },
-    { id: "seguridad",        icon: "🔒", label: "Seguridad" },
-  ];
-
-  const SECCIONES_ADMIN = [
-    { id: "sitio",            icon: "🏫", label: "Sitio web" },
-    { id: "laboratorios-cfg", icon: "🖥️", label: "Laboratorios" },
-    { id: "equipos-cfg",      icon: "💻", label: "Equipos" },
-    { id: "red",              icon: "🌐", label: "Red" },
-    { id: "usuarios-cfg",     icon: "👥", label: "Usuarios" },
-    { id: "sistema",          icon: "⚙️", label: "Sistema" },
-  ];
-
-  const secciones = esAdmin ? [...SECCIONES_BASE, ...SECCIONES_ADMIN] : SECCIONES_BASE;
-
-  /* -------- Construir nav lateral -------- */
-  const sidenav = document.getElementById("cfg-sidenav");
-  sidenav.innerHTML = secciones.map((s, i) => `
-    <button class="cfg-nav-btn ${i === 0 ? "is-active" : ""}"
-      data-section="${s.id}" onclick="cambiarSeccion('${s.id}')">
-      <span>${s.icon}</span> ${s.label}
-    </button>
-  `).join("");
-
-  /* -------- Construir paneles -------- */
-  const panels = document.getElementById("cfg-panels");
-  panels.innerHTML = secciones.map((s, i) => `
-    <div class="cfg-panel ${i === 0 ? "is-active" : ""}" id="panel-${s.id}">
-      ${buildPanel(s.id)}
-    </div>
-  `).join("");
 
   function cambiarSeccion(id) {
     document.querySelectorAll(".cfg-nav-btn").forEach((b) =>
@@ -103,7 +119,7 @@
 
   function buildPanel(id) {
     switch (id) {
-      /* ------- PERFIL ------- */
+      /* ===== PERFIL ===== */
       case "perfil": return `
         <h2 class="cfg-panel__title">Mi perfil</h2>
         <div class="cfg-section">
@@ -140,7 +156,7 @@
         </div>
       `;
 
-      /* ------- APARIENCIA ------- */
+      /* ===== APARIENCIA ===== */
       case "apariencia": return `
         <h2 class="cfg-panel__title">Apariencia</h2>
         <div class="cfg-section">
@@ -152,7 +168,7 @@
                 { id:"blue-sidebar",  label:"Azul",                 bg:"#1e3a8a" },
                 { id:"green-sidebar", label:"Verde",                bg:"#14532d" },
               ].map((t) => `
-                <div class="tema-item ${CONFIG.sitio.tema === t.id ? "is-active" : ""}"
+                <div class="tema-item ${config.sitio.tema === t.id ? "is-active" : ""}"
                   onclick="seleccionarTema('${t.id}', this)"
                   style="--tema-bg:${t.bg}">
                   <div class="tema-preview"></div>
@@ -171,14 +187,14 @@
         </div>
       `;
 
-      /* ------- NOTIFICACIONES ------- */
+      /* ===== NOTIFICACIONES ===== */
       case "notificaciones": return `
         <h2 class="cfg-panel__title">Notificaciones</h2>
         <div class="cfg-section">
           ${[
             { id:"n-reservas",   label:"Confirmación de reservas",    checked: true },
             { id:"n-cambios",    label:"Cambios de estado de laboratorio", checked: true },
-            { id:"n-fallas",     label:"Alertas de fallas de equipos", checked: CONFIG.notificaciones?.alertaFallas ?? true },
+            { id:"n-fallas",     label:"Alertas de fallas de equipos", checked: config.notificaciones?.alertaFallas ?? true },
             { id:"n-recordator", label:"Recordatorio 30 min antes de reserva", checked: false },
           ].map((n) => `
             <label class="toggle-row">
@@ -192,7 +208,7 @@
         </div>
       `;
 
-      /* ------- SEGURIDAD ------- */
+      /* ===== SEGURIDAD ===== */
       case "seguridad": return `
         <h2 class="cfg-panel__title">Seguridad de la cuenta</h2>
         <div class="cfg-section">
@@ -216,18 +232,18 @@
         </div>
       `;
 
-      /* ------- SITIO (solo admin) ------- */
+      /* ===== SITIO (solo admin) ===== */
       case "sitio": return `
         <h2 class="cfg-panel__title">Configuración del sitio web</h2>
         <div class="cfg-admin-badge">🔑 Solo administradores</div>
         <div class="cfg-section">
           <div class="form-group">
             <label class="form-label">Nombre de la institución</label>
-            <input class="form-input" id="cfg-inst" value="${CONFIG.sitio.nombreInstitucion}" />
+            <input class="form-input" id="cfg-inst" value="${config.sitio.nombreInstitucion}" />
           </div>
           <div class="form-group">
             <label class="form-label">Nombre del sistema</label>
-            <input class="form-input" id="cfg-sistema" value="${CONFIG.sitio.nombreSistema}" />
+            <input class="form-input" id="cfg-sistema" value="${config.sitio.nombreSistema}" />
           </div>
           <div class="form-group">
             <label class="form-label">Idioma</label>
@@ -239,7 +255,7 @@
         </div>
       `;
 
-      /* ------- LABORATORIOS CFG (solo admin) ------- */
+      /* ===== LABORATORIOS CFG (solo admin) ===== */
       case "laboratorios-cfg": return `
         <h2 class="cfg-panel__title">Configuración de laboratorios</h2>
         <div class="cfg-admin-badge">🔑 Solo administradores</div>
@@ -247,20 +263,20 @@
           <div class="form-row">
             <div class="form-group">
               <label class="form-label">Hora de apertura</label>
-              <input class="form-input" type="time" id="cfg-apertura" value="${CONFIG.laboratorios.horaApertura}" />
+              <input class="form-input" type="time" id="cfg-apertura" value="${config.laboratorios.horaApertura}" />
             </div>
             <div class="form-group">
               <label class="form-label">Hora de cierre</label>
-              <input class="form-input" type="time" id="cfg-cierre" value="${CONFIG.laboratorios.horaCierre}" />
+              <input class="form-input" type="time" id="cfg-cierre" value="${config.laboratorios.horaCierre}" />
             </div>
           </div>
           <div class="form-group">
             <label class="form-label">Anticipación máxima para reservas (días)</label>
-            <input class="form-input" type="number" id="cfg-anticip" value="${CONFIG.laboratorios.anticipacionMaxReserva}" style="max-width:120px" min="1" max="30" />
+            <input class="form-input" type="number" id="cfg-anticip" value="${config.laboratorios.anticipacionMaxReserva}" style="max-width:120px" min="1" max="30" />
           </div>
           <label class="toggle-row">
             <span>Permitir reservas de otras áreas</span>
-            <div class="toggle ${CONFIG.laboratorios.permitirReservaExterna ? "toggle--on" : ""}"
+            <div class="toggle ${config.laboratorios.permitirReservaExterna ? "toggle--on" : ""}"
               id="tog-reserva-ext" onclick="toggleSwitch('tog-reserva-ext')">
               <div class="toggle__knob"></div>
             </div>
@@ -268,7 +284,7 @@
         </div>
       `;
 
-      /* ------- EQUIPOS CFG (solo admin) ------- */
+      /* ===== EQUIPOS CFG (solo admin) ===== */
       case "equipos-cfg": return `
         <h2 class="cfg-panel__title">Configuración de equipos</h2>
         <div class="cfg-admin-badge">🔑 Solo administradores</div>
@@ -298,26 +314,26 @@
         </div>
       `;
 
-      /* ------- RED (solo admin) ------- */
+      /* ===== RED (solo admin) ===== */
       case "red": return `
         <h2 class="cfg-panel__title">Configuración de red</h2>
         <div class="cfg-admin-badge">🔑 Solo administradores</div>
         <div class="cfg-section">
           <div class="form-group">
             <label class="form-label">Subred de laboratorios</label>
-            <input class="form-input" id="cfg-subred" value="${CONFIG.red.subredLabs}" />
+            <input class="form-input" id="cfg-subred" value="${config.red.subredLabs}" />
           </div>
           <div class="form-group">
             <label class="form-label">Servidor DNS</label>
-            <input class="form-input" id="cfg-dns" value="${CONFIG.red.servidorDNS}" />
+            <input class="form-input" id="cfg-dns" value="${config.red.servidorDNS}" />
           </div>
           <div class="form-group">
             <label class="form-label">Puerta de enlace</label>
-            <input class="form-input" id="cfg-gateway" value="${CONFIG.red.puertaEnlace}" />
+            <input class="form-input" id="cfg-gateway" value="${config.red.puertaEnlace}" />
           </div>
           <label class="toggle-row">
             <span>Red WiFi habilitada en laboratorios</span>
-            <div class="toggle ${CONFIG.red.wifiHabilitado ? "toggle--on" : ""}"
+            <div class="toggle ${config.red.wifiHabilitado ? "toggle--on" : ""}"
               id="tog-wifi" onclick="toggleSwitch('tog-wifi')">
               <div class="toggle__knob"></div>
             </div>
@@ -325,26 +341,26 @@
         </div>
       `;
 
-      /* ------- USUARIOS CFG (solo admin) ------- */
+      /* ===== USUARIOS CFG (solo admin) ===== */
       case "usuarios-cfg": return `
         <h2 class="cfg-panel__title">Configuración de usuarios</h2>
         <div class="cfg-admin-badge">🔑 Solo administradores</div>
         <div class="cfg-section">
           <div class="form-group">
             <label class="form-label">Correo del administrador</label>
-            <input class="form-input" id="cfg-email-admin" type="email" value="${CONFIG.notificaciones.emailAdmin}" />
+            <input class="form-input" id="cfg-email-admin" type="email" value="${config.notificaciones.emailAdmin}" />
           </div>
           <div class="form-group">
             <label class="form-label">Tiempo de inactividad para cierre de sesión (minutos)</label>
-            <input class="form-input" type="number" id="cfg-timeout" value="${CONFIG.seguridad.sesionTimeout}" min="5" max="120" style="max-width:120px" />
+            <input class="form-input" type="number" id="cfg-timeout" value="${config.seguridad.sesionTimeout}" min="5" max="120" style="max-width:120px" />
           </div>
           <div class="form-group">
             <label class="form-label">Intentos de login antes de bloqueo</label>
-            <input class="form-input" type="number" id="cfg-intentos" value="${CONFIG.seguridad.intentosLoginMax}" min="3" max="10" style="max-width:120px" />
+            <input class="form-input" type="number" id="cfg-intentos" value="${config.seguridad.intentosLoginMax}" min="3" max="10" style="max-width:120px" />
           </div>
           <label class="toggle-row">
             <span>Registro de actividad de usuarios</span>
-            <div class="toggle ${CONFIG.seguridad.registroActividad ? "toggle--on" : ""}"
+            <div class="toggle ${config.seguridad.registroActividad ? "toggle--on" : ""}"
               id="tog-registro" onclick="toggleSwitch('tog-registro')">
               <div class="toggle__knob"></div>
             </div>
@@ -352,7 +368,7 @@
         </div>
       `;
 
-      /* ------- SISTEMA (solo admin) ------- */
+      /* ===== SISTEMA (solo admin) ===== */
       case "sistema": return `
         <h2 class="cfg-panel__title">Sistema</h2>
         <div class="cfg-admin-badge">🔑 Solo administradores</div>
@@ -372,7 +388,7 @@
             </div>
             <div class="cfg-sys-card">
               <div class="cfg-sys-card__label">Usuarios registrados</div>
-              <div class="cfg-sys-card__value">${USUARIOS.length}</div>
+              <div class="cfg-sys-card__value">${usuariosTotal.length}</div>
             </div>
           </div>
           <hr style="border-color:var(--color-border);margin-bottom:16px">
@@ -398,7 +414,7 @@
   function seleccionarTema(temaId, el) {
     document.querySelectorAll(".tema-item").forEach((t) => t.classList.remove("is-active"));
     el.classList.add("is-active");
-    CONFIG.sitio.tema = temaId;
+    config.sitio.tema = temaId;
   }
 
   function cambiarContrasena() {
@@ -408,31 +424,59 @@
     if (!actual || !nueva) { showToast("Completa todos los campos.", "error"); return; }
     if (nueva !== confirma) { showToast("Las contraseñas no coinciden.", "error"); return; }
     if (nueva.length < 6)   { showToast("La contraseña debe tener al menos 6 caracteres.", "error"); return; }
-    const usr = USUARIOS.find((u) => u.id === sesion?.id);
-    if (usr && usr.password !== actual) { showToast("La contraseña actual es incorrecta.", "error"); return; }
-    if (usr) usr.password = nueva;
-    showToast("Contraseña actualizada correctamente.");
-    ["s-pass-actual","s-pass-nueva","s-pass-confirm"].forEach((id) =>
-      document.getElementById(id).value = ""
-    );
+    if (usuario && usuario.password !== actual) {
+      showToast("La contraseña actual es incorrecta.", "error");
+      return;
+    }
+    actualizarUsuario(sesion.id, { password: nueva })
+      .then(() => {
+        if (usuario) usuario.password = nueva;
+        showToast("Contraseña actualizada correctamente.");
+        ["s-pass-actual", "s-pass-nueva", "s-pass-confirm"].forEach((id) =>
+          document.getElementById(id).value = ""
+        );
+      })
+      .catch(() => showToast("No se pudo actualizar la contraseña.", "error"));
   }
 
   /* -------- Guardar cambios -------- */
   document.getElementById("btn-guardar-cfg").addEventListener("click", () => {
-    // Actualizar perfil si se ha editado
-    const usr = USUARIOS.find((u) => u.id === sesion?.id);
-    const nombre = document.getElementById("p-nombre")?.value.trim();
-    const apellido = document.getElementById("p-apellido")?.value.trim();
-    if (usr && nombre) { usr.nombre = nombre; }
-    if (usr && apellido) { usr.apellido = apellido; }
+    const tareas = [];
 
-    // Config admin — laboratorios
+    // Perfil (nombre / apellido)
+    const nombre   = document.getElementById("p-nombre")?.value.trim();
+    const apellido = document.getElementById("p-apellido")?.value.trim();
+    const cambiosUsr = {};
+    if (nombre)   cambiosUsr.nombre = nombre;
+    if (apellido) cambiosUsr.apellido = apellido;
+    if (usuario && Object.keys(cambiosUsr).length) {
+      tareas.push(actualizarUsuario(usuario.id, cambiosUsr));
+    }
+
+    // Configuración (solo aplica si hay algo cargado, y solo lo que exista en la pantalla actual)
+    const cambiosCfg = {};
     const apertura = document.getElementById("cfg-apertura")?.value;
     const cierre   = document.getElementById("cfg-cierre")?.value;
-    if (apertura) CONFIG.laboratorios.horaApertura = apertura;
-    if (cierre)   CONFIG.laboratorios.horaCierre   = cierre;
+    if (apertura || cierre) {
+      cambiosCfg.laboratorios = { ...config.laboratorios };
+      if (apertura) cambiosCfg.laboratorios.horaApertura = apertura;
+      if (cierre)   cambiosCfg.laboratorios.horaCierre   = cierre;
+    }
+    // El tema elegido en "Apariencia" (seleccionarTema) ya quedó guardado en config.sitio
+    if (config?.sitio) cambiosCfg.sitio = { ...config.sitio };
 
-    showToast("Configuración guardada correctamente.");
+    if (Object.keys(cambiosCfg).length) {
+      tareas.push(actualizarConfig(cambiosCfg));
+    }
+
+    if (!tareas.length) {
+      showToast("No hay cambios para guardar.");
+      return;
+    }
+
+    Promise.all(tareas)
+      .then(() => showToast("Configuración guardada correctamente."))
+      .catch(() => showToast("No se pudo guardar la configuración.", "error"));
   });
 </script>
 </body>

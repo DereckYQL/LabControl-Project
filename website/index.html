@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Inicio · Insuco LabControl</title>
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+<div class="app-layout">
+
+  <aside class="sidebar">
+    <div class="sidebar__brand">
+      <img src="img/logo-insuco.png" alt="Insuco LabControl" title="Insuco LabControl" />
+    </div>
+    <nav class="sidebar__nav" id="sidebar-nav" aria-label="Navegación principal"></nav>
+    <div class="sidebar__user">
+      <div class="avatar">--</div>
+      <div>
+        <div class="name">Cargando…</div>
+        <div class="role">—</div>
+      </div>
+    </div>
+  </aside>
+
+  <main class="main-content">
+    <header class="page-header">
+      <div>
+        <h1 id="saludo-titulo">Bienvenido a Insuco LabControl</h1>
+        <p>Resumen general de los laboratorios de computación</p>
+      </div>
+      <a class="btn btn--primary" href="disponibilidad.html">Agendar uso →</a>
+    </header>
+
+    <!-- Resumen numérico -->
+    <div class="stat-grid" id="stat-cards" style="margin-bottom:20px"></div>
+
+    <!-- Estado en tiempo real + distribución -->
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px;margin-bottom:20px">
+      <div class="card">
+        <div class="section-title">Estado en tiempo real</div>
+        <div id="status-list"></div>
+      </div>
+      <div class="card">
+        <div class="section-title">Distribución de equipos</div>
+        <div style="padding:20px" id="donut"></div>
+      </div>
+    </div>
+
+    <!-- Accesos rápidos a laboratorios -->
+    <div class="section-title" style="padding:0 4px 10px">Laboratorios</div>
+    <div class="lab-grid" id="labs-home"></div>
+  </main>
+</div>
+
+<script src="data.js"></script>
+<script src="app.js"></script>
+<script>
+  const sesion = renderSidebar("index.html");
+
+  if (sesion) {
+    const hora = new Date().getHours();
+    const saludo = hora < 13 ? "Buenos días" : hora < 20 ? "Buenas tardes" : "Buenas noches";
+    document.getElementById("saludo-titulo").textContent =
+      `${saludo}, ${sesion.nombre}`;
+  }
+
+  cargarLaboratorios().then((labs) => {
+    renderStatCards(labs, "stat-cards");
+    renderStatusList(labs, "status-list");
+    renderDonut(labs, "donut");
+    renderLabGrid(labs, "labs-home", { linkTo: "laboratorios.html" });
+  });
+</script>
+</body>
+</html>

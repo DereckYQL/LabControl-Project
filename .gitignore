@@ -1,0 +1,12 @@
+# Dependencias
+node_modules/
+
+# Base de datos generada en tiempo de ejecución
+website/backend/database/*.db
+website/backend/database/*.db-shm
+website/backend/database/*.db-wal
+
+# Sistema / editor
+*.log
+Thumbs.db
+.DS_Store

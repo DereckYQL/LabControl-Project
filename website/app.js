@@ -1,4 +1,13 @@
-/* NAVEGACIÓN (filtrada por rol) */
+/**
+ * app.js
+ * Funciones compartidas por todas las páginas de LabControl Liceo.
+ * Incluye: sidebar dinámico por rol, tarjetas resumen, renders de
+ * laboratorios y utilidades de render.
+ */
+
+/* ======================================================
+   NAVEGACIÓN (filtrada por rol)
+   ====================================================== */
 
 const NAV_ITEMS_ALL = [
   { href: "index.html",          label: "Inicio",         icon: "🏠",  roles: ["admin","programacion","otro_area"] },
@@ -38,14 +47,14 @@ function renderSidebar(activeHref, requireAuth = true) {
     </a>
   `).join("");
 
-  // Actualizar bloque de usuario en sidebar
+  // Actualizar bloque de usuario en sidebar (con lo que ya viene en la sesión,
+  // sin pedirle otra vez el usuario a la API)
   if (sesion) {
-    const usuario = obtenerUsuarioPorId(sesion.id);
     const avatarEl  = document.querySelector(".sidebar__user .avatar");
     const nameEl    = document.querySelector(".sidebar__user .name");
     const roleEl    = document.querySelector(".sidebar__user .role");
-    if (avatarEl) avatarEl.textContent = usuario?.iniciales ?? sesion.nombre.slice(0, 2).toUpperCase();
-    if (nameEl)   nameEl.textContent   = `${usuario?.nombre ?? sesion.nombre} ${usuario?.apellido ?? ""}`.trim();
+    if (avatarEl) avatarEl.textContent = sesion.iniciales ?? sesion.nombre.slice(0, 2).toUpperCase();
+    if (nameEl)   nameEl.textContent   = `${sesion.nombre} ${sesion.apellido ?? ""}`.trim();
     if (roleEl) {
       const labels = { admin: "Administrador", programacion: "Prof. Programación", otro_area: "Profesor" };
       roleEl.textContent = labels[rol] ?? rol;
@@ -64,7 +73,9 @@ function renderSidebar(activeHref, requireAuth = true) {
   }
 }
 
-/* ------ STAT CARDS (resumen numérico) ------- */
+/* ======================================================
+   STAT CARDS (resumen numérico)
+   ====================================================== */
 
 function renderStatCards(labs, containerId) {
   const el = document.getElementById(containerId);
@@ -118,7 +129,9 @@ function renderStatCards(labs, containerId) {
   `;
 }
 
-/* ------- LISTA ESTADO EN TIEMPO REAL ------- */
+/* ======================================================
+   LISTA ESTADO EN TIEMPO REAL
+   ====================================================== */
 
 function renderStatusList(labs, containerId) {
   const el = document.getElementById(containerId);
@@ -144,7 +157,9 @@ function renderStatusList(labs, containerId) {
   }).join("");
 }
 
-/* ------- DONUT DISTRIBUCIÓN DE EQUIPOS ------- */
+/* ======================================================
+   DONUT DISTRIBUCIÓN DE EQUIPOS
+   ====================================================== */
 
 function renderDonut(labs, containerId) {
   const el = document.getElementById(containerId);
@@ -181,7 +196,10 @@ function renderDonut(labs, containerId) {
   `;
 }
 
-/* ------- GRID DE LABORATORIOS (tarjetas) ------- */
+/* ======================================================
+   GRID DE LABORATORIOS (tarjetas)
+   ====================================================== */
+
 function renderLabGrid(labs, containerId, { linkTo = "laboratorios.html" } = {}) {
   const el = document.getElementById(containerId);
   if (!el) return;
@@ -204,7 +222,9 @@ function renderLabGrid(labs, containerId, { linkTo = "laboratorios.html" } = {})
   }).join("");
 }
 
-/* ------- UTILIDADES GENERALES ------- */
+/* ======================================================
+   UTILIDADES GENERALES
+   ====================================================== */
 
 function getQueryParam(name) {
   return new URLSearchParams(window.location.search).get(name);
@@ -226,7 +246,7 @@ function nivelLabel(nivel) {
   return labels[nivel] ?? nivel;
 }
 
-/* ------- Muestra un toast de notificación temporal ------- */
+/** Muestra un toast de notificación temporal */
 function showToast(mensaje, tipo = "success") {
   let container = document.getElementById("toast-container");
   if (!container) {
@@ -245,7 +265,7 @@ function showToast(mensaje, tipo = "success") {
   }, 3200);
 }
 
-/* ---- Activa sistema de tabs genérico dentro de un contenedor ---- */
+/** Activa sistema de tabs genérico dentro de un contenedor */
 function initTabs(container = document) {
   container.addEventListener("click", (e) => {
     const btn = e.target.closest(".tab-btn");
