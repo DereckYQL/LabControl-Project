@@ -4,7 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Configuración · Insuco LabControl</title>
-<link rel="stylesheet" href="style.css?v=7" />
+<link rel="stylesheet" href="style.css?v=9" />
 <script>try{var t=localStorage.getItem("lc_tema");if(t==="dark-sidebar")t="oscuro";if(t==="blue-sidebar")t="azul";if(t==="green-sidebar")t="verde";if(!["claro","azul","verde","oscuro"].includes(t))t="claro";document.documentElement.dataset.theme=t}catch(e){}</script>
 </head>
 <body>
@@ -43,9 +43,9 @@
   </main>
 </div>
 
-<script src="data.js?v=4"></script>
+<script src="data.js?v=5"></script>
 <script src="lucide.min.js?v=1"></script>
-<script src="app.js?v=5"></script>
+<script src="app.js?v=6"></script>
 <script>
   renderSidebar("configuracion.html");
   const esAdmin = AUTH.esAdmin();
@@ -114,6 +114,7 @@
       </div>
     `).join("");
 
+    actualizarEstadoNotifUI();
     actualizarIconosLucide();
   }
 
@@ -201,12 +202,13 @@
       case "notificaciones": return `
         <h2 class="cfg-panel__title">Notificaciones</h2>
         <div class="cfg-section">
+          <div style="font-weight:600;margin-bottom:10px">Avisos dentro del sitio</div>
           ${[
-            { id:"n-reservas",   label:"Confirmación de reservas",    checked: true },
-            { id:"n-cambios",    label:"Cambios de estado de laboratorio", checked: true },
-            { id:"n-fallas",     label:"Alertas de fallas de equipos", checked: config.notificaciones?.alertaFallas ?? true },
-            { id:"n-reportes",   label:"Nuevos reportes y cambios en reportes", checked: config.notificaciones?.alertaReportes ?? true },
-            { id:"n-recordator", label:"Recordatorio 30 min antes de reserva", checked: false },
+            { id:"n-reservas",   label:"Confirmación y avisos de reservas",      checked: config.notificaciones?.alertaReservas ?? true },
+            { id:"n-cambios",    label:"Cambios de estado de laboratorio",       checked: config.notificaciones?.alertaDisponibilidad ?? true },
+            { id:"n-fallas",     label:"Alertas de fallas de equipos",           checked: config.notificaciones?.alertaFallas ?? true },
+            { id:"n-reportes",   label:"Nuevos reportes y cambios en reportes",  checked: config.notificaciones?.alertaReportes ?? true },
+            { id:"n-recordator", label:"Recordatorio 30 min antes de reserva",   checked: config.notificaciones?.recordatorioReserva ?? false },
           ].map((n) => `
             <label class="toggle-row">
               <span>${n.label}</span>
@@ -216,6 +218,17 @@
               </div>
             </label>
           `).join("")}
+        </div>
+        <div class="cfg-section">
+          <div style="font-weight:600;margin-bottom:6px">Notificaciones del sistema</div>
+          <p style="color:var(--color-text-muted);font-size:.85rem;margin-bottom:12px">
+            Recibe los mismos avisos como notificaciones del sistema operativo,
+            tanto en tu PC como en tu celular, aunque la pestaña esté en segundo plano.
+          </p>
+          <button class="btn btn--primary" id="btn-activar-notif" onclick="activarNotificacionesDesdeConfig()">
+            <i data-lucide="bell-ring"></i> Activar notificaciones
+          </button>
+          <p id="estado-notif" style="font-size:.82rem;margin-top:10px;color:var(--color-text-muted)"></p>
         </div>
       `;
 
@@ -387,7 +400,7 @@
           <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:20px">
             <div class="cfg-sys-card">
               <div class="cfg-sys-card__label">Versión del sistema</div>
-              <div class="cfg-sys-card__value">LabControl v1.7</div>
+              <div class="cfg-sys-card__value">LabControl v1.8</div>
             </div>
             <div class="cfg-sys-card">
               <div class="cfg-sys-card__label">Total laboratorios</div>
@@ -420,6 +433,32 @@
     const el = document.getElementById(id);
     if (!el) return;
     el.classList.toggle("toggle--on");
+  }
+
+  /* -------- Notificaciones del sistema (PC y celular) -------- */
+  function actualizarEstadoNotifUI() {
+    const btn   = document.getElementById("btn-activar-notif");
+    const estado = document.getElementById("estado-notif");
+    if (!btn || !estado || !("Notification" in window)) {
+      if (estado) estado.textContent = "Tu navegador no soporta notificaciones del sistema.";
+      return;
+    }
+    if (Notification.permission === "granted") {
+      btn.style.display = "none";
+      estado.textContent = "Notificaciones del sistema activadas en este dispositivo.";
+      estado.style.color = "var(--color-success, #16a34a)";
+    } else if (Notification.permission === "denied") {
+      btn.style.display = "none";
+      estado.textContent = "Las notificaciones están bloqueadas: habilítalas en los ajustes del navegador.";
+    } else {
+      btn.style.display = "";
+      estado.textContent = "";
+    }
+  }
+
+  async function activarNotificacionesDesdeConfig() {
+    await activarNotificacionesSistema();
+    actualizarEstadoNotifUI();
   }
 
   const TEMAS_VALIDOS = ["claro", "azul", "verde", "oscuro"];
@@ -495,10 +534,17 @@
     if (config?.sitio) cambiosCfg.sitio = { ...config.sitio };
 
     // Notificaciones: interruptores presentes en la pantalla actual
-    const togFallas   = document.getElementById("n-fallas");
-    const togReportes = document.getElementById("n-reportes");
-    if (togFallas)   cambiosCfg.notificaciones = { ...cambiosCfg.notificaciones, alertaFallas: togFallas.classList.contains("toggle--on") };
-    if (togReportes) cambiosCfg.notificaciones = { ...cambiosCfg.notificaciones, alertaReportes: togReportes.classList.contains("toggle--on") };
+    const togglesNotif = {
+      "n-reservas":   "alertaReservas",
+      "n-cambios":    "alertaDisponibilidad",
+      "n-fallas":     "alertaFallas",
+      "n-reportes":   "alertaReportes",
+      "n-recordator": "recordatorioReserva"
+    };
+    for (const [idToggle, clave] of Object.entries(togglesNotif)) {
+      const el = document.getElementById(idToggle);
+      if (el) cambiosCfg.notificaciones = { ...cambiosCfg.notificaciones, [clave]: el.classList.contains("toggle--on") };
+    }
 
     if (Object.keys(cambiosCfg).length) {
       tareas.push(actualizarConfig(cambiosCfg));

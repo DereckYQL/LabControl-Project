@@ -41,31 +41,60 @@ function activarModoDemo() {
 const copia = (x) => (x === undefined ? undefined : JSON.parse(JSON.stringify(x)));
 
 /**
- * En modo demo replica las notificaciones que generaría server.js cuando
- * un reporte se crea, edita o elimina (para todos menos para el autor).
+ * En modo demo replica las notificaciones que generaría server.js:
+ * reportes (y fallas), cambios de estado de laboratorios y reservas.
+ * Cada tipo respeta su interruptor en Configuración → Notificaciones.
  */
-function notificarDemo(accion, rep, actorId) {
+function notificarDemo({ toggle, tipo, titulo, mensaje, actorId, destinatario, referencia = null }) {
   const D = window.DEMO;
-  if (!D || D.config?.notificaciones?.alertaReportes === false) return;
+  if (!D || !titulo || !destinatario) return;
+  if (D.config?.notificaciones?.[toggle] === false) return;
+
   const actor = D.usuarios.find((u) => u.id === actorId);
   const quien = actor ? `${actor.nombre} ${actor.apellido}` : "Alguien";
-  const textos = {
-    creado:    { titulo: "Nuevo reporte disponible", mensaje: `${quien} generó el reporte "${rep.titulo}".` },
-    editado:   { titulo: "Reporte actualizado",      mensaje: `${quien} editó el reporte "${rep.titulo}".` },
-    eliminado: { titulo: "Reporte eliminado",        mensaje: `${quien} eliminó el reporte "${rep.titulo}".` }
+
+  D.notificaciones.push({
+    id: ++D.contadores.notificaciones,
+    usuarioId: destinatario,
+    tipo: tipo ?? toggle,
+    titulo,
+    mensaje: String(mensaje ?? "").replace(/\{quien\}/g, quien),
+    reporteId: referencia,
+    fecha: new Date().toISOString().slice(0, 10),
+    leida: false
+  });
+}
+
+/** Notifica un cambio a todos los usuarios activos menos al autor (igual que server.js) */
+function notificarDemoATodos(opciones) {
+  for (const u of window.DEMO.usuarios) {
+    if (u.activo === false || u.id === opciones.actorId) continue;
+    notificarDemo({ ...opciones, destinatario: u.id });
+  }
+}
+
+/** Cambios de reportes: si el tipo es "fallas" se usa la alerta de fallas */
+function notificarDemoCambioReporte(accion, rep, actorId) {
+  const esFalla = rep?.tipo === "fallas";
+  const textos = esFalla ? {
+    creado:    { titulo: "Falla de equipo reportada", mensaje: `{quien} registró la falla "${rep.titulo}".` },
+    editado:   { titulo: "Falla actualizada",         mensaje: `{quien} actualizó la falla "${rep.titulo}".` },
+    eliminado: { titulo: "Falla eliminada",           mensaje: `{quien} eliminó el registro de falla "${rep.titulo}".` }
+  } : {
+    creado:    { titulo: "Nuevo reporte disponible",  mensaje: `{quien} generó el reporte "${rep.titulo}".` },
+    editado:   { titulo: "Reporte actualizado",       mensaje: `{quien} editó el reporte "${rep.titulo}".` },
+    eliminado: { titulo: "Reporte eliminado",         mensaje: `{quien} eliminó el reporte "${rep.titulo}".` }
   };
   const texto = textos[accion];
   if (!texto) return;
-  for (const u of D.usuarios) {
-    if (u.id === actorId || u.activo === false) continue;
-    D.notificaciones.push({
-      id: ++D.contadores.notificaciones,
-      usuarioId: u.id, tipo: accion, titulo: texto.titulo, mensaje: texto.mensaje,
-      reporteId: accion === "eliminado" ? null : rep.id,
-      fecha: new Date().toISOString().slice(0, 10),
-      leida: false
-    });
-  }
+  notificarDemoATodos({
+    toggle: esFalla ? "alertaFallas" : "alertaReportes",
+    tipo: accion,
+    titulo: texto.titulo,
+    mensaje: texto.mensaje,
+    actorId,
+    referencia: accion === "eliminado" ? null : rep.id
+  });
 }
 
 /**
@@ -89,7 +118,21 @@ function demoRequest(metodo, ruta, cuerpo) {
 
     case "PATCH laboratorios_x": {
       const lab = D.laboratorios.find((l) => l.id === Number(id));
+      if (!lab) throw new Error("Laboratorio no encontrado");
+      const estadoAnterior = lab.estado;
       Object.assign(lab, cuerpo);
+      // Aviso de disponibilidad a los demás usuarios (igual que server.js)
+      if (cuerpo.estado && cuerpo.estado !== estadoAnterior) {
+        const ETIQUETAS = { disponible: "Disponible", ocupado: "Ocupado", mantencion: "Mantención" };
+        notificarDemoATodos({
+          toggle: "alertaDisponibilidad",
+          tipo: "laboratorio",
+          titulo: "Estado de laboratorio actualizado",
+          mensaje: `{quien} marcó ${lab.nombre} como "${ETIQUETAS[cuerpo.estado] ?? cuerpo.estado}".`,
+          actorId: cuerpo.usuarioId,
+          referencia: String(lab.id)
+        });
+      }
       return copia(lab);
     }
 
@@ -128,12 +171,39 @@ function demoRequest(metodo, ruta, cuerpo) {
     case "POST agenda": {
       const res = { id: `res_demo${++D.contadores.agenda}`, ...cuerpo };
       D.agenda.push(res);
+      // Confirmación al autor + aviso al resto (igual que server.js)
+      const nombreLab = D.laboratorios.find((l) => l.id === Number(res.labId))?.nombre ?? "laboratorio";
+      const horario = `${res.horaInicio ?? "—"}${res.horaFin ? ` - ${res.horaFin}` : ""}`;
+      notificarDemo({
+        toggle: "alertaReservas",
+        tipo: "reserva_confirmada",
+        titulo: "Reserva confirmada",
+        mensaje: `Tu reserva de ${nombreLab} para el ${res.fecha} (${horario}) quedó registrada.`,
+        destinatario: res.usuarioId
+      });
+      notificarDemoATodos({
+        toggle: "alertaReservas",
+        tipo: "reserva",
+        titulo: "Nueva reserva de laboratorio",
+        mensaje: `{quien} reservó ${nombreLab} para el ${res.fecha} (${horario}).`,
+        actorId: res.usuarioId
+      });
       return copia(res);
     }
 
     case "DELETE agenda_x": {
       const i = D.agenda.findIndex((r) => r.id === id);
-      if (i !== -1) D.agenda.splice(i, 1);
+      if (i !== -1) {
+        const [res] = D.agenda.splice(i, 1);
+        const nombreLab = D.laboratorios.find((l) => l.id === Number(res.labId))?.nombre ?? "laboratorio";
+        notificarDemoATodos({
+          toggle: "alertaReservas",
+          tipo: "reserva_cancelada",
+          titulo: "Reserva cancelada",
+          mensaje: `{quien} canceló la reserva de ${nombreLab} para el ${res.fecha}.`,
+          actorId: qs.get("usuarioId")
+        });
+      }
       return null;
     }
 
@@ -147,7 +217,7 @@ function demoRequest(metodo, ruta, cuerpo) {
         id: `rep_demo${++D.contadores.reportes}`
       };
       D.reportes.unshift(rep);
-      notificarDemo("creado", rep, cuerpo.generadoPor);
+      notificarDemoCambioReporte("creado", rep, cuerpo.generadoPor);
       return copia(rep);
     }
 
@@ -156,7 +226,7 @@ function demoRequest(metodo, ruta, cuerpo) {
       if (!rep) throw new Error("Reporte no encontrado");
       Object.assign(rep, cuerpo);
       delete rep.usuarioId; // dato de control, no se guarda en el reporte
-      notificarDemo("editado", rep, cuerpo.usuarioId);
+      notificarDemoCambioReporte("editado", rep, cuerpo.usuarioId);
       return copia(rep);
     }
 
@@ -164,7 +234,7 @@ function demoRequest(metodo, ruta, cuerpo) {
       const i = D.reportes.findIndex((r) => r.id === id);
       if (i === -1) throw new Error("Reporte no encontrado");
       const [rep] = D.reportes.splice(i, 1);
-      notificarDemo("eliminado", rep, qs.get("usuarioId"));
+      notificarDemoCambioReporte("eliminado", rep, qs.get("usuarioId"));
       return null;
     }
 
@@ -282,7 +352,9 @@ function obtenerLaboratorioPorId(id) {
 }
 
 function actualizarEstadoLaboratorio(id, estado) {
-  return apiSend("PATCH", `/laboratorios/${id}`, { estado });
+  // Se incluye el usuario en sesión para poder avisar a los demás del cambio
+  const sesion = AUTH.getSesion();
+  return apiSend("PATCH", `/laboratorios/${id}`, { estado, usuarioId: sesion?.id });
 }
 
 /* ======================================================
@@ -331,7 +403,8 @@ function crearReserva(reserva) {
 }
 
 function eliminarReserva(id) {
-  return apiSend("DELETE", `/agenda/${id}`);
+  const sesion = AUTH.getSesion();
+  return pedir(`/agenda/${id}?usuarioId=${encodeURIComponent(sesion?.id ?? "")}`, { method: "DELETE" });
 }
 
 /* ======================================================

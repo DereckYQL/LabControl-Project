@@ -130,16 +130,20 @@ function renderSidebar(activeHref, requireAuth = true) {
 }
 
 /* ======================================================
-   NOTIFICACIONES DE REPORTES (campana en la barra lateral)
+   NOTIFICACIONES DE REPORTES Y EVENTOS (campana en la barra lateral)
    ====================================================== */
 
 let __notifsCache = [];
 let __notifsTimer = null;
+let __notifsVistas = null;      // ids ya vistos: la primera carga no dispara avisos nativos
+let __recordatoriosUltima = 0;
 
 function inicializarNotificaciones() {
   const sesion = AUTH.getSesion();
   const sidebar = document.querySelector(".sidebar");
   if (!sesion || !sidebar || sidebar.querySelector(".notif-wrap")) return;
+
+  registrarServiceWorker();
 
   const wrap = document.createElement("div");
   wrap.className = "notif-wrap";
@@ -151,7 +155,12 @@ function inicializarNotificaciones() {
     <div class="notif-panel" style="display:none">
       <div class="notif-panel__head">
         <span>Notificaciones</span>
-        <button class="notif-panel__todas" type="button">Marcar todas como leídas</button>
+        <span style="display:flex;gap:10px;align-items:center">
+          <button class="notif-panel__activar" type="button" hidden>
+            <i data-lucide="bell-ring"></i> Activar
+          </button>
+          <button class="notif-panel__todas" type="button">Marcar todas como leídas</button>
+        </span>
       </div>
       <div class="notif-panel__lista"></div>
     </div>
@@ -181,10 +190,103 @@ function inicializarNotificaciones() {
     } catch {}
   });
 
-  // Primera carga y sondeo ligero para enterarse de reportes nuevos
+  // Botón para activar los avisos del sistema (PC y celular)
+  const btnActivar = wrap.querySelector(".notif-panel__activar");
+  const revisarBtnActivar = () => {
+    if (!("Notification" in window)) { btnActivar.hidden = true; return; }
+    btnActivar.hidden = Notification.permission !== "default";
+  };
+  btnActivar.addEventListener("click", async (e) => {
+    e.stopPropagation();
+    await activarNotificacionesSistema();
+    revisarBtnActivar();
+  });
+  document.addEventListener("lc-notif-permiso", revisarBtnActivar);
+  revisarBtnActivar();
+  actualizarIconosLucide();
+
+  // Primera carga y sondeo ligero para enterarse de reportes, reservas,
+  // cambios de estado y fallas nuevas
   refrescarNotificaciones();
   clearInterval(__notifsTimer);
   __notifsTimer = setInterval(refrescarNotificaciones, 30000);
+}
+
+/* ---------- Notificaciones nativas del sistema (PC y celular) ---------- */
+
+const NOTIF_ICONO = "img/logo-insuco.png";
+
+/** Registra el service worker que permite mostrar notificaciones en el celular */
+async function registrarServiceWorker() {
+  if (!("serviceWorker" in navigator)) return null;
+  try {
+    return await navigator.serviceWorker.register("service-worker.js");
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Pide permiso al navegador y deja activados los avisos del sistema.
+ * Devuelve true si quedaron activadas.
+ */
+async function activarNotificacionesSistema() {
+  if (!("Notification" in window)) {
+    showToast("Este navegador no soporta notificaciones del sistema.", "error");
+    return false;
+  }
+  let permiso = Notification.permission;
+  if (permiso === "denied") {
+    showToast("Las notificaciones están bloqueadas: habilítalas en los ajustes del navegador.", "error");
+    return false;
+  }
+  if (permiso === "default") permiso = await Notification.requestPermission();
+  if (permiso !== "granted") return false;
+
+  await registrarServiceWorker();
+  showToast("Notificaciones del sistema activadas.");
+  document.dispatchEvent(new CustomEvent("lc-notif-permiso"));
+  return true;
+}
+
+/**
+ * Muestra una notificación nativa del sistema operativo.
+ * En celular usa el service worker (requisito de Android/iOS); en PC usa la
+ * API directa si no hay service worker disponible.
+ */
+async function mostrarNotificacionNativa(titulo, cuerpo, urlDestino = "") {
+  if (!("Notification" in window) || Notification.permission !== "granted") return;
+
+  const opciones = {
+    body: cuerpo ?? "",
+    icon: NOTIF_ICONO,
+    badge: NOTIF_ICONO,
+    tag: `lc-${titulo}`.slice(0, 60),
+    data: { url: urlDestino }
+  };
+
+  try {
+    if ("serviceWorker" in navigator && Notification.requestPermission) {
+      const registro = await navigator.serviceWorker.getRegistration();
+      if (registro) {
+        await registro.showNotification(titulo, opciones);
+        return;
+      }
+    }
+  } catch {}
+
+  try { new Notification(titulo, opciones); } catch {} // respaldo escritorio
+}
+
+/** Página de destino al tocar una notificación, según su tipo */
+function destinoNotificacion(n) {
+  if ((n.tipo === "creado" || n.tipo === "editado") && n.reporteId) {
+    return `reportes.html?id=${encodeURIComponent(n.reporteId)}`;
+  }
+  if (["laboratorio", "reserva", "reserva_confirmada", "reserva_cancelada"].includes(n.tipo)) {
+    return "disponibilidad.html";
+  }
+  return "";
 }
 
 async function refrescarNotificaciones() {
@@ -192,9 +294,60 @@ async function refrescarNotificaciones() {
   if (!sesion || typeof cargarNotificaciones !== "function") return;
   try {
     __notifsCache = await cargarNotificaciones(sesion.id) ?? [];
+
+    // Avisos nativos solo para notificaciones nuevas desde la última revisión
+    const vistasPrevias = __notifsVistas;
+    __notifsVistas = new Set(__notifsCache.map((n) => String(n.id)));
+    if (vistasPrevias !== null) {
+      const nuevas = __notifsCache.filter((n) => !n.leida && !vistasPrevias.has(String(n.id))).slice(0, 3);
+      for (const n of nuevas) {
+        mostrarNotificacionNativa(n.titulo, n.mensaje, destinoNotificacion(n));
+      }
+    }
+
     actualizarBadgeNotif();
+    revisarRecordatoriosReserva(sesion);
     const panel = document.querySelector(".notif-panel");
     if (panel && panel.style.display === "block") renderListaNotificaciones();
+  } catch {}
+}
+
+/**
+ * Recordatorio 30 minutos antes de cada reserva propia
+ * (Configuración → Notificaciones → "Recordatorio 30 min antes").
+ */
+async function revisarRecordatoriosReserva(sesion) {
+  if (typeof cargarAgenda !== "function" || typeof cargarConfig !== "function") return;
+
+  const ahora = Date.now();
+  if (ahora - __recordatoriosUltima < 60000) return; // máx. una vez por minuto
+  __recordatoriosUltima = ahora;
+
+  try {
+    const cfg = await cargarConfig();
+    if (cfg?.notificaciones?.recordatorioReserva === false) return;
+
+    const agenda = await cargarAgenda();
+    const claveVistas = "lc_recordatorios_vistos";
+    let vistas = [];
+    try { vistas = JSON.parse(localStorage.getItem(claveVistas)) ?? []; } catch {}
+
+    for (const r of agenda) {
+      if (r.usuarioId !== sesion.id) continue;
+      const idClave = String(r.id);
+      if (vistas.includes(idClave)) continue;
+
+      const inicio = new Date(`${r.fecha}T${(r.horaInicio || "00:00") + ":00"}`);
+      const minutos = Math.round((inicio.getTime() - Date.now()) / 60000);
+
+      if (minutos > 0 && minutos <= 30) {
+        vistas.push(idClave);
+        const msj = `Tu reserva empieza a las ${r.horaInicio} (${minutos} min).`;
+        mostrarNotificacionNativa("Recordatorio de reserva", msj, "disponibilidad.html");
+        showToast(msj, "success");
+      }
+    }
+    localStorage.setItem(claveVistas, JSON.stringify(vistas.slice(-50)));
   } catch {}
 }
 
@@ -218,13 +371,13 @@ function renderListaNotificaciones() {
     lista.innerHTML = `
       <div class="notif-vacia">
         <i data-lucide="bell-off"></i>
-        <p>No hay notificaciones todavía.<br/>Aparecerán cuando alguien cree o edite un reporte.</p>
+        <p>No hay notificaciones todavía.<br/>Aquí aparecerán los reportes, reservas,<br/>fallas y cambios de laboratorio.</p>
       </div>`;
     return;
   }
 
   lista.innerHTML = __notifsCache.map((n) => `
-    <button class="notif-item ${n.leida ? "" : "notif-item--nueva"}" type="button" data-id="${n.id}" data-reporte="${n.reporteId ?? ""}">
+    <button class="notif-item ${n.leida ? "" : "notif-item--nueva"}" type="button" data-id="${n.id}" data-destino="${destinoNotificacion(n)}">
       <span class="notif-item__punto"></span>
       <span class="notif-item__cuerpo">
         <span class="notif-item__titulo">${n.titulo}</span>
@@ -236,10 +389,9 @@ function renderListaNotificaciones() {
 
   lista.querySelectorAll(".notif-item").forEach((item) => {
     item.addEventListener("click", async () => {
-      const id = item.dataset.id;
-      const destino = item.dataset.reporte;
-      try { await marcarNotificacionLeida(id); } catch {}
-      if (destino) window.location.href = `reportes.html?id=${encodeURIComponent(destino)}`;
+      const destino = item.dataset.destino;
+      try { await marcarNotificacionLeida(item.dataset.id); } catch {}
+      if (destino) window.location.href = destino;
       else await refrescarNotificaciones();
     });
   });

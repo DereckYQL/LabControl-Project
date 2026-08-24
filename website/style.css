@@ -1937,6 +1937,17 @@ svg.lucide {
 .rep-chip--success   { background: var(--soft-success); color: #16a34a; }
 .rep-chip--danger    { background: var(--soft-danger);  color: var(--color-danger); }
 .rep-chip--warning   { background: var(--soft-warning); color: #d97706; }
+.rep-chip--neutral   { background: var(--chip-bg, rgba(127,127,127,.12)); color: var(--color-text-muted); }
+
+.stat-card__icon--neutral { background: var(--chip-bg, rgba(127,127,127,.12)); color: var(--color-text-muted); }
+
+.form-hint {
+  display: block;
+  margin-top: 6px;
+  font-size: .72rem;
+  line-height: 1.45;
+  color: var(--color-text-muted);
+}
 
 /* Adjuntos en el detalle del reporte */
 .adj-grid {
@@ -2114,6 +2125,22 @@ textarea.form-input { resize: vertical; min-height: 90px; }
   padding: 0;
 }
 .notif-panel__todas:hover { text-decoration: underline; }
+
+.notif-panel__activar {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: none;
+  border-radius: 999px;
+  background: var(--color-primary);
+  color: #fff;
+  font-size: .68rem;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 4px 10px;
+}
+.notif-panel__activar svg.lucide { width: 12px; height: 12px; }
+.notif-panel__activar:hover { filter: brightness(1.1); }
 
 .notif-panel__lista { overflow-y: auto; }
 

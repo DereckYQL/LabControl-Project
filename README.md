@@ -18,6 +18,13 @@ Solo el **Administrador** puede gestionar usuarios y acceder a la configuración
 
 ## Cambios
 
+> **v1.8** — **Notificaciones completas en PC y celular**: la campana lateral ahora avisa
+> de todo — nuevos reportes, **fallas de equipos**, **cambios de estado de los laboratorios**
+> y **reservas confirmadas o canceladas** — cada tipo con su interruptor en
+> *Configuración → Notificaciones* (incluido un **recordatorio 30 min antes de tu reserva**).
+> Además se pueden activar las **notificaciones del sistema operativo**: llegan como avisos
+> nativos tanto en el **PC** como en el **celular**, aunque la pestaña esté en segundo plano.
+
 > **v1.7** — **Sistema de reportes renovado**: tarjetas más resumidas que despliegan el
 > detalle completo al seleccionarlas, creación de reportes con **título + descripción
 > obligatoria y archivos adjuntos** (imágenes, PDF y otros documentos), **edición y

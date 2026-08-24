@@ -79,39 +79,132 @@ function notifFromRow(row) {
   };
 }
 
+/** Nombre del laboratorio o "laboratorio" si no existe */
+function nombreLab(labId) {
+  return db.prepare("SELECT nombre FROM laboratorios WHERE id = ?").get(labId)?.nombre ?? "laboratorio";
+}
+
 /**
- * Crea una notificación para cada usuario activo (excepto el autor del cambio)
- * cuando un reporte es creado, editado o eliminado. Respeta el interruptor
- * Configuración → Notificaciones → "Nuevos reportes".
+ * Crea una notificación y la guarda en la base de datos.
+ *
+ * - `toggle`      : interruptor de Configuración → Notificaciones que la controla
+ *                   (alertaReportes / alertaFallas / alertaDisponibilidad / alertaReservas).
+ * - `destinatario`: si se indica, la notificación va solo a ese usuario
+ *                   (ej. confirmación de una reserva); si no, va a todos los
+ *                   usuarios activos excepto al autor del cambio.
  */
-function notificarCambioReporte(accion, rep, actorId) {
+function crearNotificacion({ toggle, tipo, titulo, mensaje, actorId = null, destinatario, referencia = null }) {
   try {
     const cfg = JSON.parse(db.prepare("SELECT data FROM config WHERE id = 1").get()?.data || "{}");
-    if (cfg.notificaciones?.alertaReportes === false) return;
+    if (cfg.notificaciones?.[toggle] === false) return;
+    if (!titulo || !destinatario) return;
 
-    const actor = db.prepare("SELECT nombre, apellido FROM usuarios WHERE id = ?").get(actorId);
-    const quien = actor ? `${actor.nombre} ${actor.apellido}` : "Alguien";
-    const textos = {
-      creado:    { titulo: "Nuevo reporte disponible",   mensaje: `${quien} generó el reporte "${rep.titulo}".` },
-      editado:   { titulo: "Reporte actualizado",        mensaje: `${quien} editó el reporte "${rep.titulo}".` },
-      eliminado: { titulo: "Reporte eliminado",          mensaje: `${quien} eliminó el reporte "${rep.titulo}".` }
-    };
-    const texto = textos[accion];
-    if (!texto) return;
+    let quien = "Alguien";
+    if (actorId != null) {
+      const actor = db.prepare("SELECT nombre, apellido FROM usuarios WHERE id = ?").get(actorId);
+      if (actor) quien = `${actor.nombre} ${actor.apellido}`;
+    }
 
     const fecha = new Date().toISOString().slice(0, 10);
-    const insertar = db.prepare(`
+    db.prepare(`
       INSERT INTO notificaciones (usuario_id, tipo, titulo, mensaje, reporte_id, fecha, leida)
       VALUES (?,?,?,?,?,?,0)
-    `);
-    // Si el reporte fue eliminado se guarda igualmente el aviso (reporte_id queda solo como referencia)
-    const destinatarios = db.prepare("SELECT id FROM usuarios WHERE activo = 1 AND id != ?").all(actorId ?? "");
-    for (const d of destinatarios) {
-      insertar.run(d.id, accion, texto.titulo, texto.mensaje, rep.id ?? null, fecha);
-    }
+    `).run(
+      destinatario,
+      tipo ?? toggle,
+      String(titulo),
+      String(mensaje ?? "").replace(/\{quien\}/g, quien),
+      referencia,
+      fecha
+    );
   } catch (e) {
     console.error("No se pudo registrar la notificación:", e.message);
   }
+}
+
+/** Notifica un cambio a todos los usuarios activos menos al autor */
+function notificarATodos(opciones) {
+  try {
+    const destinatarios = db.prepare("SELECT id FROM usuarios WHERE activo = 1 AND id != ?").all(opciones.actorId ?? "");
+    for (const d of destinatarios) crearNotificacion({ ...opciones, destinatario: d.id });
+  } catch (e) {
+    console.error("No se pudo registrar la notificación:", e.message);
+  }
+}
+
+/**
+ * Notifica la creación, edición o eliminación de un reporte. Si el reporte es
+ * de tipo "fallas" se usa el interruptor de fallas de equipos; el resto usa el
+ * de nuevos reportes.
+ */
+function notificarCambioReporte(accion, rep, actorId) {
+  const esFalla = rep?.tipo === "fallas";
+  const textos = esFalla ? {
+    creado:    { titulo: "Falla de equipo reportada", mensaje: `{quien} registró la falla "${rep.titulo}".` },
+    editado:   { titulo: "Falla actualizada",         mensaje: `{quien} actualizó la falla "${rep.titulo}".` },
+    eliminado: { titulo: "Falla eliminada",           mensaje: `{quien} eliminó el registro de falla "${rep.titulo}".` }
+  } : {
+    creado:    { titulo: "Nuevo reporte disponible",  mensaje: `{quien} generó el reporte "${rep.titulo}".` },
+    editado:   { titulo: "Reporte actualizado",       mensaje: `{quien} editó el reporte "${rep.titulo}".` },
+    eliminado: { titulo: "Reporte eliminado",         mensaje: `{quien} eliminó el reporte "${rep.titulo}".` }
+  };
+  const texto = textos[accion];
+  if (!texto) return;
+  notificarATodos({
+    toggle: esFalla ? "alertaFallas" : "alertaReportes",
+    tipo: accion,
+    titulo: texto.titulo,
+    mensaje: texto.mensaje,
+    actorId,
+    referencia: accion === "eliminado" ? null : rep.id
+  });
+}
+
+/** Notifica un cambio de estado de un laboratorio (disponible/ocupado/mantención) */
+const ETIQUETAS_ESTADO = { disponible: "Disponible", ocupado: "Ocupado", mantencion: "Mantención" };
+function notificarCambioEstadoLab(lab, estadoNuevo, estadoAnterior, actorId) {
+  if (!lab || estadoNuevo === estadoAnterior) return;
+  notificarATodos({
+    toggle: "alertaDisponibilidad",
+    tipo: "laboratorio",
+    titulo: "Estado de laboratorio actualizado",
+    mensaje: `{quien} marcó ${lab.nombre} como "${ETIQUETAS_ESTADO[estadoNuevo] ?? estadoNuevo}".`,
+    actorId,
+    referencia: String(lab.id)
+  });
+}
+
+/** Notifica una nueva reserva: confirmación al autor + aviso al resto */
+function notificarNuevaReserva(reserva, actorId) {
+  const lab = nombreLab(reserva.labId);
+  const horario = `${reserva.horaInicio ?? "—"}${reserva.horaFin ? ` - ${reserva.horaFin}` : ""}`;
+  crearNotificacion({
+    toggle: "alertaReservas",
+    tipo: "reserva_confirmada",
+    titulo: "Reserva confirmada",
+    mensaje: `Tu reserva de ${lab} para el ${reserva.fecha} (${horario}) quedó registrada.`,
+    destinatario: reserva.usuarioId
+  });
+  notificarATodos({
+    toggle: "alertaReservas",
+    tipo: "reserva",
+    titulo: "Nueva reserva de laboratorio",
+    mensaje: `{quien} reservó ${lab} para el ${reserva.fecha} (${horario}).`,
+    actorId
+  });
+}
+
+/** Notifica la cancelación de una reserva a todos los usuarios menos a quien la canceló */
+function notificarReservaCancelada(reserva, actorId) {
+  if (!reserva) return;
+  const lab = nombreLab(reserva.labId);
+  notificarATodos({
+    toggle: "alertaReservas",
+    tipo: "reserva_cancelada",
+    titulo: "Reserva cancelada",
+    mensaje: `{quien} canceló la reserva de ${lab} para el ${reserva.fecha}.`,
+    actorId
+  });
 }
 
 /** Solo el administrador o el creador del reporte pueden modificarlo/eliminarlo */
@@ -149,13 +242,20 @@ app.get("/api/laboratorios/:id", (req, res) => {
 });
 
 app.patch("/api/laboratorios/:id", (req, res) => {
-  const { estado } = req.body;
+  const { estado, usuarioId } = req.body;
   if (!["disponible", "ocupado", "mantencion"].includes(estado)) {
     return res.status(400).json({ error: "Estado inválido" });
   }
-  const info = db.prepare("UPDATE laboratorios SET estado = ? WHERE id = ?").run(estado, req.params.id);
-  if (info.changes === 0) return res.status(404).json({ error: "Laboratorio no encontrado" });
-  res.json(labFromRow(db.prepare("SELECT * FROM laboratorios WHERE id = ?").get(req.params.id)));
+  const anterior = db.prepare("SELECT * FROM laboratorios WHERE id = ?").get(req.params.id);
+  if (!anterior) return res.status(404).json({ error: "Laboratorio no encontrado" });
+
+  db.prepare("UPDATE laboratorios SET estado = ? WHERE id = ?").run(estado, req.params.id);
+  const lab = labFromRow(db.prepare("SELECT * FROM laboratorios WHERE id = ?").get(req.params.id));
+
+  // Avisa a los demás usuarios del cambio de disponibilidad
+  notificarCambioEstadoLab(lab, estado, anterior.estado, usuarioId);
+
+  res.json(lab);
 });
 
 /* ==========================================================================
@@ -250,14 +350,20 @@ app.post("/api/agenda", (req, res) => {
   db.prepare(`
     INSERT INTO agenda (id, lab_id, usuario_id, fecha, hora_inicio, hora_fin, motivo, estado)
     VALUES (?,?,?,?,?,?,?,?)
-  `).run(id, r.labId, r.usuarioId, r.fecha, r.horaInicio, r.horaFin, r.motivo, r.estado || "pendiente");
+  `).run(id, r.labId, r.usuarioId, r.fecha, r.horaInicio ?? null, r.horaFin ?? null, r.motivo, r.estado || "pendiente");
 
-  res.status(201).json(agFromRow(db.prepare("SELECT * FROM agenda WHERE id = ?").get(id)));
+  const reserva = agFromRow(db.prepare("SELECT * FROM agenda WHERE id = ?").get(id));
+  notificarNuevaReserva(reserva, r.usuarioId);
+
+  res.status(201).json(reserva);
 });
 
 app.delete("/api/agenda/:id", (req, res) => {
-  const info = db.prepare("DELETE FROM agenda WHERE id = ?").run(req.params.id);
-  if (info.changes === 0) return res.status(404).json({ error: "Reserva no encontrada" });
+  const actual = db.prepare("SELECT * FROM agenda WHERE id = ?").get(req.params.id);
+  if (!actual) return res.status(404).json({ error: "Reserva no encontrada" });
+
+  db.prepare("DELETE FROM agenda WHERE id = ?").run(req.params.id);
+  notificarReservaCancelada(agFromRow(actual), req.query.usuarioId || req.body?.usuarioId);
   res.status(204).end();
 });
 

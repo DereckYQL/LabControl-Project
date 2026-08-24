@@ -106,7 +106,7 @@
   const CONFIG = {
     sitio: { nombreInstitucion: "Instituto Superior de Comercio", nombreSistema: "Insuco LabControl", logo: "", tema: "claro", idioma: "es" },
     red: { subredLabs: "192.168.10.0/24", servidorDNS: "192.168.1.1", puertaEnlace: "192.168.1.254", wifiHabilitado: true },
-    notificaciones: { emailAdmin: "admin@insuco.cl", alertaFallas: true, alertaDisponibilidad: true, alertaReservas: true, alertaReportes: true },
+    notificaciones: { emailAdmin: "admin@insuco.cl", alertaFallas: true, alertaDisponibilidad: true, alertaReservas: true, alertaReportes: true, recordatorioReserva: false },
     seguridad: { sesionTimeout: 30, intentosLoginMax: 5, registroActividad: true },
     laboratorios: { horaApertura: "07:30", horaCierre: "18:00", permitirReservaExterna: true, anticipacionMaxReserva: 7 }
   };

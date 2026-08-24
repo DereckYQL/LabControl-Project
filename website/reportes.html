@@ -4,7 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Reportes · Insuco LabControl</title>
-<link rel="stylesheet" href="style.css?v=7" />
+<link rel="stylesheet" href="style.css?v=9" />
 <script>try{var t=localStorage.getItem("lc_tema");if(t==="dark-sidebar")t="oscuro";if(t==="blue-sidebar")t="azul";if(t==="green-sidebar")t="verde";if(!["claro","azul","verde","oscuro"].includes(t))t="claro";document.documentElement.dataset.theme=t}catch(e){}</script>
 </head>
 <body>
@@ -83,7 +83,9 @@
           <option value="disponibilidad">Disponibilidad</option>
           <option value="fallas">Registro de fallas</option>
           <option value="inventario">Inventario de equipos</option>
+          <option value="otro">Otro</option>
         </select>
+        <small class="form-hint" id="hint-otro" hidden>Este tipo no genera gráficos ni tablas automáticas: el reporte contendrá únicamente tu descripción y archivos adjuntos.</small>
       </div>
       <div class="form-group">
         <label class="form-label">Título (obligatorio)</label>
@@ -123,17 +125,17 @@
   </div>
 </div>
 
-<script src="data.js?v=4"></script>
+<script src="data.js?v=5"></script>
 <script src="lucide.min.js?v=1"></script>
-<script src="app.js?v=5"></script>
+<script src="app.js?v=6"></script>
 <script>
   renderSidebar("reportes.html");
 
-  const ICONOS_TIPO  = { uso: "bar-chart-3", fallas: "triangle-alert", disponibilidad: "clock", inventario: "package" };
-  const COLORES_TIPO = { uso: "primary", fallas: "danger", disponibilidad: "success", inventario: "warning" };
+  const ICONOS_TIPO  = { uso: "bar-chart-3", fallas: "triangle-alert", disponibilidad: "clock", inventario: "package", otro: "file-text" };
+  const COLORES_TIPO = { uso: "primary", fallas: "danger", disponibilidad: "success", inventario: "warning", otro: "neutral" };
   const LABELS_TIPO  = {
     uso: "Uso de laboratorios", disponibilidad: "Disponibilidad",
-    fallas: "Registro de fallas", inventario: "Inventario de equipos"
+    fallas: "Registro de fallas", inventario: "Inventario de equipos", otro: "Otro"
   };
 
   let reportesCache = [];
@@ -227,7 +229,10 @@
     acciones.innerHTML = botones.join("");
 
     renderAdjuntosDetalle(rep);
-    document.getElementById("rep-contenido").innerHTML = buildReporteHTML(rep);
+
+    const contenidoEl = document.getElementById("rep-contenido");
+    contenidoEl.innerHTML = buildReporteHTML(rep);
+    contenidoEl.style.display = contenidoEl.innerHTML.trim() ? "" : "none";
 
     if (rep.datos?.labels && rep.datos?.valores) {
       setTimeout(() => drawBarChart(rep.datos.labels, rep.datos.valores, "canvas-chart"), 50);
@@ -304,6 +309,7 @@
     document.getElementById("nuevo-rep-tipo").value         = rep.tipo ?? "uso";
     document.getElementById("nuevo-rep-titulo").value       = rep.titulo ?? "";
     document.getElementById("nuevo-rep-descripcion").value  = rep.descripcion ?? "";
+    actualizarHintOtro();
     renderArchivosTemporales();
     document.getElementById("modal-reporte").style.display = "flex";
   }
@@ -355,6 +361,7 @@
     document.getElementById("nuevo-rep-tipo").value         = "uso";
     document.getElementById("nuevo-rep-titulo").value       = "";
     document.getElementById("nuevo-rep-descripcion").value  = "";
+    actualizarHintOtro();
     renderArchivosTemporales();
     document.getElementById("modal-reporte").style.display = "flex";
   }
@@ -366,6 +373,15 @@
   document.getElementById("btn-nuevo-reporte").addEventListener("click", abrirModalNuevo);
   document.getElementById("btn-cerrar-rep-modal").addEventListener("click", cerrarModalReporte);
   document.getElementById("btn-cancelar-rep").addEventListener("click", cerrarModalReporte);
+
+  // Aviso cuando el reporte es de tipo libre ("Otro")
+  document.getElementById("nuevo-rep-tipo").addEventListener("change", actualizarHintOtro);
+
+  function actualizarHintOtro() {
+    const esOtro = document.getElementById("nuevo-rep-tipo").value === "otro";
+    document.getElementById("hint-otro").hidden = !esOtro;
+  }
+
   document.getElementById("modal-reporte").addEventListener("click", (e) => {
     if (e.target === document.getElementById("modal-reporte")) cerrarModalReporte();
   });
@@ -474,6 +490,8 @@
      ====================================================== */
 
   function generarDatosMock(tipo) {
+    // Tipo "Otro": reporte libre, sin datos automáticos
+    if (tipo === "otro") return {};
     if (tipo === "uso" || tipo === "disponibilidad") {
       return {
         labels:  ["Lab 1","Lab 2","Lab 3","Lab 4","Lab Redes"],
@@ -487,6 +505,8 @@
   }
 
   function buildReporteHTML(rep) {
+    // Reporte libre ("Otro"): sin gráficos ni tablas generadas por el sistema
+    if (rep.tipo === "otro") return "";
     if (rep.tipo === "uso" || rep.tipo === "disponibilidad") {
       return `
         <h3 style="margin:0 0 16px;font-size:.95rem">${rep.tipo === "uso" ? "Horas de uso por laboratorio" : "Porcentaje de disponibilidad por laboratorio"}</h3>
