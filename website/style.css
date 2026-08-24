@@ -4,7 +4,7 @@
    El tema activo se aplica con <html data-theme="...">
    ========================================================== */
 
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&family=Roboto+Slab:wght@400;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&family=Roboto+Slab:wght@400;600;700;800&family=Orbitron:wght@600;800;900&display=swap');
 
 /* ==========================================================
    PALETAS POR TEMA
@@ -468,19 +468,44 @@ h1 + p { margin: 4px 0 0; color: var(--color-text-muted); font-size: .9rem; }
 
 .sidebar__brand {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  justify-content: center;
-  gap: 12px;
+  gap: 10px;
   padding: 20px 14px;
   border-bottom: 1px solid rgba(148, 197, 255, .1);
 }
 
 .sidebar__brand img {
-  width: 156px;
-  height: 156px;
+  width: 110px;
+  height: 110px;
   object-fit: contain;
   margin: 0 auto;
   filter: var(--logo-glow);
+}
+
+.sidebar__brand-name {
+  font-family: "Orbitron", "Segoe UI", system-ui, sans-serif;
+  font-size: 1rem;
+  font-weight: 800;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  text-align: center;
+  line-height: 1.3;
+  white-space: nowrap;
+  color: #fff;
+  text-shadow:
+    0 0 12px rgba(56, 189, 248, .55),
+    0 0 32px rgba(36, 86, 240, .45);
+}
+.sidebar__brand-name::before {
+  content: "//";
+  margin-right: 7px;
+  font-weight: 600;
+  background: var(--grad-primary);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 0 6px rgba(56, 189, 248, .6));
 }
 
 .sidebar__nav {
@@ -1716,8 +1741,16 @@ tbody tr:hover { background: var(--row-hover); }
     padding: 6px 10px;
     box-shadow: 0 4px 14px rgba(0, 0, 0, .25);
   }
-  .sidebar__brand { border-bottom: none; padding: 2px 4px; flex-shrink: 0; }
+  .sidebar__brand {
+    border-bottom: none;
+    padding: 2px 6px;
+    flex-shrink: 0;
+    flex-direction: row;
+    gap: 8px;
+  }
   .sidebar__brand img { width: 44px; height: 44px; }
+  .sidebar__brand-name { font-size: .66rem; letter-spacing: .07em; }
+  .sidebar__brand-name::before { margin-right: 4px; }
 
   /* Usuario al lado del logo */
   .sidebar__user {
@@ -1790,6 +1823,9 @@ tbody tr:hover { background: var(--row-hover); }
 @media (max-width: 480px) {
   .main-content { padding: 16px 12px 40px; }
   h1 { font-size: 1.35rem; }
+  .sidebar__brand { gap: 6px; padding: 2px 3px; }
+  .sidebar__brand img { width: 38px; height: 38px; }
+  .sidebar__brand-name { font-size: .56rem; letter-spacing: .04em; }
 }
 
 @media (max-width: 400px) {

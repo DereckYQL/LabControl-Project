@@ -18,6 +18,11 @@ Solo el **Administrador** puede gestionar usuarios y acceder a la configuración
 
 ## Cambios
 
+> **v1.9** — **Nombre del sitio en el sidebar**: la barra lateral ahora muestra el
+> nombre **"Insuco LabControl"** junto al logo, con una **fuente tecnológica**
+> (*Orbitron*) y un efecto de brillo neón que refuerza la identidad visual del
+> sistema. Se adapta a celular manteniendo el estilo.
+
 > **v1.8** — **Notificaciones completas en PC y celular**: la campana lateral ahora avisa
 > de todo — nuevos reportes, **fallas de equipos**, **cambios de estado de los laboratorios**
 > y **reservas confirmadas o canceladas** — cada tipo con su interruptor en
