@@ -123,7 +123,126 @@ function renderSidebar(activeHref, requireAuth = true) {
     sidebar.appendChild(toggle);
   }
 
+  // Campana de notificaciones de reportes
+  inicializarNotificaciones();
+
   return sesion;
+}
+
+/* ======================================================
+   NOTIFICACIONES DE REPORTES (campana en la barra lateral)
+   ====================================================== */
+
+let __notifsCache = [];
+let __notifsTimer = null;
+
+function inicializarNotificaciones() {
+  const sesion = AUTH.getSesion();
+  const sidebar = document.querySelector(".sidebar");
+  if (!sesion || !sidebar || sidebar.querySelector(".notif-wrap")) return;
+
+  const wrap = document.createElement("div");
+  wrap.className = "notif-wrap";
+  wrap.innerHTML = `
+    <button class="notif-btn" type="button" title="Notificaciones" aria-label="Notificaciones">
+      <i data-lucide="bell"></i>
+      <span class="notif-btn__badge" style="display:none"></span>
+    </button>
+    <div class="notif-panel" style="display:none">
+      <div class="notif-panel__head">
+        <span>Notificaciones</span>
+        <button class="notif-panel__todas" type="button">Marcar todas como leídas</button>
+      </div>
+      <div class="notif-panel__lista"></div>
+    </div>
+  `;
+  sidebar.appendChild(wrap);
+
+  const btn   = wrap.querySelector(".notif-btn");
+  const panel = wrap.querySelector(".notif-panel");
+
+  btn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    const abierta = panel.style.display !== "none";
+    panel.style.display = abierta ? "none" : "block";
+    if (!abierta) renderListaNotificaciones();
+  });
+
+  document.addEventListener("click", (e) => {
+    if (panel.style.display === "block" && !panel.contains(e.target)) {
+      panel.style.display = "none";
+    }
+  });
+
+  wrap.querySelector(".notif-panel__todas").addEventListener("click", async () => {
+    try {
+      await marcarTodasNotificaciones(sesion.id);
+      await refrescarNotificaciones();
+    } catch {}
+  });
+
+  // Primera carga y sondeo ligero para enterarse de reportes nuevos
+  refrescarNotificaciones();
+  clearInterval(__notifsTimer);
+  __notifsTimer = setInterval(refrescarNotificaciones, 30000);
+}
+
+async function refrescarNotificaciones() {
+  const sesion = AUTH.getSesion();
+  if (!sesion || typeof cargarNotificaciones !== "function") return;
+  try {
+    __notifsCache = await cargarNotificaciones(sesion.id) ?? [];
+    actualizarBadgeNotif();
+    const panel = document.querySelector(".notif-panel");
+    if (panel && panel.style.display === "block") renderListaNotificaciones();
+  } catch {}
+}
+
+function notifsNoLeidas() {
+  return __notifsCache.filter((n) => !n.leida);
+}
+
+function actualizarBadgeNotif() {
+  const badge = document.querySelector(".notif-btn__badge");
+  if (!badge) return;
+  const n = notifsNoLeidas().length;
+  badge.textContent = n > 9 ? "9+" : String(n);
+  badge.style.display = n > 0 ? "flex" : "none";
+}
+
+function renderListaNotificaciones() {
+  const lista = document.querySelector(".notif-panel__lista");
+  if (!lista) return;
+
+  if (!__notifsCache.length) {
+    lista.innerHTML = `
+      <div class="notif-vacia">
+        <i data-lucide="bell-off"></i>
+        <p>No hay notificaciones todavía.<br/>Aparecerán cuando alguien cree o edite un reporte.</p>
+      </div>`;
+    return;
+  }
+
+  lista.innerHTML = __notifsCache.map((n) => `
+    <button class="notif-item ${n.leida ? "" : "notif-item--nueva"}" type="button" data-id="${n.id}" data-reporte="${n.reporteId ?? ""}">
+      <span class="notif-item__punto"></span>
+      <span class="notif-item__cuerpo">
+        <span class="notif-item__titulo">${n.titulo}</span>
+        <span class="notif-item__msj">${n.mensaje ?? ""}</span>
+        <span class="notif-item__fecha"><i data-lucide="calendar-days"></i> ${formatFecha(n.fecha)}</span>
+      </span>
+    </button>
+  `).join("");
+
+  lista.querySelectorAll(".notif-item").forEach((item) => {
+    item.addEventListener("click", async () => {
+      const id = item.dataset.id;
+      const destino = item.dataset.reporte;
+      try { await marcarNotificacionLeida(id); } catch {}
+      if (destino) window.location.href = `reportes.html?id=${encodeURIComponent(destino)}`;
+      else await refrescarNotificaciones();
+    });
+  });
 }
 
 /* ======================================================

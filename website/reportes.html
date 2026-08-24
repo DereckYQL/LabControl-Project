@@ -4,7 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Reportes · Insuco LabControl</title>
-<link rel="stylesheet" href="style.css?v=6" />
+<link rel="stylesheet" href="style.css?v=7" />
 <script>try{var t=localStorage.getItem("lc_tema");if(t==="dark-sidebar")t="oscuro";if(t==="blue-sidebar")t="azul";if(t==="green-sidebar")t="verde";if(!["claro","azul","verde","oscuro"].includes(t))t="claro";document.documentElement.dataset.theme=t}catch(e){}</script>
 </head>
 <body>
@@ -33,7 +33,7 @@
       <button class="btn btn--primary" id="btn-nuevo-reporte">+ Generar reporte</button>
     </header>
 
-    <!-- Tarjetas de reportes recientes -->
+    <!-- Lista resumida de reportes -->
     <div class="rep-grid" id="rep-grid"></div>
 
     <!-- Vista detalle de un reporte -->
@@ -46,14 +46,15 @@
           <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px">
             <div>
               <div style="font-weight:700;font-size:1.1rem" id="rep-titulo"></div>
-              <div style="color:var(--color-text-muted);font-size:.85rem;margin-top:4px" id="rep-desc"></div>
-              <div style="margin-top:8px;display:flex;gap:10px;font-size:.8rem;color:var(--color-text-muted)">
+              <div style="margin-top:8px;display:flex;gap:10px;font-size:.8rem;color:var(--color-text-muted);flex-wrap:wrap">
                 <span id="rep-fecha"></span>
                 <span id="rep-autor"></span>
               </div>
             </div>
-            <button class="btn" onclick="imprimirReporte()"><i data-lucide="printer"></i> Imprimir</button>
+            <div style="display:flex;gap:8px;flex-wrap:wrap" id="rep-acciones"></div>
           </div>
+          <p id="rep-descripcion" style="margin-top:14px;font-size:.9rem;line-height:1.55;white-space:pre-wrap;color:var(--color-text)"></p>
+          <div id="rep-adjuntos"></div>
         </div>
 
         <div style="padding:20px" id="rep-contenido"></div>
@@ -62,11 +63,16 @@
   </main>
 </div>
 
-<!-- Modal nuevo reporte -->
+<!-- Visor de imágenes adjuntas -->
+<div id="lightbox" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:1000;align-items:center;justify-content:center;cursor:zoom-out;padding:24px" onclick="this.style.display='none'">
+  <img id="lightbox-img" alt="" style="max-width:min(900px,92vw);max-height:88vh;border-radius:12px;box-shadow:0 20px 60px rgba(0,0,0,.5)" />
+</div>
+
+<!-- Modal nuevo / editar reporte -->
 <div class="modal-overlay" id="modal-reporte" style="display:none" role="dialog" aria-modal="true">
-  <div class="modal">
+  <div class="modal" style="max-width:560px">
     <div class="modal__header">
-      <span class="modal__title">Generar nuevo reporte</span>
+      <span class="modal__title" id="modal-rep-titulo">Generar nuevo reporte</span>
       <button class="modal__close" id="btn-cerrar-rep-modal"><i data-lucide="x"></i></button>
     </div>
     <div class="modal__body">
@@ -80,8 +86,13 @@
         </select>
       </div>
       <div class="form-group">
-        <label class="form-label">Título</label>
+        <label class="form-label">Título (obligatorio)</label>
         <input class="form-input" id="nuevo-rep-titulo" type="text" placeholder="Ej: Reporte de agosto 2026" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Descripción (obligatoria)</label>
+        <textarea class="form-input" id="nuevo-rep-descripcion" rows="4"
+          placeholder="Describe el contexto y las conclusiones del reporte. Sin límite de extensión."></textarea>
       </div>
       <div class="form-row">
         <div class="form-group">
@@ -93,6 +104,17 @@
           <input class="form-input" type="date" id="nuevo-rep-hasta" />
         </div>
       </div>
+      <div class="form-group">
+        <label class="form-label">Archivos adjuntos (opcional)</label>
+        <label class="dropzone" for="nuevo-rep-archivos">
+          <i data-lucide="paperclip"></i>
+          <span>Haz clic para agregar imágenes, PDF u otros documentos</span>
+          <small>Máximo 10 MB por archivo · hasta 10 archivos</small>
+        </label>
+        <input id="nuevo-rep-archivos" type="file" multiple hidden
+          accept="image/*,.pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt,.csv,.zip,.rar" />
+        <div id="lista-adjuntos" class="adj-chips"></div>
+      </div>
     </div>
     <div class="modal__footer">
       <button class="btn" id="btn-cancelar-rep">Cancelar</button>
@@ -101,23 +123,41 @@
   </div>
 </div>
 
-<script src="data.js?v=3"></script>
+<script src="data.js?v=4"></script>
 <script src="lucide.min.js?v=1"></script>
-<script src="app.js?v=4"></script>
+<script src="app.js?v=5"></script>
 <script>
   renderSidebar("reportes.html");
 
-  const ICONOS_TIPO = { uso: "bar-chart-3", fallas: "triangle-alert", disponibilidad: "clock", inventario: "package" };
+  const ICONOS_TIPO  = { uso: "bar-chart-3", fallas: "triangle-alert", disponibilidad: "clock", inventario: "package" };
   const COLORES_TIPO = { uso: "primary", fallas: "danger", disponibilidad: "success", inventario: "warning" };
+  const LABELS_TIPO  = {
+    uso: "Uso de laboratorios", disponibilidad: "Disponibilidad",
+    fallas: "Registro de fallas", inventario: "Inventario de equipos"
+  };
 
   let reportesCache = [];
   let usuariosCache = [];
+  let repAbiertoId  = null;
+
+  /* Estado del modal (crear / editar) */
+  let modoModal = "crear";
+  let editandoId = null;
+  let archivosTemporales = [];
 
   Promise.all([cargarReportes(), cargarUsuarios()]).then(([reportes, usuarios]) => {
     reportesCache = reportes;
     usuariosCache = usuarios;
     renderRepGrid(reportes);
+
+    // Acceso directo desde una notificación (?id=rep_xxx)
+    const destino = getQueryParam("id");
+    if (destino && reportes.some((r) => r.id === destino)) abrirReporte(destino);
   });
+
+  /* ======================================================
+     LISTA RESUMIDA DE REPORTES
+     ====================================================== */
 
   function renderRepGrid(reportes) {
     const grid = document.getElementById("rep-grid");
@@ -126,8 +166,9 @@
       return;
     }
     grid.innerHTML = reportes.map((rep) => {
-      const autor = usuariosCache.find((u) => u.id === rep.generadoPor);
-      const color = COLORES_TIPO[rep.tipo] ?? "primary";
+      const autor   = usuariosCache.find((u) => u.id === rep.generadoPor);
+      const color   = COLORES_TIPO[rep.tipo] ?? "primary";
+      const nAdj    = (rep.adjuntos ?? []).length;
       return `
         <div class="card rep-card" role="button" tabindex="0"
           onclick="abrirReporte('${rep.id}')"
@@ -136,11 +177,12 @@
             <i data-lucide="${ICONOS_TIPO[rep.tipo] ?? "file-text"}"></i>
           </div>
           <div class="rep-card__body">
-            <div class="rep-card__titulo">${rep.titulo}</div>
-            <div class="rep-card__desc">${rep.descripcion}</div>
+            <div class="rep-card__titulo" title="${esc(rep.titulo)}">${esc(rep.titulo)}</div>
             <div class="rep-card__meta">
+              <span class="rep-chip rep-chip--${color}">${LABELS_TIPO[rep.tipo] ?? "Reporte"}</span>
               <span><i data-lucide="calendar-days"></i> ${formatFecha(rep.fecha)}</span>
               <span><i data-lucide="user"></i> ${autor ? `${autor.nombre} ${autor.apellido}` : rep.generadoPor}</span>
+              ${nAdj ? `<span><i data-lucide="paperclip"></i> ${nAdj}</span>` : ""}
             </div>
           </div>
           <i class="rep-card__arrow" data-lucide="chevron-right"></i>
@@ -149,28 +191,299 @@
     }).join("");
   }
 
+  /* ======================================================
+     VISTA DETALLE (con más información)
+     ====================================================== */
+
+  function puedeModificar(rep) {
+    const sesion = AUTH.getSesion();
+    return !!sesion && (sesion.rol === "admin" || rep.generadoPor === sesion.id);
+  }
+
   function abrirReporte(id) {
-    const rep   = reportesCache.find((r) => r.id === id);
+    const rep = reportesCache.find((r) => r.id === id);
     if (!rep) return;
+    repAbiertoId = id;
     const autor = usuariosCache.find((u) => u.id === rep.generadoPor);
 
-    document.getElementById("rep-grid").parentElement.style.display = "none";
-    document.getElementById("rep-grid").style.display = "none";
-    document.getElementById("vista-reporte").style.display = "block";
-    document.querySelector(".page-header").style.display = "none";
+    document.getElementById("rep-grid").style.display       = "none";
+    document.getElementById("vista-reporte").style.display  = "block";
+    document.querySelector(".page-header").style.display    = "none";
 
     document.getElementById("rep-titulo").textContent = rep.titulo;
-    document.getElementById("rep-desc").textContent   = rep.descripcion;
-    document.getElementById("rep-fecha").innerHTML  = `<i data-lucide="calendar-days"></i> ${formatFecha(rep.fecha)}`;
-    document.getElementById("rep-autor").innerHTML  =
+    document.getElementById("rep-descripcion").textContent = rep.descripcion || "";
+    document.getElementById("rep-fecha").innerHTML =
+      `<i data-lucide="calendar-days"></i> ${formatFecha(rep.fecha)}`;
+    document.getElementById("rep-autor").innerHTML =
       `<i data-lucide="user"></i> ${autor ? `${autor.nombre} ${autor.apellido}` : rep.generadoPor}`;
 
+    // Botones de acción: solo el creador o un administrador pueden editar/eliminar
+    const acciones = document.getElementById("rep-acciones");
+    const botones  = [`<button class="btn" onclick="imprimirReporte()"><i data-lucide="printer"></i> Imprimir</button>`];
+    if (puedeModificar(rep)) {
+      botones.push(`<button class="btn" onclick="editarReporteActual()"><i data-lucide="pencil"></i> Editar</button>`);
+      botones.push(`<button class="btn btn--danger" onclick="eliminarReporteActual()"><i data-lucide="trash-2"></i> Eliminar</button>`);
+    }
+    acciones.innerHTML = botones.join("");
+
+    renderAdjuntosDetalle(rep);
     document.getElementById("rep-contenido").innerHTML = buildReporteHTML(rep);
 
-    // Dibujar gráfico si aplica
     if (rep.datos?.labels && rep.datos?.valores) {
       setTimeout(() => drawBarChart(rep.datos.labels, rep.datos.valores, "canvas-chart"), 50);
     }
+  }
+
+  function renderAdjuntosDetalle(rep) {
+    const cont   = document.getElementById("rep-adjuntos");
+    const adj    = rep.adjuntos ?? [];
+    if (!adj.length) { cont.innerHTML = ""; return; }
+
+    const imagenes = adj.filter((a) => (a.tipo ?? "").startsWith("image/") || /\.(png|jpe?g|gif|webp|svg)$/i.test(a.nombre));
+    const otros    = adj.filter((a) => !imagenes.includes(a));
+
+    cont.innerHTML = `
+      <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--color-border)">
+        <div style="font-weight:700;font-size:.85rem;margin-bottom:10px">
+          <i data-lucide="paperclip"></i> Archivos adjuntos (${adj.length})
+        </div>
+        ${imagenes.length ? `
+          <div class="adj-grid">
+            ${imagenes.map((a, i) => `
+              <figure class="adj-thumb" title="${esc(a.nombre)}">
+                <img src="${a.data}" alt="${esc(a.nombre)}" loading="lazy"
+                  onclick="verImagenLightbox('${rep.id}', ${rep.adjuntos.indexOf(a)})" />
+                <figcaption>${esc(a.nombre)}</figcaption>
+              </figure>
+            `).join("")}
+          </div>` : ""}
+        ${otros.length ? `
+          <div class="adj-chips" style="margin-top:${imagenes.length ? 10 : 0}px">
+            ${otros.map((a) => `
+              <a class="adj-file" href="${a.data}" download="${esc(a.nombre)}" title="Descargar ${esc(a.nombre)}">
+                <i data-lucide="file-text"></i>
+                <span>${esc(a.nombre)}</span>
+                <small>${formatoBytes(a.tamano)}</small>
+                <i data-lucide="download"></i>
+              </a>
+            `).join("")}
+          </div>` : ""}
+      </div>
+    `;
+  }
+
+  function verImagenLightbox(reporteId, indice) {
+    const rep = reportesCache.find((r) => r.id === reporteId);
+    const adj = rep?.adjuntos?.[indice];
+    if (!adj) return;
+    document.getElementById("lightbox-img").src = adj.data;
+    document.getElementById("lightbox-img").alt = adj.nombre;
+    document.getElementById("lightbox").style.display = "flex";
+  }
+
+  /* ======================================================
+     ACCIONES: EDITAR / ELIMINAR
+     ====================================================== */
+
+  async function recargarReportes() {
+    reportesCache = await cargarReportes();
+    renderRepGrid(reportesCache);
+  }
+
+  function editarReporteActual() {
+    const rep = reportesCache.find((r) => r.id === repAbiertoId);
+    if (!rep) return;
+    if (!puedeModificar(rep)) { showToast("Solo el administrador o el creador pueden editar este reporte.", "error"); return; }
+
+    modoModal    = "editar";
+    editandoId   = rep.id;
+    archivosTemporales = [...(rep.adjuntos ?? [])];
+
+    document.getElementById("modal-rep-titulo").textContent = "Editar reporte";
+    document.getElementById("btn-generar-rep").textContent  = "Guardar cambios";
+    document.getElementById("nuevo-rep-tipo").value         = rep.tipo ?? "uso";
+    document.getElementById("nuevo-rep-titulo").value       = rep.titulo ?? "";
+    document.getElementById("nuevo-rep-descripcion").value  = rep.descripcion ?? "";
+    renderArchivosTemporales();
+    document.getElementById("modal-reporte").style.display = "flex";
+  }
+
+  async function eliminarReporteActual() {
+    const rep    = reportesCache.find((r) => r.id === repAbiertoId);
+    const sesion = AUTH.getSesion();
+    if (!rep || !sesion) return;
+    if (!puedeModificar(rep)) { showToast("Solo el administrador o el creador pueden eliminar este reporte.", "error"); return; }
+    if (!confirm(`¿Eliminar el reporte "${rep.titulo}"? Esta acción no se puede deshacer.`)) return;
+
+    try {
+      await eliminarReporte(rep.id, sesion.id);
+      repAbiertoId = null;
+      document.getElementById("vista-reporte").style.display = "none";
+      document.getElementById("rep-grid").style.display      = "grid";
+      document.querySelector(".page-header").style.display   = "flex";
+      await recargarReportes();
+      refrescarNotificaciones();
+      showToast("Reporte eliminado.");
+    } catch (err) {
+      showToast(err.message || "No se pudo eliminar el reporte.", "error");
+    }
+  }
+
+  /* ======================================================
+     NAVEGACIÓN VISTA LISTA ↔ DETALLE
+     ====================================================== */
+
+  document.getElementById("btn-volver-rep").addEventListener("click", () => {
+    repAbiertoId = null;
+    document.getElementById("vista-reporte").style.display = "none";
+    document.getElementById("rep-grid").style.display      = "grid";
+    document.querySelector(".page-header").style.display   = "flex";
+  });
+
+  /* ======================================================
+     MODAL NUEVO / EDITAR REPORTE
+     ====================================================== */
+
+  function abrirModalNuevo() {
+    modoModal    = "crear";
+    editandoId   = null;
+    archivosTemporales = [];
+    const hoy = new Date().toISOString().split("T")[0];
+    document.getElementById("nuevo-rep-hasta").value = hoy;
+    document.getElementById("modal-rep-titulo").textContent = "Generar nuevo reporte";
+    document.getElementById("btn-generar-rep").textContent  = "Generar";
+    document.getElementById("nuevo-rep-tipo").value         = "uso";
+    document.getElementById("nuevo-rep-titulo").value       = "";
+    document.getElementById("nuevo-rep-descripcion").value  = "";
+    renderArchivosTemporales();
+    document.getElementById("modal-reporte").style.display = "flex";
+  }
+
+  function cerrarModalReporte() {
+    document.getElementById("modal-reporte").style.display = "none";
+  }
+
+  document.getElementById("btn-nuevo-reporte").addEventListener("click", abrirModalNuevo);
+  document.getElementById("btn-cerrar-rep-modal").addEventListener("click", cerrarModalReporte);
+  document.getElementById("btn-cancelar-rep").addEventListener("click", cerrarModalReporte);
+  document.getElementById("modal-reporte").addEventListener("click", (e) => {
+    if (e.target === document.getElementById("modal-reporte")) cerrarModalReporte();
+  });
+
+  /* ---- Adjuntos del modal ---- */
+
+  document.getElementById("nuevo-rep-archivos").addEventListener("change", (e) => agregarArchivos(e.target.files));
+
+  const dz = document.querySelector(".dropzone");
+  ["dragover", "dragenter"].forEach((ev) => dz.addEventListener(ev, (e) => { e.preventDefault(); dz.classList.add("is-over"); }));
+  ["dragleave", "drop"].forEach((ev) => dz.addEventListener(ev, (e) => { e.preventDefault(); dz.classList.remove("is-over"); }));
+  dz.addEventListener("drop", (e) => agregarArchivos(e.dataTransfer.files));
+
+  function leerArchivo(file) {
+    return new Promise((resolve, reject) => {
+      const lector = new FileReader();
+      lector.onload  = () => resolve({
+        nombre: file.name,
+        tipo: file.type || "application/octet-stream",
+        tamano: file.size,
+        data: lector.result
+      });
+      lector.onerror = reject;
+      lector.readAsDataURL(file);
+    });
+  }
+
+  async function agregarArchivos(files) {
+    for (const f of [...files]) {
+      if (f.size > 10 * 1024 * 1024) { showToast(`"${f.name}" supera el máximo de 10 MB.`, "error"); continue; }
+      if (archivosTemporales.length >= 10) { showToast("Máximo 10 archivos por reporte.", "error"); break; }
+      try { archivosTemporales.push(await leerArchivo(f)); }
+      catch { showToast(`No se pudo leer "${f.name}".`, "error"); }
+    }
+    limpiarInputArchivos();
+    renderArchivosTemporales();
+  }
+  function limpiarInputArchivos() { document.getElementById("nuevo-rep-archivos").value = ""; }
+
+  function quitarArchivoTemporal(indice) {
+    archivosTemporales.splice(indice, 1);
+    renderArchivosTemporales();
+  }
+
+  function renderArchivosTemporales() {
+    document.getElementById("lista-adjuntos").innerHTML = archivosTemporales.map((a, i) => `
+      <span class="adj-file adj-file--estatica" title="${esc(a.nombre)}">
+        ${(a.tipo ?? "").startsWith("image/") ? '<i data-lucide="image"></i>' : '<i data-lucide="file-text"></i>'}
+        <span>${esc(a.nombre)}</span>
+        <small>${formatoBytes(a.tamano)}</small>
+        <button type="button" class="adj-file__quitar" onclick="quitarArchivoTemporal(${i})" aria-label="Quitar archivo"><i data-lucide="x"></i></button>
+      </span>
+    `).join("");
+  }
+
+  /* ---- Guardar (crear o editar) ---- */
+
+  document.getElementById("btn-generar-rep").addEventListener("click", async () => {
+    const tipo        = document.getElementById("nuevo-rep-tipo").value;
+    const titulo      = document.getElementById("nuevo-rep-titulo").value.trim();
+    const descripcion = document.getElementById("nuevo-rep-descripcion").value.trim();
+
+    if (!titulo)      { showToast("Escribe un título para el reporte.", "error"); return; }
+    if (!descripcion) { showToast("Agrega una descripción al reporte.", "error"); return; }
+
+    const sesion = AUTH.getSesion();
+    const btn    = document.getElementById("btn-generar-rep");
+    btn.disabled = true;
+
+    try {
+      if (modoModal === "crear") {
+        await crearReporte({
+          tipo,
+          titulo,
+          descripcion,
+          fecha: new Date().toISOString().split("T")[0],
+          generadoPor: sesion?.id ?? "desconocido",
+          datos: generarDatosMock(tipo),
+          adjuntos: archivosTemporales
+        });
+        showToast("Reporte generado correctamente.");
+      } else {
+        // Al editar no se regeneran los datos ni la fecha original
+        await actualizarReporte(editandoId, {
+          tipo, titulo, descripcion,
+          adjuntos: archivosTemporales,
+          usuarioId: sesion?.id
+        });
+        showToast("Reporte actualizado correctamente.");
+      }
+
+      const idVisto = modoModal === "editar" ? editandoId : null;
+      await recargarReportes();
+      refrescarNotificaciones();
+      cerrarModalReporte();
+      if (repAbiertoId && repAbiertoId === idVisto) abrirReporte(idVisto);
+    } catch (err) {
+      showToast(err.message || "No se pudo guardar el reporte.", "error");
+    } finally {
+      btn.disabled = false;
+    }
+  });
+
+  /* ======================================================
+     CONTENIDO DEL REPORTE (gráficos y tablas)
+     ====================================================== */
+
+  function generarDatosMock(tipo) {
+    if (tipo === "uso" || tipo === "disponibilidad") {
+      return {
+        labels:  ["Lab 1","Lab 2","Lab 3","Lab 4","Lab Redes"],
+        valores: [70,65,50,15,85].map((v) => v + Math.floor(Math.random() * 15))
+      };
+    }
+    if (tipo === "fallas") {
+      return { fallas: [{ equipo:"PC-nuevo", lab:"Lab 1", descripcion:"Falla simulada", estado:"pendiente" }] };
+    }
+    return { total:145, activos:141, enFalla:3, enMantencion:1 };
   }
 
   function buildReporteHTML(rep) {
@@ -196,10 +509,10 @@
           <tbody>
             ${rep.datos.fallas.map((f) => `
               <tr>
-                <td><strong>${f.equipo}</strong></td>
-                <td>${f.lab}</td>
-                <td>${f.descripcion}</td>
-                <td><span class="badge ${f.estado === "resuelto" ? "badge--disponible" : f.estado === "en reparación" ? "badge--mantencion" : "badge--ocupado"}">${f.estado}</span></td>
+                <td><strong>${esc(f.equipo)}</strong></td>
+                <td>${esc(f.lab)}</td>
+                <td>${esc(f.descripcion)}</td>
+                <td><span class="badge ${f.estado === "resuelto" ? "badge--disponible" : f.estado === "en reparación" ? "badge--mantencion" : "badge--ocupado"}">${esc(f.estado)}</span></td>
               </tr>
             `).join("")}
           </tbody>
@@ -246,84 +559,39 @@
       const bH  = pct * (H - 60);
       const y   = H - bH - 30;
 
-      // Barra
       ctx.fillStyle = colores[i % colores.length];
       ctx.beginPath();
       ctx.roundRect(x, y, barW, bH, [4, 4, 0, 0]);
       ctx.fill();
 
-      // Valor encima
       ctx.fillStyle = cValor;
       ctx.font = "bold 11px sans-serif";
       ctx.textAlign = "center";
       ctx.fillText(valores[i], x + barW / 2, y - 6);
 
-      // Etiqueta abajo
       ctx.fillStyle = cEje;
       ctx.font = "10px sans-serif";
       ctx.fillText(label, x + barW / 2, H - 10);
     });
   }
 
-  document.getElementById("btn-volver-rep").addEventListener("click", () => {
-    document.getElementById("vista-reporte").style.display     = "none";
-    document.getElementById("rep-grid").style.display          = "grid";
-    document.querySelector(".page-header").style.display       = "flex";
-  });
+  /* ======================================================
+     UTILIDADES
+     ====================================================== */
 
-  // Modal nuevo reporte
-  document.getElementById("btn-nuevo-reporte").addEventListener("click", () => {
-    const hoy = new Date().toISOString().split("T")[0];
-    document.getElementById("nuevo-rep-hasta").value = hoy;
-    document.getElementById("modal-reporte").style.display = "flex";
-  });
-  document.getElementById("btn-cerrar-rep-modal").addEventListener("click", () =>
-    document.getElementById("modal-reporte").style.display = "none"
-  );
-  document.getElementById("btn-cancelar-rep").addEventListener("click", () =>
-    document.getElementById("modal-reporte").style.display = "none"
-  );
-  document.getElementById("btn-generar-rep").addEventListener("click", () => {
-    const tipo   = document.getElementById("nuevo-rep-tipo").value;
-    const titulo = document.getElementById("nuevo-rep-titulo").value.trim();
-    if (!titulo) { showToast("Escribe un título para el reporte.", "error"); return; }
-    const sesion = AUTH.getSesion();
-    const nuevo  = {
-      tipo,
-      titulo,
-      descripcion: `Reporte generado el ${formatFecha(new Date().toISOString().split("T")[0])}.`,
-      fecha: new Date().toISOString().split("T")[0],
-      generadoPor: sesion?.id ?? "desconocido",
-      datos: generarDatosMock(tipo)
-    };
-    crearReporte(nuevo)
-      .then(() => cargarReportes())
-      .then((reportes) => {
-        reportesCache = reportes;
-        renderRepGrid(reportes);
-        showToast("Reporte generado correctamente.");
-        document.getElementById("modal-reporte").style.display = "none";
-      })
-      .catch(() => showToast("No se pudo generar el reporte.", "error"));
-  });
-
-  function generarDatosMock(tipo) {
-    if (tipo === "uso" || tipo === "disponibilidad") {
-      return {
-        labels:  ["Lab 1","Lab 2","Lab 3","Lab 4","Lab Redes"],
-        valores: [70,65,50,15,85].map((v) => v + Math.floor(Math.random() * 15))
-      };
-    }
-    if (tipo === "fallas") {
-      return { fallas: [{ equipo:"PC-nuevo", lab:"Lab 1", descripcion:"Falla simulada", estado:"pendiente" }] };
-    }
-    return { total:145, activos:141, enFalla:3, enMantencion:1 };
+  function esc(texto) {
+    return String(texto ?? "").replace(/[&<>"']/g, (c) => ({
+      "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+    }[c]));
   }
 
-  document.getElementById("modal-reporte").addEventListener("click", (e) => {
-    if (e.target === document.getElementById("modal-reporte"))
-      document.getElementById("modal-reporte").style.display = "none";
-  });
+  function formatoBytes(n) {
+    if (!n && n !== 0) return "";
+    const unidades = ["B", "KB", "MB", "GB"];
+    let v = n, i = 0;
+    while (v >= 1024 && i < unidades.length - 1) { v /= 1024; i++; }
+    return `${v.toFixed(v >= 10 || i === 0 ? 0 : 1)} ${unidades[i]}`;
+  }
 
   function imprimirReporte() {
     window.print();

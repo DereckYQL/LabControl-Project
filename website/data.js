@@ -41,6 +41,34 @@ function activarModoDemo() {
 const copia = (x) => (x === undefined ? undefined : JSON.parse(JSON.stringify(x)));
 
 /**
+ * En modo demo replica las notificaciones que generaría server.js cuando
+ * un reporte se crea, edita o elimina (para todos menos para el autor).
+ */
+function notificarDemo(accion, rep, actorId) {
+  const D = window.DEMO;
+  if (!D || D.config?.notificaciones?.alertaReportes === false) return;
+  const actor = D.usuarios.find((u) => u.id === actorId);
+  const quien = actor ? `${actor.nombre} ${actor.apellido}` : "Alguien";
+  const textos = {
+    creado:    { titulo: "Nuevo reporte disponible", mensaje: `${quien} generó el reporte "${rep.titulo}".` },
+    editado:   { titulo: "Reporte actualizado",      mensaje: `${quien} editó el reporte "${rep.titulo}".` },
+    eliminado: { titulo: "Reporte eliminado",        mensaje: `${quien} eliminó el reporte "${rep.titulo}".` }
+  };
+  const texto = textos[accion];
+  if (!texto) return;
+  for (const u of D.usuarios) {
+    if (u.id === actorId || u.activo === false) continue;
+    D.notificaciones.push({
+      id: ++D.contadores.notificaciones,
+      usuarioId: u.id, tipo: accion, titulo: texto.titulo, mensaje: texto.mensaje,
+      reporteId: accion === "eliminado" ? null : rep.id,
+      fecha: new Date().toISOString().slice(0, 10),
+      leida: false
+    });
+  }
+}
+
+/**
  * Router de peticiones contra los datos demo (en memoria).
  * Devuelve lo mismo que devolvería server.js para cada endpoint.
  */
@@ -113,9 +141,51 @@ function demoRequest(metodo, ruta, cuerpo) {
       return copia(D.reportes);
 
     case "POST reportes": {
-      const rep = { id: `rep_demo${++D.contadores.reportes}`, ...cuerpo };
-      D.reportes.push(rep);
+      const rep = {
+        adjuntos: [],
+        ...cuerpo,
+        id: `rep_demo${++D.contadores.reportes}`
+      };
+      D.reportes.unshift(rep);
+      notificarDemo("creado", rep, cuerpo.generadoPor);
       return copia(rep);
+    }
+
+    case "PATCH reportes_x": {
+      const rep = D.reportes.find((r) => r.id === id);
+      if (!rep) throw new Error("Reporte no encontrado");
+      Object.assign(rep, cuerpo);
+      delete rep.usuarioId; // dato de control, no se guarda en el reporte
+      notificarDemo("editado", rep, cuerpo.usuarioId);
+      return copia(rep);
+    }
+
+    case "DELETE reportes_x": {
+      const i = D.reportes.findIndex((r) => r.id === id);
+      if (i === -1) throw new Error("Reporte no encontrado");
+      const [rep] = D.reportes.splice(i, 1);
+      notificarDemo("eliminado", rep, qs.get("usuarioId"));
+      return null;
+    }
+
+    case "GET notificaciones": {
+      const uid = qs.get("usuarioId");
+      const lista = uid ? D.notificaciones.filter((n) => n.usuarioId === uid) : D.notificaciones;
+      return copia([...lista].reverse());
+    }
+
+    case "POST notificaciones_x": {
+      // Ruta especial: /notificaciones/leer-todas
+      for (const n of D.notificaciones)
+        if (n.usuarioId === cuerpo?.usuarioId) n.leida = true;
+      return { ok: true };
+    }
+
+    case "PATCH notificaciones_x": {
+      const notif = D.notificaciones.find((n) => String(n.id) === id);
+      if (!notif) throw new Error("Notificación no encontrada");
+      if (cuerpo?.leida !== undefined) notif.leida = !!cuerpo.leida;
+      return copia(notif);
     }
 
     case "GET config":
@@ -274,6 +344,30 @@ function cargarReportes() {
 
 function crearReporte(reporte) {
   return apiSend("POST", "/reportes", reporte);
+}
+
+function actualizarReporte(id, cambios) {
+  return apiSend("PATCH", `/reportes/${id}`, cambios);
+}
+
+function eliminarReporte(id, usuarioId) {
+  return pedir(`/reportes/${id}?usuarioId=${encodeURIComponent(usuarioId ?? "")}`, { method: "DELETE" });
+}
+
+/* ======================================================
+   NOTIFICACIONES
+   ====================================================== */
+
+function cargarNotificaciones(usuarioId) {
+  return apiGet(`/notificaciones?usuarioId=${encodeURIComponent(usuarioId ?? "")}`);
+}
+
+function marcarNotificacionLeida(id) {
+  return apiSend("PATCH", `/notificaciones/${id}`, { leida: true });
+}
+
+function marcarTodasNotificaciones(usuarioId) {
+  return apiSend("POST", "/notificaciones/leer-todas", { usuarioId });
 }
 
 /* ======================================================

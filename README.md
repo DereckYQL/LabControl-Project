@@ -18,11 +18,12 @@ Solo el **Administrador** puede gestionar usuarios y acceder a la configuración
 
 ## Cambios
 
-> **v1.6** — **Íconos vectoriales Lucide en todo el sistema**: sidebar, tarjetas, botones,
-> modales, mapa y reportes ahora usan SVG profesionales (incluidos localmente, sin emojis ni
-> dependencia de internet). Junto con el selector de temas funcional de la v1.5
-> (**Claro (original)** / Azul / Verde / Oscuro) y `celular.js` con QR para abrir
-> LabControl desde el teléfono en la misma red Wi-Fi.
+> **v1.7** — **Sistema de reportes renovado**: tarjetas más resumidas que despliegan el
+> detalle completo al seleccionarlas, creación de reportes con **título + descripción
+> obligatoria y archivos adjuntos** (imágenes, PDF y otros documentos), **edición y
+> eliminación** por parte del creador (o del administrador, que controla todos) y un
+> sistema de **notificaciones** con campana lateral que avisa a los demás usuarios cada
+> vez que se crea, edita o elimina un reporte.
 
 ## Estructura del proyecto
 

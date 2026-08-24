@@ -4,7 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Configuración · Insuco LabControl</title>
-<link rel="stylesheet" href="style.css?v=6" />
+<link rel="stylesheet" href="style.css?v=7" />
 <script>try{var t=localStorage.getItem("lc_tema");if(t==="dark-sidebar")t="oscuro";if(t==="blue-sidebar")t="azul";if(t==="green-sidebar")t="verde";if(!["claro","azul","verde","oscuro"].includes(t))t="claro";document.documentElement.dataset.theme=t}catch(e){}</script>
 </head>
 <body>
@@ -43,9 +43,9 @@
   </main>
 </div>
 
-<script src="data.js?v=3"></script>
+<script src="data.js?v=4"></script>
 <script src="lucide.min.js?v=1"></script>
-<script src="app.js?v=4"></script>
+<script src="app.js?v=5"></script>
 <script>
   renderSidebar("configuracion.html");
   const esAdmin = AUTH.esAdmin();
@@ -205,6 +205,7 @@
             { id:"n-reservas",   label:"Confirmación de reservas",    checked: true },
             { id:"n-cambios",    label:"Cambios de estado de laboratorio", checked: true },
             { id:"n-fallas",     label:"Alertas de fallas de equipos", checked: config.notificaciones?.alertaFallas ?? true },
+            { id:"n-reportes",   label:"Nuevos reportes y cambios en reportes", checked: config.notificaciones?.alertaReportes ?? true },
             { id:"n-recordator", label:"Recordatorio 30 min antes de reserva", checked: false },
           ].map((n) => `
             <label class="toggle-row">
@@ -386,7 +387,7 @@
           <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:20px">
             <div class="cfg-sys-card">
               <div class="cfg-sys-card__label">Versión del sistema</div>
-              <div class="cfg-sys-card__value">LabControl v1.6</div>
+              <div class="cfg-sys-card__value">LabControl v1.7</div>
             </div>
             <div class="cfg-sys-card">
               <div class="cfg-sys-card__label">Total laboratorios</div>
@@ -492,6 +493,12 @@
     }
     // El tema elegido en "Apariencia" (seleccionarTema) ya quedó guardado en config.sitio
     if (config?.sitio) cambiosCfg.sitio = { ...config.sitio };
+
+    // Notificaciones: interruptores presentes en la pantalla actual
+    const togFallas   = document.getElementById("n-fallas");
+    const togReportes = document.getElementById("n-reportes");
+    if (togFallas)   cambiosCfg.notificaciones = { ...cambiosCfg.notificaciones, alertaFallas: togFallas.classList.contains("toggle--on") };
+    if (togReportes) cambiosCfg.notificaciones = { ...cambiosCfg.notificaciones, alertaReportes: togReportes.classList.contains("toggle--on") };
 
     if (Object.keys(cambiosCfg).length) {
       tareas.push(actualizarConfig(cambiosCfg));

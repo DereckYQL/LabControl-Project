@@ -110,7 +110,19 @@ CREATE TABLE IF NOT EXISTS reportes (
   descripcion   TEXT,
   fecha         TEXT,
   generado_por  TEXT REFERENCES usuarios(id),
-  datos         TEXT DEFAULT '{}'
+  datos         TEXT DEFAULT '{}',
+  adjuntos      TEXT DEFAULT '[]'
+);
+
+CREATE TABLE IF NOT EXISTS notificaciones (
+  id           INTEGER PRIMARY KEY AUTOINCREMENT,
+  usuario_id   TEXT REFERENCES usuarios(id) ON DELETE CASCADE,
+  tipo         TEXT NOT NULL,
+  titulo       TEXT NOT NULL,
+  mensaje      TEXT,
+  reporte_id   TEXT,
+  fecha        TEXT,
+  leida        INTEGER DEFAULT 0
 );
 
 -- Configuración del sitio: una sola fila con un JSON (fácil de leer/editar).
@@ -119,6 +131,10 @@ CREATE TABLE IF NOT EXISTS config (
   data  TEXT NOT NULL
 );
 `);
+
+// Migración amistosa para bases de datos creadas con versiones anteriores
+// (si la columna ya existe, SQLite lanza un error y simplemente se ignora)
+try { db.exec("ALTER TABLE reportes ADD COLUMN adjuntos TEXT DEFAULT '[]'"); } catch (e) {}
 
 /* ==========================================================================
    SEED — datos de ejemplo (solo se insertan la primera vez)
@@ -230,7 +246,7 @@ function seed() {
   const CONFIG_DEFAULT = {
     sitio: { nombreInstitucion: "Instituto Superior de Comercio", nombreSistema: "LabControl", logo: "", tema: "claro", idioma: "es" },
     red: { subredLabs: "192.168.10.0/24", servidorDNS: "192.168.1.1", puertaEnlace: "192.168.1.254", wifiHabilitado: true },
-    notificaciones: { emailAdmin: "admin@liceo.cl", alertaFallas: true, alertaDisponibilidad: true, alertaReservas: true },
+    notificaciones: { emailAdmin: "admin@liceo.cl", alertaFallas: true, alertaDisponibilidad: true, alertaReservas: true, alertaReportes: true },
     seguridad: { sesionTimeout: 30, intentosLoginMax: 5, registroActividad: true },
     laboratorios: { horaApertura: "07:30", horaCierre: "18:00", permitirReservaExterna: true, anticipacionMaxReserva: 7 }
   };
@@ -252,8 +268,8 @@ function seed() {
     VALUES (@id,@lab_id,@usuario_id,@fecha,@hora_inicio,@hora_fin,@motivo,@estado)
   `);
   const insertReporte = db.prepare(`
-    INSERT INTO reportes (id,tipo,titulo,descripcion,fecha,generado_por,datos)
-    VALUES (@id,@tipo,@titulo,@descripcion,@fecha,@generado_por,@datos)
+    INSERT INTO reportes (id,tipo,titulo,descripcion,fecha,generado_por,datos,adjuntos)
+    VALUES (@id,@tipo,@titulo,@descripcion,@fecha,@generado_por,@datos,@adjuntos)
   `);
 
   db.exec("BEGIN");
@@ -305,7 +321,8 @@ function seed() {
     for (const r of REPORTES) {
       insertReporte.run({
         id: r.id, tipo: r.tipo, titulo: r.titulo, descripcion: r.descripcion,
-        fecha: r.fecha, generado_por: r.generadoPor, datos: JSON.stringify(r.datos)
+        fecha: r.fecha, generado_por: r.generadoPor, datos: JSON.stringify(r.datos),
+        adjuntos: JSON.stringify(r.adjuntos || [])
       });
     }
 
