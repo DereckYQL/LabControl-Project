@@ -2,8 +2,6 @@
 
 Sitio web para el control y supervisión de los 5 laboratorios de computación del liceo, con inicio de sesión, roles de profesor, acceso diferenciado a la información técnica y una **base de datos real (SQLite)** en el backend. Proyecto de la asignatura *Diseño y Aplicaciones Web*.
 
-Link web: https://dereckyql.github.io/Insuco-LabControl/login.html
-
 ## Objetivo
 
 Que los profesores de la carrera de Programación (y, con menos permisos, el resto de profesores) puedan consultar y administrar los laboratorios desde un solo sistema: disponibilidad, mapa, equipos, reportes y usuarios — simple de usar y adaptable a cualquier dispositivo.
@@ -17,6 +15,23 @@ Los profesores de **Programación** (y el Administrador) pueden además ver la i
 Solo el **Administrador** puede gestionar usuarios y acceder a la configuración avanzada del sitio.
 
 ## Cambios
+
+> **v2.1** — **Amarillo más claro en toda la página**: el amarillo institucional se
+> aclara a `rgb(247, 228, 10)` en todos los temas, fondos decorativos, glows y el
+> selector de apariencia. Además, en **Configuración → Apariencia** se quitan las
+> opciones **Dorado** y **Verde**; ahora solo están disponibles **Claro** y **Oscuro**
+> (los usuarios con un tema antes guardado pasan automáticamente a Claro).
+
+> **v2.0** — **Identidad visual oficial de INSUCO**: la interfaz adopta los colores
+> institucionales del liceo — **amarillo** (`#ffc300` / dorado `#ff8f00`), **blanco**
+> y **negro/gris oscuro** — presentes en el escudo y la web del instituto. El tema por
+> defecto usa fondo blanco crema con acentos amarillos y sidebar oscuro; el tema
+> **Oscuro** presenta la misma identidad en negro con acentos dorados. El tema "Azul"
+> pasa a llamarse **Dorado** en el selector de apariencia.
+> La tipografía también cambia a las familias del sitio del liceo: **Outfit** para
+> títulos y cuerpo y **ABeeZee** como respaldo. Se corrige además un error que impedía
+> crear la base de datos la primera vez (los reportes de ejemplo referenciaban al
+> usuario `admin`, ya renombrado a `INSUCO`).
 
 > **v1.9** — **Nombre del sitio en el sidebar**: la barra lateral ahora muestra el
 > nombre **"Insuco LabControl"** junto al logo, con una **fuente tecnológica**

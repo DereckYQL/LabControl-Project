@@ -1,15 +1,5 @@
 "use strict";
 
-/*
- * Insuco LabControl — acceso desde el celular.
- *
- * Muestra en la consola la dirección con la que el celular puede abrir
- * la web del servidor local (misma red Wi-Fi) y un código QR para
- * escanearla con la cámara, sin instalar nada más.
- *
- * Se ejecuta solo:  node celular.js
- */
-
 const os = require("os");
 const net = require("net");
 
