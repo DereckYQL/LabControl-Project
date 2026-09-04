@@ -320,7 +320,7 @@
     renderDispStats(labs);
     renderTablaDisp(labs);
     renderTablaAgenda(agenda, labs);
-  });
+  }).catch(() => showToast("No se pudieron cargar los datos de disponibilidad.", "error"));
 </script>
 </body>
 </html>

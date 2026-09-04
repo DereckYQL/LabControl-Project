@@ -167,7 +167,7 @@
       document.getElementById("vista-listado").style.display = "block";
       renderLabGrid(labs, "lab-grid", { linkTo: "laboratorios.html" });
     }
-  });
+  }).catch(() => showToast("No se pudieron cargar los datos.", "error"));
 
   // Filtros
   ["filtro-busqueda", "filtro-estado"].forEach((id) => {
@@ -254,7 +254,7 @@
           <td><span class="badge ${r.estado === "confirmada" ? "badge--disponible" : "badge--mantencion"}">${r.estado}</span></td>
         </tr>`;
       }).join("");
-    });
+    }).catch(() => {});
 
     // Enlace de equipos
     document.getElementById("btn-ver-equipos").href = `equipos.html?lab=${lab.id}`;

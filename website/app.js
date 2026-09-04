@@ -21,6 +21,7 @@ const NAV_ITEMS_ALL = [
 ];
 
 let __iconsObserver = null;
+let __sidebarListenersAdded = false;
 function actualizarIconosLucide() {
   if (!window.lucide || typeof window.lucide.createIcons !== "function") return;
   try {
@@ -108,11 +109,20 @@ function renderSidebar(activeHref, requireAuth = true) {
       if (e.target.closest(".sidebar__link")) setMenu(false);
     });
 
-    document.addEventListener("click", (e) => {
-      if (sidebar.classList.contains("nav-open") && !sidebar.contains(e.target)) {
-        setMenu(false);
-      }
-    });
+    if (!__sidebarListenersAdded) {
+      document.addEventListener("click", (e) => {
+        const sb = document.querySelector(".sidebar");
+        if (sb && sb.classList.contains("nav-open") && !sb.contains(e.target)) {
+          sb.classList.remove("nav-open");
+          const t = sb.querySelector(".sidebar__toggle");
+          if (t) {
+            t.setAttribute("aria-expanded", "false");
+            t.innerHTML = '<i data-lucide="menu"></i>';
+          }
+        }
+      });
+      __sidebarListenersAdded = true;
+    }
 
     sidebar.appendChild(toggle);
   }
@@ -198,7 +208,7 @@ function inicializarNotificaciones() {
   actualizarIconosLucide();
 
   refrescarNotificaciones();
-  clearInterval(__notifsTimer);
+  if (__notifsTimer) clearInterval(__notifsTimer);
   __notifsTimer = setInterval(refrescarNotificaciones, 30000);
 }
 
@@ -463,10 +473,11 @@ function renderDonut(labs, containerId) {
   const el = document.getElementById(containerId);
   if (!el) return;
   const palette = ["#2f6fed", "#16a34a", "#ef4444", "#f59e0b", "#8b5cf6"];
-  const total   = labs.reduce((a, l) => a + l.equipos, 0);
+  const validLabs = labs.filter((l) => l.equipos > 0);
+  const total   = validLabs.reduce((a, l) => a + l.equipos, 0);
   if (total === 0) { el.innerHTML = "<p style='color:var(--color-text-muted)'>Sin equipos</p>"; return; }
   let acc = 0;
-  const stops = labs.map((lab, i) => {
+  const stops = validLabs.map((lab, i) => {
     const pct   = (lab.equipos / total) * 100;
     const start = acc;
     acc += pct;
@@ -484,7 +495,7 @@ function renderDonut(labs, containerId) {
         </div>
       </div>
       <div class="donut-legend">
-        ${labs.map((lab, i) => `
+        ${validLabs.map((lab, i) => `
           <span>
             <span class="donut-legend__dot" style="background:${palette[i % palette.length]}"></span>
             ${lab.nombre} (${lab.equipos})
@@ -578,8 +589,8 @@ function initTabs(container = document) {
     group.querySelectorAll(".tab-btn").forEach((b) => b.classList.remove("is-active"));
     btn.classList.add("is-active");
     const panel = btn.dataset.tab;
-    const panels = group.querySelectorAll(".tab-panel");
-    panels.forEach((p) => {
+    const scope = group.closest(".card") || group.parentElement || document;
+    scope.querySelectorAll(".tab-panel").forEach((p) => {
       p.classList.toggle("is-active", p.dataset.panel === panel);
     });
   });

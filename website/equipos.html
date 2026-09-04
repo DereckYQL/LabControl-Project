@@ -132,7 +132,7 @@
 
     renderEqStats();
     renderTabla();
-  });
+  }).catch(() => showToast("No se pudieron cargar los equipos.", "error"));
 
   ["filtro-lab", "filtro-busq-eq"].forEach((id) =>
     document.getElementById(id).addEventListener("input", () => { renderEqStats(); renderTabla(); })

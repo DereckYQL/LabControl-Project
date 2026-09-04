@@ -73,7 +73,7 @@
     renderStatusList(labs, "status-list");
     renderDonut(labs, "donut");
     renderLabGrid(labs, "labs-home", { linkTo: "laboratorios.html" });
-  });
+  }).catch(() => showToast("No se pudieron cargar los laboratorios.", "error"));
 </script>
 </body>
 </html>

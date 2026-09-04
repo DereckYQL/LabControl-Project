@@ -194,7 +194,7 @@
     usuariosCache = usuarios;
     renderStats(usuarios);
     renderGrid(usuarios);
-  });
+  }).catch(() => showToast("No se pudieron cargar los usuarios.", "error"));
 
   ["filtro-rol","filtro-busq-usr"].forEach((id) =>
     document.getElementById(id).addEventListener("input", filtrar)
@@ -307,9 +307,10 @@
     btnActividad.style.display = verActividad ? "" : "none";
     if ((!verPermisos && btnPermisos.classList.contains("is-active")) ||
         (!verActividad && btnActividad.classList.contains("is-active"))) {
-      document.querySelectorAll(".tabs .tab-btn").forEach((b) => b.classList.remove("is-active"));
-      document.querySelector('.tab-btn[data-tab="det-info"]').classList.add("is-active");
-      document.querySelectorAll(".tab-panel").forEach((p) => {
+      const tabsGroup = btnPermisos.closest(".tabs");
+      tabsGroup.querySelectorAll(".tab-btn").forEach((b) => b.classList.remove("is-active"));
+      tabsGroup.querySelector('.tab-btn[data-tab="det-info"]').classList.add("is-active");
+      tabsGroup.parentElement.querySelectorAll(".tab-panel").forEach((p) => {
         p.classList.toggle("is-active", p.dataset.panel === "det-info");
       });
     }

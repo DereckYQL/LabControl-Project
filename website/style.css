@@ -230,7 +230,6 @@ body {
 
 [data-theme="oscuro"] body,
 body:has(html[data-theme="oscuro"]) {
-  font-family: "Outfit", "Segoe UI", system-ui, -apple-system, Roboto, sans-serif;
   line-height: 1.6;
 }
 
@@ -1154,51 +1153,6 @@ tbody tr:hover { background: var(--row-hover); }
 /* ==========================================================
    REPORTES
    ========================================================== */
-
-.rep-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(282px, 1fr));
-  gap: 15px;
-}
-
-.rep-card {
-  display: flex;
-  gap: 14px;
-  align-items: flex-start;
-  padding: 17px;
-  cursor: pointer;
-  transition: transform .2s, box-shadow .25s, border-color .25s;
-}
-.rep-card:hover {
-  transform: translateY(-3px);
-  box-shadow: var(--shadow-lg);
-  border-color: var(--hover-border);
-}
-
-.rep-card__icon {
-  width: 44px;
-  height: 44px;
-  border-radius: 13px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 1.2rem;
-  flex-shrink: 0;
-}
-
-.rep-card__body { flex: 1; min-width: 0; }
-.rep-card__titulo { font-weight: 700; font-size: .92rem; }
-.rep-card__desc   { font-size: .78rem; color: var(--color-text-muted); margin-top: 2px; }
-
-.rep-card__meta {
-  display: flex;
-  gap: 12px;
-  flex-wrap: wrap;
-  font-size: .73rem;
-  color: var(--color-text-muted);
-  margin-top: 9px;
-  font-weight: 600;
-}
 
 .rep-card__arrow {
   color: var(--color-primary);

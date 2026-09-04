@@ -18,17 +18,27 @@ const API_BASE = "/api";
 let MODO_DEMO = false;
 
 function activarModoDemo() {
-  if (MODO_DEMO) return;
-  if (!window.DEMO) {
-    const xhr = new XMLHttpRequest();
-    xhr.open("GET", "datos-demo.js", false);
-    xhr.send();
-    if (xhr.status !== 200 && xhr.status !== 0)
-      throw new Error("Sin API ni datos de respaldo disponibles.");
-    new Function(xhr.responseText)();
+  if (MODO_DEMO) return Promise.resolve();
+  if (window.DEMO) {
+    MODO_DEMO = true;
+    console.warn("[LabControl] API no disponible — usando modo demo con datos locales.");
+    return Promise.resolve();
   }
-  MODO_DEMO = true;
-  console.warn("[LabControl] API no disponible — usando modo demo con datos locales.");
+  return new Promise((resolve, reject) => {
+    const s = document.createElement("script");
+    s.onload = () => {
+      if (!window.DEMO) {
+        reject(new Error("datos-demo.js cargado pero window.DEMO no definido."));
+        return;
+      }
+      MODO_DEMO = true;
+      console.warn("[LabControl] API no disponible — usando modo demo con datos locales.");
+      resolve();
+    };
+    s.onerror = () => reject(new Error("Sin API ni datos de respaldo disponibles."));
+    s.src = "datos-demo.js";
+    document.head.appendChild(s);
+  });
 }
 
 const copia = (x) => (x === undefined ? undefined : JSON.parse(JSON.stringify(x)));
@@ -289,7 +299,6 @@ async function pedir(ruta, opciones = {}) {
     try {
       const res = await fetch(`${API_BASE}${ruta}`, opciones);
 
-      // Si responde 401, sesión expirada o token inválido
       if (res.status === 401) {
         AUTH.logout();
         return null;
@@ -297,7 +306,7 @@ async function pedir(ruta, opciones = {}) {
 
       const tipo = res.headers.get("content-type") ?? "";
       if (!tipo.includes("json")) {
-        activarModoDemo();
+        await activarModoDemo();
       } else if (!res.ok) {
         const err = await res.json().catch(() => ({}));
         throw new Error(err.error || `${ruta} → ${res.status}`);
@@ -306,7 +315,7 @@ async function pedir(ruta, opciones = {}) {
       }
     } catch (err) {
       if (!(err instanceof TypeError)) throw err;
-      activarModoDemo();
+      await activarModoDemo();
     }
   }
 
