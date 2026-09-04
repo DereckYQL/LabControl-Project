@@ -175,9 +175,7 @@
             <label class="form-label">Tema de color</label>
             <div class="tema-grid" id="tema-grid">
               ${[
-                { id:"claro",  label:"Claro (por defecto)", bg:"#fffcf2" },
-                { id:"azul",   label:"Dorado",             bg:"#fff8e1" },
-                { id:"verde",  label:"Verde",               bg:"#eaf4ee" },
+                { id:"claro",  label:"Claro (por defecto)", bg:"#fffdf0" },
                 { id:"oscuro", label:"Oscuro",              bg:"#141414" },
               ].map((t) => `
                 <div class="tema-item ${temaActivo() === t.id ? "is-active" : ""}"
@@ -401,7 +399,7 @@
           <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:20px">
             <div class="cfg-sys-card">
               <div class="cfg-sys-card__label">Versión del sistema</div>
-              <div class="cfg-sys-card__value">LabControl v2.0</div>
+              <div class="cfg-sys-card__value">LabControl v2.1</div>
             </div>
             <div class="cfg-sys-card">
               <div class="cfg-sys-card__label">Total laboratorios</div>
@@ -462,11 +460,13 @@
     actualizarEstadoNotifUI();
   }
 
-  const TEMAS_VALIDOS = ["claro", "azul", "verde", "oscuro"];
+  const TEMAS_VALIDOS = ["claro", "oscuro"];
   const MAPA_TEMAS_LEGADO = {
     "dark-sidebar": "oscuro",
-    "blue-sidebar": "azul",
-    "green-sidebar": "verde",
+    "blue-sidebar": "claro",
+    "green-sidebar": "claro",
+    "azul": "claro",
+    "verde": "claro",
   };
 
   function temaActivo() {

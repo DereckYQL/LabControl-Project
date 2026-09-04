@@ -22,9 +22,9 @@
   --color-text: #1a1a1a;
   --color-text-muted: #5c5c5c;
 
-  --color-primary: #ffc300;
+  --color-primary: #f7e40a;
   --color-primary-2: #ffb300;
-  --grad-primary: linear-gradient(135deg, #ffc300 0%, #ff8f00 100%);
+  --grad-primary: linear-gradient(135deg, #f7e40a 0%, #f7e40a 100%);
   --primary-contrast: #1a1a1a;
   --accent-2: #ffd54a;
   --soft-primary: #fff3c4;
@@ -50,16 +50,16 @@
   --shadow-sm: 0 1px 2px rgba(26, 26, 26, .06), 0 1px 6px rgba(26, 26, 26, .05);
   --shadow-md: 0 4px 14px rgba(26, 26, 26, .08), 0 2px 4px rgba(26, 26, 26, .04);
   --shadow-lg: 0 16px 40px rgba(26, 26, 26, .16);
-  --glow: 0 6px 20px rgba(255, 195, 0, .35);
+  --glow: 0 6px 20px rgba(247, 228, 10, .35);
 
   --body-bg:
     url("img/bg-tech-light.svg") center / cover no-repeat,
-    radial-gradient(900px 420px at 110% -5%, rgba(255, 195, 0, .09), transparent 60%),
-    radial-gradient(700px 380px at -10% 108%, rgba(255, 143, 0, .06), transparent 60%),
+    radial-gradient(900px 420px at 110% -5%, rgba(247, 228, 10, .09), transparent 60%),
+    radial-gradient(700px 380px at -10% 108%, rgba(247, 228, 10, .06), transparent 60%),
     var(--color-bg);
 
   --th-bg: linear-gradient(180deg, #fffef8, #fffaf0);
-  --row-hover: rgba(255, 195, 0, .045);
+  --row-hover: rgba(247, 228, 10, .045);
   --chip-bg: #fff7e0;
   --track-bg: var(--color-border);
   --btn-hover-bg: #fff9e6;
@@ -68,11 +68,11 @@
   --toggle-off: #d8d2c2;
   --modal-footer-bg: #fffef8;
   --overlay: rgba(20, 20, 20, .6);
-  --sel-bg: rgba(255, 195, 0, .18);
+  --sel-bg: rgba(247, 228, 10, .18);
   --scroll-thumb: #d8d2c2;
   --scroll-hover: #b8b2a2;
   --logo-glow: drop-shadow(0 0 18px rgba(255, 213, 74, .45));
-  --header-accent: rgba(255, 195, 0, .08);
+  --header-accent: rgba(247, 228, 10, .08);
   --photo-grad: linear-gradient(135deg, #1a1a1a, #4a4a4a);
 
   --toast-bg: #1a1a1a;
@@ -80,8 +80,8 @@
 
   --login-bg:
     url("img/bg-tech.svg") center / cover no-repeat,
-    radial-gradient(900px 500px at 85% 0%, rgba(255, 195, 0, .35), transparent 55%),
-    radial-gradient(800px 500px at 0% 100%, rgba(255, 143, 0, .4), transparent 55%),
+    radial-gradient(900px 500px at 85% 0%, rgba(247, 228, 10, .35), transparent 55%),
+    radial-gradient(800px 500px at 0% 100%, rgba(247, 228, 10, .4), transparent 55%),
     #0d0d0d;
   --login-card-bg: rgba(255, 255, 255, .95);
   --login-card-border: rgba(255, 255, 255, .7);
@@ -101,186 +101,6 @@
   --mobile-nav-bg: #1a1a1a;
 }
 
-[data-theme="azul"] {
-  color-scheme: light;
-
-  --color-bg: #fff8e1;
-  --color-surface: #ffffff;
-  --color-border: #f0e3b6;
-  --surface-deep: #fffdf2;
-
-  --color-text: #1f1600;
-  --color-text-muted: #6b5d33;
-
-  --color-primary: #f5a000;
-  --color-primary-2: #ffc300;
-  --grad-primary: linear-gradient(135deg, #e07d00 0%, #ffc300 100%);
-  --primary-contrast: #1f1600;
-  --accent-2: #ffd54a;
-  --soft-primary: #ffe9a8;
-
-  --color-success: #2e7d32;
-  --success-strong: #1b5e20;
-  --soft-success: #e6f4ea;
-  --success-line: #bfe3c8;
-
-  --color-danger: #c62828;
-  --danger-strong: #8e1919;
-  --soft-danger: #fdecea;
-  --danger-line: #f5c6c0;
-
-  --color-warning: #f9a825;
-  --warning-strong: #b26a00;
-  --soft-warning: #fff3d6;
-  --warning-line: #f7dfa9;
-
-  --sidebar-bg: linear-gradient(180deg, #241a00 0%, #4a3200 55%, #8a5c00 100%);
-  --sidebar-text: #ffd54a;
-  --radius: 16px;
-  --shadow-sm: 0 1px 2px rgba(40, 28, 0, .07), 0 1px 6px rgba(40, 28, 0, .06);
-  --shadow-md: 0 4px 14px rgba(40, 28, 0, .1), 0 2px 4px rgba(40, 28, 0, .05);
-  --shadow-lg: 0 16px 40px rgba(40, 28, 0, .18);
-  --glow: 0 6px 20px rgba(245, 160, 0, .4);
-
-  --body-bg:
-    url("img/bg-tech-light.svg") center / cover no-repeat,
-    radial-gradient(900px 420px at 110% -5%, rgba(255, 195, 0, .16), transparent 60%),
-    radial-gradient(700px 380px at -10% 108%, rgba(224, 125, 0, .1), transparent 60%),
-    var(--color-bg);
-
-  --th-bg: linear-gradient(180deg, #fffdf4, #fff6dd);
-  --row-hover: rgba(245, 160, 0, .06);
-  --chip-bg: #fff4d0;
-  --track-bg: var(--color-border);
-  --btn-hover-bg: #fff6dc;
-  --btn-hover-border: #e7c76b;
-  --hover-border: #e7c76b;
-  --toggle-off: #dcd0a6;
-  --modal-footer-bg: #fffdf4;
-  --overlay: rgba(30, 20, 0, .6);
-  --sel-bg: rgba(245, 160, 0, .18);
-  --scroll-thumb: #dcd0a6;
-  --scroll-hover: #bfae74;
-  --logo-glow: drop-shadow(0 0 18px rgba(255, 213, 74, .5));
-  --header-accent: rgba(224, 125, 0, .1);
-  --photo-grad: linear-gradient(135deg, #241a00, #6b4700);
-
-  --toast-bg: #241a00;
-  --toast-text: #ffe9a8;
-
-  --login-bg:
-    url("img/bg-tech.svg") center / cover no-repeat,
-    radial-gradient(900px 500px at 85% 0%, rgba(255, 195, 0, .4), transparent 55%),
-    radial-gradient(800px 500px at 0% 100%, rgba(224, 125, 0, .45), transparent 55%),
-    #150e00;
-  --login-card-bg: rgba(255, 255, 255, .95);
-  --login-card-border: rgba(255, 255, 255, .7);
-  --login-title-color: #1f1600;
-  --login-name-grad: linear-gradient(135deg, #e07d00, #ffc300);
-
-  --map-floor: #fffdf2;
-  --map-line: #dcd0a6;
-  --map-pasillo: #faf0cf;
-  --map-side: #faf1d0;
-  --map-side-line: #e7cf8a;
-
-  --chart-bg: #fff6dd;
-  --chart-axis: #6b5d33;
-  --chart-value: #1f1600;
-
-  --mobile-nav-bg: #241a00;
-}
-
-[data-theme="verde"] {
-  color-scheme: light;
-
-  --color-bg: #eaf4ee;
-  --color-surface: #ffffff;
-  --color-border: #cfe3d7;
-  --surface-deep: #f4faf6;
-
-  --color-text: #0e2418;
-  --color-text-muted: #4e6b5d;
-
-  --color-primary: #00b090;
-  --color-primary-2: #34d399;
-  --grad-primary: linear-gradient(135deg, #007d64 0%, #00b090 100%);
-  --primary-contrast: #ffffff;
-  --accent-2: #6ee7b7;
-  --soft-primary: #d3f2e3;
-
-  --color-success: #00b090;
-  --success-strong: #007d64;
-  --soft-success: #d3f2e3;
-  --success-line: #a9e5c8;
-
-  --color-danger: #c62828;
-  --danger-strong: #8e1919;
-  --soft-danger: #fdecea;
-  --danger-line: #f5c6c0;
-
-  --color-warning: #f9a825;
-  --warning-strong: #b26a00;
-  --soft-warning: #fff3d6;
-  --warning-line: #f7dfa9;
-
-  --sidebar-bg: linear-gradient(180deg, #052e1c 0%, #064e33 55%, #007d64 100%);
-  --sidebar-text: #b3d6c4;
-  --radius: 16px;
-  --shadow-sm: 0 1px 2px rgba(9, 32, 21, .07), 0 1px 6px rgba(9, 32, 21, .06);
-  --shadow-md: 0 4px 14px rgba(9, 32, 21, .1), 0 2px 4px rgba(9, 32, 21, .05);
-  --shadow-lg: 0 16px 40px rgba(9, 32, 21, .18);
-  --glow: 0 6px 20px rgba(0, 176, 144, .35);
-
-  --body-bg:
-    url("img/bg-tech-light.svg") center / cover no-repeat,
-    radial-gradient(900px 420px at 110% -5%, rgba(0, 176, 144, .13), transparent 60%),
-    radial-gradient(700px 380px at -10% 108%, rgba(0, 125, 100, .09), transparent 60%),
-    var(--color-bg);
-
-  --th-bg: linear-gradient(180deg, #f4faf6, #eaf5ee);
-  --row-hover: rgba(0, 176, 144, .06);
-  --chip-bg: #e6f2ea;
-  --track-bg: var(--color-border);
-  --btn-hover-bg: #eff8f2;
-  --btn-hover-border: #a3cdb6;
-  --hover-border: #a3cdb6;
-  --toggle-off: #b4cfbf;
-  --modal-footer-bg: #f2faf5;
-  --overlay: rgba(5, 20, 13, .6);
-  --sel-bg: rgba(0, 176, 144, .16);
-  --scroll-thumb: #b4cfbf;
-  --scroll-hover: #92b8a2;
-  --logo-glow: drop-shadow(0 0 18px rgba(110, 231, 183, .5));
-  --header-accent: rgba(0, 176, 144, .1);
-  --photo-grad: linear-gradient(135deg, #03301f, #064e33);
-
-  --toast-bg: #06301f;
-  --toast-text: #ddf5e8;
-
-  --login-bg:
-    url("img/bg-tech.svg") center / cover no-repeat,
-    radial-gradient(900px 500px at 85% 0%, rgba(52, 211, 153, .3), transparent 55%),
-    radial-gradient(800px 500px at 0% 100%, rgba(0, 125, 100, .4), transparent 55%),
-    #07130d;
-  --login-card-bg: rgba(255, 255, 255, .94);
-  --login-card-border: rgba(255, 255, 255, .65);
-  --login-title-color: #0e2418;
-  --login-name-grad: linear-gradient(135deg, #007d64, #00b090);
-
-  --map-floor: #f2faf5;
-  --map-line: #bcd8c8;
-  --map-pasillo: #e4f2ea;
-  --map-side: #ebf5ef;
-  --map-side-line: #d2e6da;
-
-  --chart-bg: #eef7f1;
-  --chart-axis: #547360;
-  --chart-value: #12301f;
-
-  --mobile-nav-bg: #052e1c;
-}
-
 [data-theme="oscuro"] {
   color-scheme: dark;
 
@@ -292,12 +112,12 @@
   --color-text: #f5f5f5;
   --color-text-muted: #a3a3a3;
 
-  --color-primary: #ffc300;
+  --color-primary: #f7e40a;
   --color-primary-2: #ffd54a;
-  --grad-primary: linear-gradient(135deg, #1f1f1f 0%, #ffc300 100%);
+  --grad-primary: linear-gradient(135deg, #1f1f1f 0%, #f7e40a 100%);
   --primary-contrast: #141414;
   --accent-2: #ffd54a;
-  --soft-primary: rgba(255, 195, 0, .16);
+  --soft-primary: rgba(247, 228, 10, .16);
 
   --color-success: #81c784;
   --success-strong: #a5d6a7;
@@ -320,35 +140,35 @@
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, .3), 0 1px 4px rgba(0, 0, 0, .2);
   --shadow-md: 0 4px 12px rgba(0, 0, 0, .35), 0 2px 4px rgba(0, 0, 0, .2);
   --shadow-lg: 0 12px 24px rgba(0, 0, 0, .4);
-  --glow: 0 4px 12px rgba(255, 195, 0, .4);
+  --glow: 0 4px 12px rgba(247, 228, 10, .4);
 
   --body-bg:
-    radial-gradient(900px 420px at 110% -5%, rgba(255, 195, 0, .07), transparent 60%),
+    radial-gradient(900px 420px at 110% -5%, rgba(247, 228, 10, .07), transparent 60%),
     radial-gradient(700px 380px at -10% 108%, rgba(58, 58, 58, .35), transparent 60%),
     var(--color-bg);
 
   --th-bg: #181818;
-  --row-hover: rgba(255, 195, 0, .05);
+  --row-hover: rgba(247, 228, 10, .05);
   --chip-bg: rgba(163, 163, 163, .14);
   --track-bg: #181818;
   --btn-hover-bg: #2a2a2a;
-  --btn-hover-border: #ffc300;
-  --hover-border: #ffc300;
+  --btn-hover-border: #f7e40a;
+  --hover-border: #f7e40a;
   --toggle-off: #3a3a3a;
   --modal-footer-bg: rgba(0, 0, 0, .15);
   --overlay: rgba(5, 5, 5, .7);
-  --sel-bg: rgba(255, 195, 0, .25);
+  --sel-bg: rgba(247, 228, 10, .25);
   --scroll-thumb: #3a3a3a;
   --scroll-hover: #5a5a5a;
   --logo-glow: drop-shadow(0 0 12px rgba(255, 213, 74, .3));
-  --header-accent: rgba(255, 195, 0, .1);
+  --header-accent: rgba(247, 228, 10, .1);
   --photo-grad: linear-gradient(135deg, #181818, #3a3a3a);
 
   --toast-bg: #0e0e0e;
   --toast-text: #f5f5f5;
 
   --login-bg:
-    radial-gradient(900px 500px at 85% 0%, rgba(255, 195, 0, .18), transparent 55%),
+    radial-gradient(900px 500px at 85% 0%, rgba(247, 228, 10, .18), transparent 55%),
     radial-gradient(800px 500px at 0% 100%, rgba(58, 58, 58, .5), transparent 55%),
     #0e0e0e;
   --login-card-bg: #1f1f1f;
@@ -373,8 +193,6 @@
 /* Alias con nombres antiguos usados en HTML/JS */
 :root,
 [data-theme="claro"],
-[data-theme="azul"],
-[data-theme="verde"],
 [data-theme="oscuro"] {
   --bg-color: var(--color-bg);
   --surface-color: var(--color-surface);
@@ -495,7 +313,7 @@ h1 + p { margin: 4px 0 0; color: var(--color-text-muted); font-size: .9rem; }
   color: #fff;
   text-shadow:
     0 0 12px rgba(255, 213, 74, .55),
-    0 0 32px rgba(255, 143, 0, .45);
+    0 0 32px rgba(247, 228, 10, .45);
 }
 .sidebar__brand-name::before {
   content: "//";
@@ -680,7 +498,7 @@ h1 + p { margin: 4px 0 0; color: var(--color-text-muted); font-size: .9rem; }
   backdrop-filter: blur(14px);
   border: 1px solid var(--login-card-border);
   border-radius: 22px;
-  box-shadow: 0 30px 80px rgba(2, 8, 26, .55), 0 0 0 1px rgba(255, 195, 0, .12);
+  box-shadow: 0 30px 80px rgba(2, 8, 26, .55), 0 0 0 1px rgba(247, 228, 10, .12);
   padding: 36px 32px;
   animation: card-in .45s cubic-bezier(.2, .8, .3, 1) both;
 }
@@ -1121,7 +939,7 @@ tbody tr:hover { background: var(--row-hover); }
 .lab-card__photo {
   height: 112px;
   background:
-    radial-gradient(280px 130px at 80% -20%, rgba(255, 195, 0, .3), transparent),
+    radial-gradient(280px 130px at 80% -20%, rgba(247, 228, 10, .3), transparent),
     var(--photo-grad);
   display: flex;
   align-items: center;

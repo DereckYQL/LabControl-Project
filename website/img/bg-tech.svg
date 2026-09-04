@@ -6,21 +6,21 @@
       <stop offset="1" stop-color="#101c38"/>
     </linearGradient>
     <radialGradient id="glowA" cx=".84" cy=".1" r=".62">
-      <stop offset="0" stop-color="#FFC300" stop-opacity=".4"/>
-      <stop offset=".5" stop-color="#B8860B" stop-opacity=".16"/>
-      <stop offset="1" stop-color="#B8860B" stop-opacity="0"/>
+      <stop offset="0" stop-color="#F7E40A" stop-opacity=".4"/>
+      <stop offset=".5" stop-color="#DFC100" stop-opacity=".16"/>
+      <stop offset="1" stop-color="#DFC100" stop-opacity="0"/>
     </radialGradient>
     <radialGradient id="glowB" cx=".06" cy=".96" r=".65">
-      <stop offset="0" stop-color="#B8860B" stop-opacity=".38"/>
-      <stop offset=".55" stop-color="#B8860B" stop-opacity=".13"/>
-      <stop offset="1" stop-color="#B8860B" stop-opacity="0"/>
+      <stop offset="0" stop-color="#DFC100" stop-opacity=".38"/>
+      <stop offset=".55" stop-color="#DFC100" stop-opacity=".13"/>
+      <stop offset="1" stop-color="#DFC100" stop-opacity="0"/>
     </radialGradient>
     <radialGradient id="glowC" cx=".5" cy=".5" r=".5">
       <stop offset="0" stop-color="#FFD54A" stop-opacity=".5"/>
       <stop offset="1" stop-color="#FFD54A" stop-opacity="0"/>
     </radialGradient>
     <pattern id="grid" width="46" height="46" patternUnits="userSpaceOnUse">
-      <path d="M46 0H0v46" fill="none" stroke="#D4A50A" stroke-opacity=".055"/>
+      <path d="M46 0H0v46" fill="none" stroke="#E8D200" stroke-opacity=".055"/>
     </pattern>
   </defs>
 
@@ -30,13 +30,13 @@
   <rect width="1920" height="1080" fill="url(#glowB)"/>
 
   <!-- Circuito superior derecho -->
-  <g fill="none" stroke="#FFC300" stroke-width="2">
+  <g fill="none" stroke="#F7E40A" stroke-width="2">
     <path d="M1180 70h330l70 70h250" stroke-opacity=".5"/>
     <path d="M1330 150l60 60h210" stroke-opacity=".32"/>
     <path d="M1450 20v90l50 50h180" stroke-opacity=".24"/>
     <path d="M1250 240h160l50 50h230" stroke-opacity=".28"/>
   </g>
-  <g fill="#FFC300">
+  <g fill="#F7E40A">
     <circle cx="1180" cy="70" r="5" opacity=".85"/>
     <circle cx="1830" cy="140" r="6" opacity=".9"/>
     <circle cx="1600" cy="210" r="5" opacity=".6"/>
@@ -48,13 +48,13 @@
   <circle cx="1690" cy="290" r="18" fill="url(#glowC)" opacity=".4"/>
 
   <!-- Circuito inferior izquierdo -->
-  <g fill="none" stroke="#E08D00" stroke-width="2">
+  <g fill="none" stroke="#E0C300" stroke-width="2">
     <path d="M-20 850h270l90 90h330" stroke-opacity=".42"/>
     <path d="M110 1030V900l70-70h260" stroke-opacity=".3"/>
     <path d="M420 1060v-80l60-60h200" stroke-opacity=".26"/>
     <path d="M-20 720h150l60 60" stroke-opacity=".24"/>
   </g>
-  <g fill="#E08D00">
+  <g fill="#E0C300">
     <circle cx="670" cy="940" r="6" opacity=".85"/>
     <circle cx="440" cy="830" r="5" opacity=".65"/>
     <circle cx="680" cy="920" r="4" opacity=".5"/>
@@ -64,17 +64,17 @@
   <circle cx="670" cy="940" r="20" fill="url(#glowC)" opacity=".45"/>
 
   <!-- Detalles inferiores derechos -->
-  <g fill="none" stroke="#FFC300" stroke-width="2">
+  <g fill="none" stroke="#F7E40A" stroke-width="2">
     <path d="M1980 620h-240l-70 70h-180" stroke-opacity=".3"/>
     <path d="M1980 800h-160l-60-60h-120" stroke-opacity=".22"/>
   </g>
-  <g fill="#FFC300">
+  <g fill="#F7E40A">
     <circle cx="1490" cy="690" r="5" opacity=".6"/>
     <circle cx="1640" cy="740" r="4" opacity=".5"/>
   </g>
 
   <!-- Hexágonos -->
-  <g fill="none" stroke="#D4A50A">
+  <g fill="none" stroke="#E8D200">
     <polygon points="180,120 214,139 214,177 180,196 146,177 146,139" stroke-opacity=".22"/>
     <polygon points="286,64 306,75 306,99 286,110 266,99 266,75" stroke-opacity=".15"/>
     <polygon points="1740,920 1786,947 1786,999 1740,1026 1694,999 1694,947" stroke-opacity=".2"/>
@@ -83,13 +83,13 @@
   </g>
 
   <!-- Marcas + y puntos -->
-  <g stroke="#D4A50A" stroke-width="2" stroke-linecap="round">
+  <g stroke="#E8D200" stroke-width="2" stroke-linecap="round">
     <path d="M340 340v24M328 352h24" stroke-opacity=".3"/>
     <path d="M1580 480v20M1570 490h20" stroke-opacity=".26"/>
     <path d="M240 560v20M230 570h20" stroke-opacity=".22"/>
     <path d="M1760 560v18M1751 569h18" stroke-opacity=".24"/>
   </g>
-  <g fill="#D4A50A">
+  <g fill="#E8D200">
     <circle cx="480" cy="180" r="3" opacity=".35"/>
     <circle cx="820" cy="120" r="3" opacity=".3"/>
     <circle cx="1360" cy="420" r="3" opacity=".28"/>
@@ -101,8 +101,8 @@
   </g>
 
   <!-- Arco decorativo -->
-  <circle cx="1920" cy="1080" r="420" fill="none" stroke="#FFC300" stroke-opacity=".14" stroke-width="1.5" stroke-dasharray="6 14"/>
-  <circle cx="-40" cy="-40" r="360" fill="none" stroke="#E08D00" stroke-opacity=".12" stroke-width="1.5" stroke-dasharray="6 14"/>
+  <circle cx="1920" cy="1080" r="420" fill="none" stroke="#F7E40A" stroke-opacity=".14" stroke-width="1.5" stroke-dasharray="6 14"/>
+  <circle cx="-40" cy="-40" r="360" fill="none" stroke="#E0C300" stroke-opacity=".12" stroke-width="1.5" stroke-dasharray="6 14"/>
 
   <!-- Viñeta central suave para legibilidad de la tarjeta -->
   <radialGradient id="vig" cx=".5" cy=".5" r=".72">
