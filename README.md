@@ -18,6 +18,15 @@ Solo el **Administrador** puede gestionar usuarios y acceder a la configuración
 
 ## Cambios
 
+> **v2.0** — **Identidad visual oficial de INSUCO**: la interfaz adopta la paleta de
+> colores **violeta/púrpura** de la web oficial del liceo (`insucovalpo.cl`) — púrpura
+> principal `#673de6`, acento meteorita `#8c85ff` y las superficies claras `#ebe4ff`.
+> La tipografía también cambia a las familias del sitio del liceo: **Outfit** para
+> títulos y cuerpo y **ABeeZee** como respaldo, con el color de éxito `#00b090`.
+> Los cuatro temas (claro, violeta, verde y oscuro) se reajustan para mantener la
+> nueva identidad. El tema "Azul" pasa a llamarse **Violeta** en el selector de
+> apariencia, fiel a la línea gráfica del instituto.
+
 > **v1.9** — **Nombre del sitio en el sidebar**: la barra lateral ahora muestra el
 > nombre **"Insuco LabControl"** junto al logo, con una **fuente tecnológica**
 > (*Orbitron*) y un efecto de brillo neón que refuerza la identidad visual del

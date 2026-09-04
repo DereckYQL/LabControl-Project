@@ -175,10 +175,10 @@
             <label class="form-label">Tema de color</label>
             <div class="tema-grid" id="tema-grid">
               ${[
-                { id:"claro",  label:"Claro (por defecto)", bg:"#eef2f9" },
-                { id:"azul",   label:"Azul",                bg:"#dbe7fb" },
-                { id:"verde",  label:"Verde",               bg:"#dcf3e7" },
-                { id:"oscuro", label:"Oscuro",              bg:"#0f1b2e" },
+                { id:"claro",  label:"Claro (por defecto)", bg:"#f0ecfa" },
+                { id:"azul",   label:"Violeta",            bg:"#ece8fb" },
+                { id:"verde",  label:"Verde",               bg:"#d3f2e3" },
+                { id:"oscuro", label:"Oscuro",              bg:"#16101f" },
               ].map((t) => `
                 <div class="tema-item ${temaActivo() === t.id ? "is-active" : ""}"
                   onclick="seleccionarTema('${t.id}', this)"
@@ -401,7 +401,7 @@
           <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:20px">
             <div class="cfg-sys-card">
               <div class="cfg-sys-card__label">Versión del sistema</div>
-              <div class="cfg-sys-card__value">LabControl v1.9</div>
+              <div class="cfg-sys-card__value">LabControl v2.0</div>
             </div>
             <div class="cfg-sys-card">
               <div class="cfg-sys-card__label">Total laboratorios</div>
