@@ -2,22 +2,17 @@
  * data.js
  * Cliente de la API de LabControl Liceo.
  *
- * Antes toda la información vivía "hardcodeada" en este archivo. Ahora vive
- * en una base de datos SQLite (backend/database/labcontrol.db) servida por
- * backend/server.js. Este archivo solo pide esos datos por fetch() y expone
- * las mismas funciones que ya usaban las páginas (cargarLaboratorios,
- * obtenerUsuarioPorId, AUTH.login, etc.), para no tener que reescribir cada
- * página desde cero.
+ * v2.2 — Autenticación JWT:
+ *   - El token se almacena en localStorage con la sesión
+ *   - Todas las peticiones envían Authorization: Bearer <token>
+ *   - Si el backend responde 401, se redirige a login
+ *   - En modo demo se mantiene la funcionalidad sin backend
  */
 
 const API_BASE = "/api";
 
 /* ======================================================
    MODO DEMO (respaldo sin servidor)
-   Si la API no responde —por ejemplo cuando el sitio está
-   publicado en GitHub Pages— se cargan los mismos datos de
-   ejemplo de backend/db.js desde datos-demo.js y todas las
-   operaciones funcionan en memoria hasta recargar la página.
    ====================================================== */
 
 let MODO_DEMO = false;
@@ -25,7 +20,6 @@ let MODO_DEMO = false;
 function activarModoDemo() {
   if (MODO_DEMO) return;
   if (!window.DEMO) {
-    // Carga síncrona del archivo de respaldo (mismo origen, funciona en GitHub Pages)
     const xhr = new XMLHttpRequest();
     xhr.open("GET", "datos-demo.js", false);
     xhr.send();
@@ -37,14 +31,8 @@ function activarModoDemo() {
   console.warn("[LabControl] API no disponible — usando modo demo con datos locales.");
 }
 
-/** Copia profunda simple, para imitar respuestas JSON de la API */
 const copia = (x) => (x === undefined ? undefined : JSON.parse(JSON.stringify(x)));
 
-/**
- * En modo demo replica las notificaciones que generaría server.js:
- * reportes (y fallas), cambios de estado de laboratorios y reservas.
- * Cada tipo respeta su interruptor en Configuración → Notificaciones.
- */
 function notificarDemo({ toggle, tipo, titulo, mensaje, actorId, destinatario, referencia = null }) {
   const D = window.DEMO;
   if (!D || !titulo || !destinatario) return;
@@ -65,7 +53,6 @@ function notificarDemo({ toggle, tipo, titulo, mensaje, actorId, destinatario, r
   });
 }
 
-/** Notifica un cambio a todos los usuarios activos menos al autor (igual que server.js) */
 function notificarDemoATodos(opciones) {
   for (const u of window.DEMO.usuarios) {
     if (u.activo === false || u.id === opciones.actorId) continue;
@@ -73,7 +60,6 @@ function notificarDemoATodos(opciones) {
   }
 }
 
-/** Cambios de reportes: si el tipo es "fallas" se usa la alerta de fallas */
 function notificarDemoCambioReporte(accion, rep, actorId) {
   const esFalla = rep?.tipo === "fallas";
   const textos = esFalla ? {
@@ -97,16 +83,11 @@ function notificarDemoCambioReporte(accion, rep, actorId) {
   });
 }
 
-/**
- * Router de peticiones contra los datos demo (en memoria).
- * Devuelve lo mismo que devolvería server.js para cada endpoint.
- */
 function demoRequest(metodo, ruta, cuerpo) {
   const D = window.DEMO;
-  const seg = ruta.split("?")[0].split("/").filter(Boolean); // ["laboratorios", "1"]
+  const seg = ruta.split("?")[0].split("/").filter(Boolean);
   const [recurso, id] = seg;
   const qs = new URLSearchParams(ruta.split("?")[1] ?? "");
-  // "_x" indica que la ruta incluye un id (p.ej. /laboratorios/3)
   const clave = `${metodo} ${recurso}${id !== undefined ? "_x" : ""}`;
 
   switch (clave) {
@@ -121,7 +102,6 @@ function demoRequest(metodo, ruta, cuerpo) {
       if (!lab) throw new Error("Laboratorio no encontrado");
       const estadoAnterior = lab.estado;
       Object.assign(lab, cuerpo);
-      // Aviso de disponibilidad a los demás usuarios (igual que server.js)
       if (cuerpo.estado && cuerpo.estado !== estadoAnterior) {
         const ETIQUETAS = { disponible: "Disponible", ocupado: "Ocupado", mantencion: "Mantención" };
         notificarDemoATodos({
@@ -129,7 +109,7 @@ function demoRequest(metodo, ruta, cuerpo) {
           tipo: "laboratorio",
           titulo: "Estado de laboratorio actualizado",
           mensaje: `{quien} marcó ${lab.nombre} como "${ETIQUETAS[cuerpo.estado] ?? cuerpo.estado}".`,
-          actorId: cuerpo.usuarioId,
+          actorId: AUTH.getSesion()?.id,
           referencia: String(lab.id)
         });
       }
@@ -144,8 +124,10 @@ function demoRequest(metodo, ruta, cuerpo) {
     case "GET usuarios":
       return copia(D.usuarios.map(({ password, ...u }) => u));
 
-    case "GET usuarios_x":
-      return copia(D.usuarios.find((u) => u.id === id));
+    case "GET usuarios_x": {
+      const u = D.usuarios.find((u) => u.id === id);
+      return u ? copia(({ password, ...usr }) => usr)(u) : undefined;
+    }
 
     case "POST usuarios": {
       const nuevo = {
@@ -153,7 +135,8 @@ function demoRequest(metodo, ruta, cuerpo) {
         activo: true,
         ...cuerpo
       };
-      D.usuarios.push(nuevo);
+      delete nuevo.password;
+      D.usuarios.push({ ...nuevo, password: cuerpo.password || "" });
       return copia(nuevo);
     }
 
@@ -169,9 +152,9 @@ function demoRequest(metodo, ruta, cuerpo) {
       return copia(D.agenda);
 
     case "POST agenda": {
-      const res = { id: `res_demo${++D.contadores.agenda}`, ...cuerpo };
+      const sesion = AUTH.getSesion();
+      const res = { id: `res_demo${++D.contadores.agenda}`, ...cuerpo, usuarioId: sesion?.id || cuerpo.usuarioId };
       D.agenda.push(res);
-      // Confirmación al autor + aviso al resto (igual que server.js)
       const nombreLab = D.laboratorios.find((l) => l.id === Number(res.labId))?.nombre ?? "laboratorio";
       const horario = `${res.horaInicio ?? "—"}${res.horaFin ? ` - ${res.horaFin}` : ""}`;
       notificarDemo({
@@ -201,7 +184,7 @@ function demoRequest(metodo, ruta, cuerpo) {
           tipo: "reserva_cancelada",
           titulo: "Reserva cancelada",
           mensaje: `{quien} canceló la reserva de ${nombreLab} para el ${res.fecha}.`,
-          actorId: qs.get("usuarioId")
+          actorId: AUTH.getSesion()?.id
         });
       }
       return null;
@@ -211,13 +194,15 @@ function demoRequest(metodo, ruta, cuerpo) {
       return copia(D.reportes);
 
     case "POST reportes": {
+      const sesion = AUTH.getSesion();
       const rep = {
         adjuntos: [],
         ...cuerpo,
+        generadoPor: sesion?.id || cuerpo.generadoPor,
         id: `rep_demo${++D.contadores.reportes}`
       };
       D.reportes.unshift(rep);
-      notificarDemoCambioReporte("creado", rep, cuerpo.generadoPor);
+      notificarDemoCambioReporte("creado", rep, sesion?.id);
       return copia(rep);
     }
 
@@ -225,8 +210,8 @@ function demoRequest(metodo, ruta, cuerpo) {
       const rep = D.reportes.find((r) => r.id === id);
       if (!rep) throw new Error("Reporte no encontrado");
       Object.assign(rep, cuerpo);
-      delete rep.usuarioId; // dato de control, no se guarda en el reporte
-      notificarDemoCambioReporte("editado", rep, cuerpo.usuarioId);
+      const sesion = AUTH.getSesion();
+      notificarDemoCambioReporte("editado", rep, sesion?.id);
       return copia(rep);
     }
 
@@ -234,20 +219,21 @@ function demoRequest(metodo, ruta, cuerpo) {
       const i = D.reportes.findIndex((r) => r.id === id);
       if (i === -1) throw new Error("Reporte no encontrado");
       const [rep] = D.reportes.splice(i, 1);
-      notificarDemoCambioReporte("eliminado", rep, qs.get("usuarioId"));
+      const sesion = AUTH.getSesion();
+      notificarDemoCambioReporte("eliminado", rep, sesion?.id);
       return null;
     }
 
     case "GET notificaciones": {
-      const uid = qs.get("usuarioId");
+      const sesion = AUTH.getSesion();
+      const uid = sesion?.id;
       const lista = uid ? D.notificaciones.filter((n) => n.usuarioId === uid) : D.notificaciones;
       return copia([...lista].reverse());
     }
 
     case "POST notificaciones_x": {
-      // Ruta especial: /notificaciones/leer-todas
       for (const n of D.notificaciones)
-        if (n.usuarioId === cuerpo?.usuarioId) n.leida = true;
+        if (n.usuarioId === AUTH.getSesion()?.id) n.leida = true;
       return { ok: true };
     }
 
@@ -273,7 +259,17 @@ function demoRequest(metodo, ruta, cuerpo) {
         (u) => u.id === (cuerpo?.usuario ?? "").trim() && u.password === cuerpo?.password
       );
       if (!usr) throw new Error("Credenciales incorrectas");
-      return copia(usr);
+      const { password, ...sinPassword } = usr;
+      return { token: "demo_token_" + usr.id, usuario: copia(sinPassword) };
+    }
+
+    case "POST change-password": {
+      const sesion = AUTH.getSesion();
+      const usr = D.usuarios.find((u) => u.id === sesion?.id);
+      if (!usr) throw new Error("Usuario no encontrado");
+      if (usr.password !== cuerpo?.currentPassword) throw new Error("La contraseña actual es incorrecta");
+      usr.password = cuerpo.newPassword;
+      return { ok: true };
     }
 
     default:
@@ -281,7 +277,10 @@ function demoRequest(metodo, ruta, cuerpo) {
   }
 }
 
-/** Petición unificada: primero intenta la API; si está inaccesible, cambia a modo demo */
+/* ======================================================
+   PETICIONES A LA API (con JWT)
+   ====================================================== */
+
 async function pedir(ruta, opciones = {}) {
   const metodo = opciones.method ?? "GET";
   const cuerpo = opciones.body ? JSON.parse(opciones.body) : undefined;
@@ -290,8 +289,12 @@ async function pedir(ruta, opciones = {}) {
     try {
       const res = await fetch(`${API_BASE}${ruta}`, opciones);
 
-      // Un servidor que responde con HTML (p.ej. el 404 de GitHub Pages)
-      // significa que la API no existe en este hosting
+      // Si responde 401, sesión expirada o token inválido
+      if (res.status === 401) {
+        AUTH.logout();
+        return null;
+      }
+
       const tipo = res.headers.get("content-type") ?? "";
       if (!tipo.includes("json")) {
         activarModoDemo();
@@ -302,28 +305,42 @@ async function pedir(ruta, opciones = {}) {
         return res.status === 204 ? null : res.json();
       }
     } catch (err) {
-      if (!(err instanceof TypeError)) throw err; // errores reales de la API se propagan
-      activarModoDemo();                          // fetch rechazado: red/servidor caído
+      if (!(err instanceof TypeError)) throw err;
+      activarModoDemo();
     }
   }
 
   return demoRequest(metodo, ruta, cuerpo);
 }
 
+function getToken() {
+  try {
+    const sesion = JSON.parse(localStorage.getItem("lc_sesion"));
+    return sesion?.token || null;
+  } catch { return null; }
+}
+
+function authHeaders(extra = {}) {
+  const token = getToken();
+  const headers = { "Content-Type": "application/json", ...extra };
+  if (token) headers["Authorization"] = `Bearer ${token}`;
+  return headers;
+}
+
 async function apiGet(path) {
-  return pedir(path);
+  return pedir(path, { headers: authHeaders() });
 }
 
 async function apiSend(method, path, body) {
   return pedir(path, {
     method,
-    headers: { "Content-Type": "application/json" },
+    headers: authHeaders(),
     body: body !== undefined ? JSON.stringify(body) : undefined
   });
 }
 
 /* ======================================================
-   ESTADOS (solo etiquetas de presentación, no van en la BD)
+   ESTADOS
    ====================================================== */
 
 const ESTADOS = {
@@ -352,9 +369,7 @@ function obtenerLaboratorioPorId(id) {
 }
 
 function actualizarEstadoLaboratorio(id, estado) {
-  // Se incluye el usuario en sesión para poder avisar a los demás del cambio
-  const sesion = AUTH.getSesion();
-  return apiSend("PATCH", `/laboratorios/${id}`, { estado, usuarioId: sesion?.id });
+  return apiSend("PATCH", `/laboratorios/${id}`, { estado });
 }
 
 /* ======================================================
@@ -403,8 +418,7 @@ function crearReserva(reserva) {
 }
 
 function eliminarReserva(id) {
-  const sesion = AUTH.getSesion();
-  return pedir(`/agenda/${id}?usuarioId=${encodeURIComponent(sesion?.id ?? "")}`, { method: "DELETE" });
+  return pedir(`/agenda/${id}`, { method: "DELETE", headers: authHeaders() });
 }
 
 /* ======================================================
@@ -423,8 +437,8 @@ function actualizarReporte(id, cambios) {
   return apiSend("PATCH", `/reportes/${id}`, cambios);
 }
 
-function eliminarReporte(id, usuarioId) {
-  return pedir(`/reportes/${id}?usuarioId=${encodeURIComponent(usuarioId ?? "")}`, { method: "DELETE" });
+function eliminarReporte(id) {
+  return pedir(`/reportes/${id}`, { method: "DELETE", headers: authHeaders() });
 }
 
 /* ======================================================
@@ -432,15 +446,15 @@ function eliminarReporte(id, usuarioId) {
    ====================================================== */
 
 function cargarNotificaciones(usuarioId) {
-  return apiGet(`/notificaciones?usuarioId=${encodeURIComponent(usuarioId ?? "")}`);
+  return apiGet("/notificaciones");
 }
 
 function marcarNotificacionLeida(id) {
   return apiSend("PATCH", `/notificaciones/${id}`, { leida: true });
 }
 
-function marcarTodasNotificaciones(usuarioId) {
-  return apiSend("POST", "/notificaciones/leer-todas", { usuarioId });
+function marcarTodasNotificaciones() {
+  return apiSend("POST", "/notificaciones/leer-todas", {});
 }
 
 /* ======================================================
@@ -456,27 +470,26 @@ function actualizarConfig(cambios) {
 }
 
 /* ======================================================
-   SESIÓN (AUTH)
-   La sesión activa se guarda en localStorage del navegador (como antes),
-   pero la validación de usuario/contraseña ahora ocurre en el backend,
-   contra la base de datos.
+   SESIÓN (AUTH) — JWT
    ====================================================== */
 
 const AUTH = {
   /** Intenta iniciar sesión contra la API. Devuelve el usuario o null. */
   async login(username, password) {
     try {
-      const usuario = await apiSend("POST", "/login", { usuario: username, password });
+      const data = await apiSend("POST", "/login", { usuario: username, password });
+      if (!data || !data.token) return null;
       const sesion = {
-        id: usuario.id,
-        rol: usuario.rol,
-        nombre: usuario.nombre,
-        apellido: usuario.apellido,
-        iniciales: usuario.iniciales,
-        nivelAcceso: usuario.nivelAcceso
+        token: data.token,
+        id: data.usuario.id,
+        rol: data.usuario.rol,
+        nombre: data.usuario.nombre,
+        apellido: data.usuario.apellido,
+        iniciales: data.usuario.iniciales,
+        nivelAcceso: data.usuario.nivelAcceso
       };
       localStorage.setItem("lc_sesion", JSON.stringify(sesion));
-      return usuario;
+      return data.usuario;
     } catch {
       return null;
     }
@@ -487,7 +500,6 @@ const AUTH = {
     window.location.href = "login.html";
   },
 
-  /** Devuelve el objeto de sesión activo o null. */
   getSesion() {
     try {
       return JSON.parse(localStorage.getItem("lc_sesion"));
@@ -496,7 +508,6 @@ const AUTH = {
     }
   },
 
-  /** Redirige a login si no hay sesión activa. */
   requiereLogin() {
     const sesion = this.getSesion();
     if (!sesion) {
@@ -506,19 +517,16 @@ const AUTH = {
     return sesion;
   },
 
-  /** Verifica si el usuario actual puede ver info técnica de equipos. */
   puedeVerTecnico() {
     const s = this.getSesion();
     return s && (s.rol === "admin" || s.rol === "programacion");
   },
 
-  /** Verifica si el usuario actual puede usar control remoto. */
   puedeControlRemoto() {
     const s = this.getSesion();
     return s && (s.rol === "admin" || s.rol === "programacion");
   },
 
-  /** Verifica si el usuario actual es admin. */
   esAdmin() {
     const s = this.getSesion();
     return s && s.rol === "admin";

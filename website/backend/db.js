@@ -10,15 +10,13 @@
  * todavía no existe) se crean las tablas y se cargan los mismos datos de
  * ejemplo que antes vivían "hardcodeados" en el data.js del frontend.
  *
- * Para inspeccionar o editar la base de datos a mano se puede abrir el
- * archivo database/labcontrol.db con una herramienta gratuita como
- * "DB Browser for SQLite" (https://sqlitebrowser.org/) — no hace falta
- * saber SQL para ver o modificar los datos ahí.
+ * v2.2: Las contraseñas se almacenan hasheadas con bcrypt.
  */
 
 const path = require("path");
 const fs = require("fs");
 const { DatabaseSync } = require("node:sqlite");
+const bcrypt = require("bcryptjs");
 
 const DB_DIR = path.join(__dirname, "database");
 const DB_PATH = path.join(DB_DIR, "labcontrol.db");
@@ -125,7 +123,6 @@ CREATE TABLE IF NOT EXISTS notificaciones (
   leida        INTEGER DEFAULT 0
 );
 
--- Configuración del sitio: una sola fila con un JSON (fácil de leer/editar).
 CREATE TABLE IF NOT EXISTS config (
   id    INTEGER PRIMARY KEY CHECK (id = 1),
   data  TEXT NOT NULL
@@ -133,8 +130,18 @@ CREATE TABLE IF NOT EXISTS config (
 `);
 
 // Migración amistosa para bases de datos creadas con versiones anteriores
-// (si la columna ya existe, SQLite lanza un error y simplemente se ignora)
 try { db.exec("ALTER TABLE reportes ADD COLUMN adjuntos TEXT DEFAULT '[]'"); } catch (e) {}
+
+// v2.2: Hashear contraseñas en texto plano de versiones anteriores
+try {
+  const usuarios = db.prepare("SELECT id, password FROM usuarios").all();
+  for (const u of usuarios) {
+    if (u.password && !u.password.startsWith("$2a$") && !u.password.startsWith("$2b$")) {
+      const hashed = bcrypt.hashSync(u.password, 10);
+      db.prepare("UPDATE usuarios SET password = ? WHERE id = ?").run(hashed, u.id);
+    }
+  }
+} catch (e) {}
 
 /* ==========================================================================
    SEED — datos de ejemplo (solo se insertan la primera vez)
@@ -284,7 +291,6 @@ function seed() {
         pos_x: l.posicion.x, pos_y: l.posicion.y, pos_w: l.posicion.w, pos_h: l.posicion.h
       });
 
-      // Genera los equipos de cada laboratorio (mismo criterio que la versión anterior)
       for (let i = 1; i <= l.equipos; i++) {
         const idEq = `${l.id}-PC${String(i).padStart(2, "0")}`;
         insertEquipo.run({
@@ -306,7 +312,7 @@ function seed() {
     for (const u of USUARIOS) {
       insertUsr.run({
         id: u.id, nombre: u.nombre, apellido: u.apellido, iniciales: u.iniciales,
-        email: u.email, password: u.password, rol: u.rol, area: u.area,
+        email: u.email, password: bcrypt.hashSync(u.password, 10), rol: u.rol, area: u.area,
         especialidad: u.especialidad, nivel_acceso: u.nivelAcceso
       });
     }

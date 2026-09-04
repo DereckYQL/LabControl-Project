@@ -39,8 +39,6 @@ function actualizarIconosLucide() {
 /**
  * Construye el sidebar. Si se llama desde una página que requiere login,
  * redirige automáticamente si no hay sesión.
- * @param {string} activeHref  - Nombre del archivo actual (ej. "index.html")
- * @param {boolean} requireAuth - Si true, redirige a login si no hay sesión
  */
 function renderSidebar(activeHref, requireAuth = true) {
   const sesion = AUTH.getSesion();
@@ -65,20 +63,17 @@ function renderSidebar(activeHref, requireAuth = true) {
 
   actualizarIconosLucide();
 
-  // Actualizar bloque de usuario en sidebar (con lo que ya viene en la sesión,
-  // sin pedirle otra vez el usuario a la API)
   if (sesion) {
     const avatarEl  = document.querySelector(".sidebar__user .avatar");
     const nameEl    = document.querySelector(".sidebar__user .name");
     const roleEl    = document.querySelector(".sidebar__user .role");
-    if (avatarEl) avatarEl.textContent = sesion.iniciales ?? sesion.nombre.slice(0, 2).toUpperCase();
+    if (avatarEl) avatarEl.textContent = sesion.iniciales ?? (sesion.nombre?.slice(0, 2) ?? "??").toUpperCase();
     if (nameEl)   nameEl.textContent   = `${sesion.nombre} ${sesion.apellido ?? ""}`.trim();
     if (roleEl) {
       const labels = { admin: "Administrador", programacion: "Prof. Programación", otro_area: "Profesor" };
       roleEl.textContent = labels[rol] ?? rol;
     }
 
-    // Botón logout
     const userEl = document.querySelector(".sidebar__user");
     if (userEl && !userEl.querySelector(".logout-btn")) {
       const btn = document.createElement("button");
@@ -90,7 +85,6 @@ function renderSidebar(activeHref, requireAuth = true) {
     }
   }
 
-  // Botón hamburguesa: menú desplegable en móvil
   const sidebar = document.querySelector(".sidebar");
   if (sidebar && !sidebar.querySelector(".sidebar__toggle")) {
     const toggle = document.createElement("button");
@@ -123,19 +117,18 @@ function renderSidebar(activeHref, requireAuth = true) {
     sidebar.appendChild(toggle);
   }
 
-  // Campana de notificaciones de reportes
   inicializarNotificaciones();
 
   return sesion;
 }
 
 /* ======================================================
-   NOTIFICACIONES DE REPORTES Y EVENTOS (campana en la barra lateral)
+   NOTIFICACIONES
    ====================================================== */
 
 let __notifsCache = [];
 let __notifsTimer = null;
-let __notifsVistas = null;      // ids ya vistos: la primera carga no dispara avisos nativos
+let __notifsVistas = null;
 let __recordatoriosUltima = 0;
 
 function inicializarNotificaciones() {
@@ -185,12 +178,11 @@ function inicializarNotificaciones() {
 
   wrap.querySelector(".notif-panel__todas").addEventListener("click", async () => {
     try {
-      await marcarTodasNotificaciones(sesion.id);
+      await marcarTodasNotificaciones();
       await refrescarNotificaciones();
     } catch {}
   });
 
-  // Botón para activar los avisos del sistema (PC y celular)
   const btnActivar = wrap.querySelector(".notif-panel__activar");
   const revisarBtnActivar = () => {
     if (!("Notification" in window)) { btnActivar.hidden = true; return; }
@@ -205,18 +197,15 @@ function inicializarNotificaciones() {
   revisarBtnActivar();
   actualizarIconosLucide();
 
-  // Primera carga y sondeo ligero para enterarse de reportes, reservas,
-  // cambios de estado y fallas nuevas
   refrescarNotificaciones();
   clearInterval(__notifsTimer);
   __notifsTimer = setInterval(refrescarNotificaciones, 30000);
 }
 
-/* ---------- Notificaciones nativas del sistema (PC y celular) ---------- */
+/* ---------- Notificaciones nativas ---------- */
 
 const NOTIF_ICONO = "img/logo-insuco.png";
 
-/** Registra el service worker que permite mostrar notificaciones en el celular */
 async function registrarServiceWorker() {
   if (!("serviceWorker" in navigator)) return null;
   try {
@@ -226,10 +215,6 @@ async function registrarServiceWorker() {
   }
 }
 
-/**
- * Pide permiso al navegador y deja activados los avisos del sistema.
- * Devuelve true si quedaron activadas.
- */
 async function activarNotificacionesSistema() {
   if (!("Notification" in window)) {
     showToast("Este navegador no soporta notificaciones del sistema.", "error");
@@ -249,11 +234,6 @@ async function activarNotificacionesSistema() {
   return true;
 }
 
-/**
- * Muestra una notificación nativa del sistema operativo.
- * En celular usa el service worker (requisito de Android/iOS); en PC usa la
- * API directa si no hay service worker disponible.
- */
 async function mostrarNotificacionNativa(titulo, cuerpo, urlDestino = "") {
   if (!("Notification" in window) || Notification.permission !== "granted") return;
 
@@ -275,10 +255,9 @@ async function mostrarNotificacionNativa(titulo, cuerpo, urlDestino = "") {
     }
   } catch {}
 
-  try { new Notification(titulo, opciones); } catch {} // respaldo escritorio
+  try { new Notification(titulo, opciones); } catch {}
 }
 
-/** Página de destino al tocar una notificación, según su tipo */
 function destinoNotificacion(n) {
   if ((n.tipo === "creado" || n.tipo === "editado") && n.reporteId) {
     return `reportes.html?id=${encodeURIComponent(n.reporteId)}`;
@@ -295,7 +274,6 @@ async function refrescarNotificaciones() {
   try {
     __notifsCache = await cargarNotificaciones(sesion.id) ?? [];
 
-    // Avisos nativos solo para notificaciones nuevas desde la última revisión
     const vistasPrevias = __notifsVistas;
     __notifsVistas = new Set(__notifsCache.map((n) => String(n.id)));
     if (vistasPrevias !== null) {
@@ -312,15 +290,11 @@ async function refrescarNotificaciones() {
   } catch {}
 }
 
-/**
- * Recordatorio 30 minutos antes de cada reserva propia
- * (Configuración → Notificaciones → "Recordatorio 30 min antes").
- */
 async function revisarRecordatoriosReserva(sesion) {
   if (typeof cargarAgenda !== "function" || typeof cargarConfig !== "function") return;
 
   const ahora = Date.now();
-  if (ahora - __recordatoriosUltima < 60000) return; // máx. una vez por minuto
+  if (ahora - __recordatoriosUltima < 60000) return;
   __recordatoriosUltima = ahora;
 
   try {
@@ -398,7 +372,7 @@ function renderListaNotificaciones() {
 }
 
 /* ======================================================
-   STAT CARDS (resumen numérico)
+   STAT CARDS
    ====================================================== */
 
 function renderStatCards(labs, containerId) {
@@ -490,6 +464,7 @@ function renderDonut(labs, containerId) {
   if (!el) return;
   const palette = ["#2f6fed", "#16a34a", "#ef4444", "#f59e0b", "#8b5cf6"];
   const total   = labs.reduce((a, l) => a + l.equipos, 0);
+  if (total === 0) { el.innerHTML = "<p style='color:var(--color-text-muted)'>Sin equipos</p>"; return; }
   let acc = 0;
   const stops = labs.map((lab, i) => {
     const pct   = (lab.equipos / total) * 100;
@@ -521,7 +496,7 @@ function renderDonut(labs, containerId) {
 }
 
 /* ======================================================
-   GRID DE LABORATORIOS (tarjetas)
+   GRID DE LABORATORIOS
    ====================================================== */
 
 function renderLabGrid(labs, containerId, { linkTo = "laboratorios.html" } = {}) {
@@ -570,7 +545,6 @@ function nivelLabel(nivel) {
   return labels[nivel] ?? nivel;
 }
 
-/** Muestra un toast de notificación temporal */
 function showToast(mensaje, tipo = "success") {
   let container = document.getElementById("toast-container");
   if (!container) {
@@ -589,7 +563,12 @@ function showToast(mensaje, tipo = "success") {
   }, 3200);
 }
 
-/** Activa sistema de tabs genérico dentro de un contenedor */
+function esc(str) {
+  const div = document.createElement("div");
+  div.textContent = str;
+  return div.innerHTML;
+}
+
 function initTabs(container = document) {
   container.addEventListener("click", (e) => {
     const btn = e.target.closest(".tab-btn");
@@ -599,7 +578,8 @@ function initTabs(container = document) {
     group.querySelectorAll(".tab-btn").forEach((b) => b.classList.remove("is-active"));
     btn.classList.add("is-active");
     const panel = btn.dataset.tab;
-    document.querySelectorAll(".tab-panel").forEach((p) => {
+    const panels = group.querySelectorAll(".tab-panel");
+    panels.forEach((p) => {
       p.classList.toggle("is-active", p.dataset.panel === panel);
     });
   });

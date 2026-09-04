@@ -4,7 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Reportes · Insuco LabControl</title>
-<link rel="stylesheet" href="style.css?v=10" />
+<link rel="stylesheet" href="style.css?v=11" />
 <script>try{var t=localStorage.getItem("lc_tema");if(t==="dark-sidebar")t="oscuro";if(t==="blue-sidebar"||t==="green-sidebar"||t==="azul"||t==="verde")t="claro";if(!["claro","oscuro"].includes(t))t="claro";document.documentElement.dataset.theme=t}catch(e){}</script>
 </head>
 <body>
@@ -126,9 +126,9 @@
   </div>
 </div>
 
-<script src="data.js?v=5"></script>
+<script src="data.js?v=7"></script>
 <script src="lucide.min.js?v=1"></script>
-<script src="app.js?v=6"></script>
+<script src="app.js?v=7"></script>
 <script>
   renderSidebar("reportes.html");
 
@@ -323,7 +323,7 @@
     if (!confirm(`¿Eliminar el reporte "${rep.titulo}"? Esta acción no se puede deshacer.`)) return;
 
     try {
-      await eliminarReporte(rep.id, sesion.id);
+      await eliminarReporte(rep.id);
       repAbiertoId = null;
       document.getElementById("vista-reporte").style.display = "none";
       document.getElementById("rep-grid").style.display      = "grid";

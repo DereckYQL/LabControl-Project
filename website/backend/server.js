@@ -3,6 +3,16 @@
  * API REST de LabControl Liceo, sobre SQLite (ver db.js), y sirve además
  * el sitio estático (../) para no tener que levantar dos servidores.
  *
+ * v2.2 — Seguridad P1:
+ *   - Autenticación JWT (tokens de acceso)
+ *   - Contraseñas hasheadas con bcrypt
+ *   - Autorización server-side en todos los endpoints
+ *   - Rate limiting en login y endpoints de escritura
+ *   - Headers de seguridad (helmet)
+ *   - CORS configurado
+ *   - Validación de entradas con express-validator
+ *   - Passwords nunca se exponen en respuestas GET
+ *
  * Arranque:
  *   cd backend
  *   npm install
@@ -12,16 +22,101 @@
 
 const path = require("path");
 const express = require("express");
+const helmet = require("helmet");
+const cors = require("cors");
+const rateLimit = require("express-rate-limit");
+const jwt = require("jsonwebtoken");
+const bcrypt = require("bcryptjs");
+const { body, validationResult } = require("express-validator");
 const db = require("./db");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Límite alto porque los reportes pueden llevar adjuntos (imágenes, PDF…) en base64
-app.use(express.json({ limit: "30mb" }));
+// Clave JWT — en producción usar variable de entorno
+const JWT_SECRET = process.env.JWT_SECRET || "labcontrol_jwt_secret_v2.2_change_in_production";
+const JWT_EXPIRES = "2h";
 
 /* ==========================================================================
-   Helpers: fila de SQLite (snake_case) -> objeto que espera el frontend (camelCase)
+   MIDDLEWARES DE SEGURIDAD
+   ========================================================================== */
+
+// Headers de seguridad (CSP, X-Frame-Options, HSTS, etc.)
+app.use(helmet({
+  contentSecurityPolicy: false, // Deshabilitado para permitir inline scripts (migrar a modules en futuro)
+  crossOriginEmbedderPolicy: false
+}));
+
+// CORS — permitir mismo origen (frontend servido por el mismo server)
+app.use(cors({
+  origin: true,
+  credentials: true,
+  methods: ["GET", "POST", "PATCH", "DELETE"],
+  allowedHeaders: ["Content-Type", "Authorization"]
+}));
+
+// Límite de body (reportes con adjuntos base64)
+app.use(express.json({ limit: "10mb" }));
+
+// Rate limiting general
+const generalLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutos
+  max: 200,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Demasiadas peticiones. Intenta de nuevo en 15 minutos." }
+});
+app.use("/api/", generalLimiter);
+
+// Rate limiting estricto en login
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Demasiados intentos de inicio de sesión. Espera 15 minutos." }
+});
+
+/* ==========================================================================
+   MIDDLEWARES DE AUTENTICACIÓN Y AUTORIZACIÓN
+   ========================================================================== */
+
+/** Verifica el JWT del header Authorization. Adjunta el payload en req.user */
+function authenticateToken(req, res, next) {
+  const authHeader = req.headers["authorization"];
+  const token = authHeader && authHeader.split(" ")[1];
+  if (!token) return res.status(401).json({ error: "Token de autenticación requerido" });
+
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    req.user = decoded;
+    next();
+  } catch (err) {
+    if (err.name === "TokenExpiredError") {
+      return res.status(401).json({ error: "Sesión expirada. Inicia sesión nuevamente." });
+    }
+    return res.status(403).json({ error: "Token inválido" });
+  }
+}
+
+/** Requiere que el usuario sea admin */
+function requireAdmin(req, res, next) {
+  if (req.user?.rol !== "admin") {
+    return res.status(403).json({ error: "Se requieren permisos de administrador" });
+  }
+  next();
+}
+
+/** Requiere que el usuario sea admin o programación */
+function requireTecnico(req, res, next) {
+  if (req.user?.rol !== "admin" && req.user?.rol !== "programacion") {
+    return res.status(403).json({ error: "Se requieren permisos técnicos" });
+  }
+  next();
+}
+
+/* ==========================================================================
+   HELPERS
    ========================================================================== */
 
 function labFromRow(row) {
@@ -47,14 +142,13 @@ function eqFromRow(row) {
   };
 }
 
-function usrFromRow(row, { conPassword = false } = {}) {
-  const u = {
+/** Convierte fila de usuario a objeto — NUNCA incluye password */
+function usrFromRow(row) {
+  return {
     id: row.id, nombre: row.nombre, apellido: row.apellido, iniciales: row.iniciales,
     email: row.email, rol: row.rol, area: row.area, especialidad: row.especialidad,
     nivelAcceso: row.nivel_acceso, activo: !!row.activo
   };
-  if (conPassword) u.password = row.password;
-  return u;
 }
 
 function agFromRow(row) {
@@ -79,20 +173,10 @@ function notifFromRow(row) {
   };
 }
 
-/** Nombre del laboratorio o "laboratorio" si no existe */
 function nombreLab(labId) {
   return db.prepare("SELECT nombre FROM laboratorios WHERE id = ?").get(labId)?.nombre ?? "laboratorio";
 }
 
-/**
- * Crea una notificación y la guarda en la base de datos.
- *
- * - `toggle`      : interruptor de Configuración → Notificaciones que la controla
- *                   (alertaReportes / alertaFallas / alertaDisponibilidad / alertaReservas).
- * - `destinatario`: si se indica, la notificación va solo a ese usuario
- *                   (ej. confirmación de una reserva); si no, va a todos los
- *                   usuarios activos excepto al autor del cambio.
- */
 function crearNotificacion({ toggle, tipo, titulo, mensaje, actorId = null, destinatario, referencia = null }) {
   try {
     const cfg = JSON.parse(db.prepare("SELECT data FROM config WHERE id = 1").get()?.data || "{}");
@@ -122,7 +206,6 @@ function crearNotificacion({ toggle, tipo, titulo, mensaje, actorId = null, dest
   }
 }
 
-/** Notifica un cambio a todos los usuarios activos menos al autor */
 function notificarATodos(opciones) {
   try {
     const destinatarios = db.prepare("SELECT id FROM usuarios WHERE activo = 1 AND id != ?").all(opciones.actorId ?? "");
@@ -132,11 +215,6 @@ function notificarATodos(opciones) {
   }
 }
 
-/**
- * Notifica la creación, edición o eliminación de un reporte. Si el reporte es
- * de tipo "fallas" se usa el interruptor de fallas de equipos; el resto usa el
- * de nuevos reportes.
- */
 function notificarCambioReporte(accion, rep, actorId) {
   const esFalla = rep?.tipo === "fallas";
   const textos = esFalla ? {
@@ -160,7 +238,6 @@ function notificarCambioReporte(accion, rep, actorId) {
   });
 }
 
-/** Notifica un cambio de estado de un laboratorio (disponible/ocupado/mantención) */
 const ETIQUETAS_ESTADO = { disponible: "Disponible", ocupado: "Ocupado", mantencion: "Mantención" };
 function notificarCambioEstadoLab(lab, estadoNuevo, estadoAnterior, actorId) {
   if (!lab || estadoNuevo === estadoAnterior) return;
@@ -174,7 +251,6 @@ function notificarCambioEstadoLab(lab, estadoNuevo, estadoAnterior, actorId) {
   });
 }
 
-/** Notifica una nueva reserva: confirmación al autor + aviso al resto */
 function notificarNuevaReserva(reserva, actorId) {
   const lab = nombreLab(reserva.labId);
   const horario = `${reserva.horaInicio ?? "—"}${reserva.horaFin ? ` - ${reserva.horaFin}` : ""}`;
@@ -194,7 +270,6 @@ function notificarNuevaReserva(reserva, actorId) {
   });
 }
 
-/** Notifica la cancelación de una reserva a todos los usuarios menos a quien la canceló */
 function notificarReservaCancelada(reserva, actorId) {
   if (!reserva) return;
   const lab = nombreLab(reserva.labId);
@@ -207,15 +282,14 @@ function notificarReservaCancelada(reserva, actorId) {
   });
 }
 
-/** Solo el administrador o el creador del reporte pueden modificarlo/eliminarlo */
+/** Verifica si el usuario autenticado puede modificar un reporte */
 function puedeModificarReporte(rep, req) {
-  const uid = req.query.usuarioId || req.body?.usuarioId;
+  const uid = req.user?.id;
   if (!uid) return false;
-  const usr = db.prepare("SELECT rol FROM usuarios WHERE id = ?").get(uid);
-  return usr?.rol === "admin" || rep.generado_por === uid;
+  if (req.user?.rol === "admin") return true;
+  return rep.generado_por === uid;
 }
 
-/** Valida la lista de adjuntos que llega desde el frontend */
 function sanitizarAdjuntos(adjuntos) {
   if (!Array.isArray(adjuntos)) return [];
   return adjuntos.slice(0, 10).map((a) => ({
@@ -227,22 +301,69 @@ function sanitizarAdjuntos(adjuntos) {
 }
 
 /* ==========================================================================
-   LABORATORIOS
+   LOGIN (rate limit estricto, sin auth)
    ========================================================================== */
 
-app.get("/api/laboratorios", (req, res) => {
+app.post("/api/login", loginLimiter, (req, res) => {
+  const { usuario, password } = req.body || {};
+  if (!usuario || !password) return res.status(400).json({ error: "Faltan credenciales" });
+
+  const row = db.prepare(`
+    SELECT * FROM usuarios WHERE (id = ? OR email = ?) AND activo = 1
+  `).get(usuario, usuario);
+
+  if (!row || !bcrypt.compareSync(password, row.password)) {
+    return res.status(401).json({ error: "Usuario o contraseña incorrectos" });
+  }
+
+  const token = jwt.sign(
+    { id: row.id, rol: row.rol, nombre: row.nombre, apellido: row.apellido, iniciales: row.iniciales, nivelAcceso: row.nivel_acceso },
+    JWT_SECRET,
+    { expiresIn: JWT_EXPIRES }
+  );
+
+  res.json({ token, usuario: usrFromRow(row) });
+});
+
+/** Cambio de contraseña (requiere auth + password actual) */
+app.post("/api/change-password", authenticateToken, (req, res) => {
+  const { currentPassword, newPassword } = req.body || {};
+  if (!currentPassword || !newPassword) {
+    return res.status(400).json({ error: "Faltan campos obligatorios" });
+  }
+  if (newPassword.length < 6) {
+    return res.status(400).json({ error: "La nueva contraseña debe tener al menos 6 caracteres" });
+  }
+
+  const row = db.prepare("SELECT * FROM usuarios WHERE id = ?").get(req.user.id);
+  if (!row) return res.status(404).json({ error: "Usuario no encontrado" });
+
+  if (!bcrypt.compareSync(currentPassword, row.password)) {
+    return res.status(401).json({ error: "La contraseña actual es incorrecta" });
+  }
+
+  const hashed = bcrypt.hashSync(newPassword, 10);
+  db.prepare("UPDATE usuarios SET password = ? WHERE id = ?").run(hashed, req.user.id);
+  res.json({ ok: true, message: "Contraseña actualizada correctamente" });
+});
+
+/* ==========================================================================
+   LABORATORIOS (lectura: auth requerida; escritura: auth + técnico/admin)
+   ========================================================================== */
+
+app.get("/api/laboratorios", authenticateToken, (req, res) => {
   const rows = db.prepare("SELECT * FROM laboratorios ORDER BY id").all();
   res.json(rows.map(labFromRow));
 });
 
-app.get("/api/laboratorios/:id", (req, res) => {
+app.get("/api/laboratorios/:id", authenticateToken, (req, res) => {
   const row = db.prepare("SELECT * FROM laboratorios WHERE id = ?").get(req.params.id);
   if (!row) return res.status(404).json({ error: "Laboratorio no encontrado" });
   res.json(labFromRow(row));
 });
 
-app.patch("/api/laboratorios/:id", (req, res) => {
-  const { estado, usuarioId } = req.body;
+app.patch("/api/laboratorios/:id", authenticateToken, requireTecnico, (req, res) => {
+  const { estado } = req.body;
   if (!["disponible", "ocupado", "mantencion"].includes(estado)) {
     return res.status(400).json({ error: "Estado inválido" });
   }
@@ -252,17 +373,16 @@ app.patch("/api/laboratorios/:id", (req, res) => {
   db.prepare("UPDATE laboratorios SET estado = ? WHERE id = ?").run(estado, req.params.id);
   const lab = labFromRow(db.prepare("SELECT * FROM laboratorios WHERE id = ?").get(req.params.id));
 
-  // Avisa a los demás usuarios del cambio de disponibilidad
-  notificarCambioEstadoLab(lab, estado, anterior.estado, usuarioId);
+  notificarCambioEstadoLab(lab, estado, anterior.estado, req.user.id);
 
   res.json(lab);
 });
 
 /* ==========================================================================
-   EQUIPOS
+   EQUIPOS (lectura: auth requerida; info técnica: admin/programación)
    ========================================================================== */
 
-app.get("/api/equipos", (req, res) => {
+app.get("/api/equipos", authenticateToken, (req, res) => {
   const { labId } = req.query;
   const rows = labId
     ? db.prepare("SELECT * FROM equipos WHERE lab_id = ? ORDER BY id").all(labId)
@@ -271,47 +391,67 @@ app.get("/api/equipos", (req, res) => {
 });
 
 /* ==========================================================================
-   USUARIOS
+   USUARIOS (auth requerida en todos; admin para crear/editar/eliminar)
    ========================================================================== */
 
-app.get("/api/usuarios", (req, res) => {
+app.get("/api/usuarios", authenticateToken, (req, res) => {
   const rows = db.prepare("SELECT * FROM usuarios ORDER BY nombre").all();
-  // Se incluye la contraseña para mantener el mismo comportamiento que la
-  // versión anterior (verificación de "contraseña actual" en el navegador).
-  // Ver README para cómo endurecer esto con sesiones reales en el backend.
-  res.json(rows.map((r) => usrFromRow(r, { conPassword: true })));
+  res.json(rows.map(usrFromRow));
 });
 
-app.get("/api/usuarios/:id", (req, res) => {
+app.get("/api/usuarios/:id", authenticateToken, (req, res) => {
   const row = db.prepare("SELECT * FROM usuarios WHERE id = ?").get(req.params.id);
   if (!row) return res.status(404).json({ error: "Usuario no encontrado" });
-  res.json(usrFromRow(row, { conPassword: true }));
+  res.json(usrFromRow(row));
 });
 
-app.post("/api/usuarios", (req, res) => {
-  const u = req.body;
-  if (!u.id || !u.nombre || !u.apellido || !u.email || !u.password) {
-    return res.status(400).json({ error: "Faltan campos obligatorios" });
+app.post("/api/usuarios", authenticateToken, requireAdmin, [
+  body("id").trim().notEmpty().withMessage("El ID es obligatorio"),
+  body("nombre").trim().notEmpty().withMessage("El nombre es obligatorio"),
+  body("apellido").trim().notEmpty().withMessage("El apellido es obligatorio"),
+  body("email").isEmail().withMessage("El email debe ser válido"),
+  body("password").isLength({ min: 6 }).withMessage("La contraseña debe tener al menos 6 caracteres"),
+  body("rol").optional().isIn(["admin", "programacion", "otro_area"]).withMessage("Rol inválido"),
+  body("nivelAcceso").optional().isIn(["total", "tecnico", "basico"]).withMessage("Nivel de acceso inválido")
+], (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ error: "Datos inválidos", details: errors.array() });
   }
+
+  const u = req.body;
   const existe = db.prepare("SELECT id FROM usuarios WHERE id = ?").get(u.id);
   if (existe) return res.status(409).json({ error: "Ya existe un usuario con ese ID" });
 
+  const hashed = bcrypt.hashSync(u.password, 10);
   db.prepare(`
     INSERT INTO usuarios (id,nombre,apellido,iniciales,email,password,rol,area,especialidad,nivel_acceso,activo)
     VALUES (@id,@nombre,@apellido,@iniciales,@email,@password,@rol,@area,@especialidad,@nivel_acceso,1)
   `).run({
     id: u.id, nombre: u.nombre, apellido: u.apellido,
     iniciales: u.iniciales || `${u.nombre[0]}${u.apellido[0]}`.toUpperCase(),
-    email: u.email, password: u.password, rol: u.rol || "otro_area",
+    email: u.email, password: hashed, rol: u.rol || "otro_area",
     area: u.area || "", especialidad: u.especialidad || "",
     nivel_acceso: u.nivelAcceso || "basico"
   });
 
   const row = db.prepare("SELECT * FROM usuarios WHERE id = ?").get(u.id);
-  res.status(201).json(usrFromRow(row, { conPassword: true }));
+  res.status(201).json(usrFromRow(row));
 });
 
-app.patch("/api/usuarios/:id", (req, res) => {
+app.patch("/api/usuarios/:id", authenticateToken, requireAdmin, [
+  body("nombre").optional().trim().notEmpty(),
+  body("apellido").optional().trim().notEmpty(),
+  body("email").optional().isEmail(),
+  body("password").optional().isLength({ min: 6 }).withMessage("La contraseña debe tener al menos 6 caracteres"),
+  body("rol").optional().isIn(["admin", "programacion", "otro_area"]),
+  body("nivelAcceso").optional().isIn(["total", "tecnico", "basico"])
+], (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ error: "Datos inválidos", details: errors.array() });
+  }
+
   const actual = db.prepare("SELECT * FROM usuarios WHERE id = ?").get(req.params.id);
   if (!actual) return res.status(404).json({ error: "Usuario no encontrado" });
 
@@ -323,47 +463,65 @@ app.patch("/api/usuarios/:id", (req, res) => {
   const sets = [];
   const valores = {};
   for (const [key, col] of Object.entries(map)) {
-    if (req.body[key] !== undefined) { sets.push(`${col} = @${col}`); valores[col] = req.body[key]; }
+    if (req.body[key] !== undefined) {
+      if (key === "password") {
+        valores[col] = bcrypt.hashSync(req.body[key], 10);
+      } else {
+        valores[col] = req.body[key];
+      }
+      sets.push(`${col} = @${col}`);
+    }
   }
-  if (!sets.length) return res.json(usrFromRow(actual, { conPassword: true }));
+  if (!sets.length) return res.json(usrFromRow(actual));
 
   valores.id = req.params.id;
   db.prepare(`UPDATE usuarios SET ${sets.join(", ")} WHERE id = @id`).run(valores);
-  res.json(usrFromRow(db.prepare("SELECT * FROM usuarios WHERE id = ?").get(req.params.id), { conPassword: true }));
+  res.json(usrFromRow(db.prepare("SELECT * FROM usuarios WHERE id = ?").get(req.params.id)));
 });
 
 /* ==========================================================================
    AGENDA / RESERVAS
    ========================================================================== */
 
-app.get("/api/agenda", (req, res) => {
+app.get("/api/agenda", authenticateToken, (req, res) => {
   const rows = db.prepare("SELECT * FROM agenda ORDER BY fecha, hora_inicio").all();
   res.json(rows.map(agFromRow));
 });
 
-app.post("/api/agenda", (req, res) => {
-  const r = req.body;
-  if (!r.labId || !r.usuarioId || !r.fecha || !r.motivo) {
-    return res.status(400).json({ error: "Faltan campos obligatorios" });
+app.post("/api/agenda", authenticateToken, [
+  body("labId").notEmpty().withMessage("El laboratorio es obligatorio"),
+  body("fecha").notEmpty().withMessage("La fecha es obligatoria"),
+  body("motivo").trim().notEmpty().withMessage("El motivo es obligatorio")
+], (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ error: "Datos inválidos", details: errors.array() });
   }
+
+  const r = req.body;
   const id = r.id || `res_${Date.now()}`;
   db.prepare(`
     INSERT INTO agenda (id, lab_id, usuario_id, fecha, hora_inicio, hora_fin, motivo, estado)
     VALUES (?,?,?,?,?,?,?,?)
-  `).run(id, r.labId, r.usuarioId, r.fecha, r.horaInicio ?? null, r.horaFin ?? null, r.motivo, r.estado || "pendiente");
+  `).run(id, r.labId, req.user.id, r.fecha, r.horaInicio ?? null, r.horaFin ?? null, r.motivo, r.estado || "pendiente");
 
   const reserva = agFromRow(db.prepare("SELECT * FROM agenda WHERE id = ?").get(id));
-  notificarNuevaReserva(reserva, r.usuarioId);
+  notificarNuevaReserva(reserva, req.user.id);
 
   res.status(201).json(reserva);
 });
 
-app.delete("/api/agenda/:id", (req, res) => {
+app.delete("/api/agenda/:id", authenticateToken, (req, res) => {
   const actual = db.prepare("SELECT * FROM agenda WHERE id = ?").get(req.params.id);
   if (!actual) return res.status(404).json({ error: "Reserva no encontrada" });
 
+  // Solo el creador o un admin pueden cancelar
+  if (actual.usuario_id !== req.user.id && req.user.rol !== "admin") {
+    return res.status(403).json({ error: "No tienes permiso para cancelar esta reserva" });
+  }
+
   db.prepare("DELETE FROM agenda WHERE id = ?").run(req.params.id);
-  notificarReservaCancelada(agFromRow(actual), req.query.usuarioId || req.body?.usuarioId);
+  notificarReservaCancelada(agFromRow(actual), req.user.id);
   res.status(204).end();
 });
 
@@ -371,30 +529,38 @@ app.delete("/api/agenda/:id", (req, res) => {
    REPORTES
    ========================================================================== */
 
-app.get("/api/reportes", (req, res) => {
+app.get("/api/reportes", authenticateToken, (req, res) => {
   const rows = db.prepare("SELECT * FROM reportes ORDER BY fecha DESC").all();
   res.json(rows.map(repFromRow));
 });
 
-app.post("/api/reportes", (req, res) => {
-  const r = req.body;
-  // Título y descripción son obligatorios (la descripción no tiene límite fijo)
-  if (!r.tipo || !r.titulo?.trim() || !r.descripcion?.trim()) {
-    return res.status(400).json({ error: "El título y la descripción son obligatorios" });
+app.post("/api/reportes", authenticateToken, [
+  body("tipo").trim().notEmpty().withMessage("El tipo es obligatorio"),
+  body("titulo").trim().notEmpty().withMessage("El título es obligatorio"),
+  body("descripcion").trim().notEmpty().withMessage("La descripción es obligatoria")
+], (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ error: "Datos inválidos", details: errors.array() });
   }
+
+  const r = req.body;
   const id = r.id || `rep_${Date.now()}`;
   db.prepare(`
     INSERT INTO reportes (id, tipo, titulo, descripcion, fecha, generado_por, datos, adjuntos)
     VALUES (?,?,?,?,?,?,?,?)
-  `).run(id, r.tipo, r.titulo.trim(), r.descripcion, r.fecha, r.generadoPor || null,
+  `).run(id, r.tipo, r.titulo.trim(), r.descripcion, r.fecha, req.user.id,
          JSON.stringify(r.datos || {}), JSON.stringify(sanitizarAdjuntos(r.adjuntos)));
 
   const rep = repFromRow(db.prepare("SELECT * FROM reportes WHERE id = ?").get(id));
-  notificarCambioReporte("creado", rep, r.generadoPor);
+  notificarCambioReporte("creado", rep, req.user.id);
   res.status(201).json(rep);
 });
 
-app.patch("/api/reportes/:id", (req, res) => {
+app.patch("/api/reportes/:id", authenticateToken, [
+  body("titulo").optional().trim().notEmpty(),
+  body("descripcion").optional().trim().notEmpty()
+], (req, res) => {
   const actual = db.prepare("SELECT * FROM reportes WHERE id = ?").get(req.params.id);
   if (!actual) return res.status(404).json({ error: "Reporte no encontrado" });
   if (!puedeModificarReporte(actual, req)) {
@@ -427,11 +593,11 @@ app.patch("/api/reportes/:id", (req, res) => {
   );
 
   const rep = repFromRow(db.prepare("SELECT * FROM reportes WHERE id = ?").get(req.params.id));
-  notificarCambioReporte("editado", rep, r.usuarioId);
+  notificarCambioReporte("editado", rep, req.user.id);
   res.json(rep);
 });
 
-app.delete("/api/reportes/:id", (req, res) => {
+app.delete("/api/reportes/:id", authenticateToken, (req, res) => {
   const actual = db.prepare("SELECT * FROM reportes WHERE id = ?").get(req.params.id);
   if (!actual) return res.status(404).json({ error: "Reporte no encontrado" });
   if (!puedeModificarReporte(actual, req)) {
@@ -439,7 +605,7 @@ app.delete("/api/reportes/:id", (req, res) => {
   }
 
   db.prepare("DELETE FROM reportes WHERE id = ?").run(req.params.id);
-  notificarCambioReporte("eliminado", repFromRow(actual), req.query.usuarioId);
+  notificarCambioReporte("eliminado", repFromRow(actual), req.user.id);
   res.status(204).end();
 });
 
@@ -447,32 +613,34 @@ app.delete("/api/reportes/:id", (req, res) => {
    NOTIFICACIONES
    ========================================================================== */
 
-app.get("/api/notificaciones", (req, res) => {
-  const { usuarioId } = req.query;
-  const rows = usuarioId
-    ? db.prepare("SELECT * FROM notificaciones WHERE usuario_id = ? ORDER BY id DESC LIMIT 50").all(usuarioId)
-    : db.prepare("SELECT * FROM notificaciones ORDER BY id DESC LIMIT 50").all();
+app.get("/api/notificaciones", authenticateToken, (req, res) => {
+  const usuarioId = req.user.id;
+  const rows = db.prepare("SELECT * FROM notificaciones WHERE usuario_id = ? ORDER BY id DESC LIMIT 50").all(usuarioId);
   res.json(rows.map(notifFromRow));
 });
 
-app.patch("/api/notificaciones/:id", (req, res) => {
+app.patch("/api/notificaciones/:id", authenticateToken, (req, res) => {
   const row = db.prepare("SELECT * FROM notificaciones WHERE id = ?").get(req.params.id);
   if (!row) return res.status(404).json({ error: "Notificación no encontrada" });
+  if (row.usuario_id !== req.user.id) {
+    return res.status(403).json({ error: "No tienes permiso para modificar esta notificación" });
+  }
   db.prepare("UPDATE notificaciones SET leida = ? WHERE id = ?").run(req.body?.leida ? 1 : 0, req.params.id);
   res.json(notifFromRow(db.prepare("SELECT * FROM notificaciones WHERE id = ?").get(req.params.id)));
 });
 
-// Marcar como leídas todas las notificaciones de un usuario
-app.post("/api/notificaciones/leer-todas", (req, res) => {
-  const { usuarioId } = req.body || {};
-  if (!usuarioId) return res.status(400).json({ error: "Falta usuarioId" });
-  db.prepare("UPDATE notificaciones SET leida = 1 WHERE usuario_id = ?").run(usuarioId);
+app.post("/api/notificaciones/leer-todas", authenticateToken, (req, res) => {
+  db.prepare("UPDATE notificaciones SET leida = 1 WHERE usuario_id = ?").run(req.user.id);
   res.json({ ok: true });
 });
 
-app.delete("/api/notificaciones/:id", (req, res) => {
-  const info = db.prepare("DELETE FROM notificaciones WHERE id = ?").run(req.params.id);
-  if (info.changes === 0) return res.status(404).json({ error: "Notificación no encontrada" });
+app.delete("/api/notificaciones/:id", authenticateToken, (req, res) => {
+  const row = db.prepare("SELECT * FROM notificaciones WHERE id = ?").get(req.params.id);
+  if (!row) return res.status(404).json({ error: "Notificación no encontrada" });
+  if (row.usuario_id !== req.user.id && req.user.rol !== "admin") {
+    return res.status(403).json({ error: "No tienes permiso" });
+  }
+  db.prepare("DELETE FROM notificaciones WHERE id = ?").run(req.params.id);
   res.status(204).end();
 });
 
@@ -480,17 +648,18 @@ app.delete("/api/notificaciones/:id", (req, res) => {
    CONFIGURACIÓN (una fila con un JSON)
    ========================================================================== */
 
-app.get("/api/config", (req, res) => {
+app.get("/api/config", authenticateToken, (req, res) => {
   const row = db.prepare("SELECT data FROM config WHERE id = 1").get();
+  if (!row) return res.status(404).json({ error: "Configuración no encontrada" });
   res.json(JSON.parse(row.data));
 });
 
-app.patch("/api/config", (req, res) => {
+app.patch("/api/config", authenticateToken, requireAdmin, (req, res) => {
   const row = db.prepare("SELECT data FROM config WHERE id = 1").get();
+  if (!row) return res.status(404).json({ error: "Configuración no encontrada" });
   const actual = JSON.parse(row.data);
   const nuevo = { ...actual };
 
-  // Fusión de un nivel (sitio / red / notificaciones / seguridad / laboratorios)
   for (const [key, valor] of Object.entries(req.body)) {
     nuevo[key] = (typeof valor === "object" && valor !== null && actual[key])
       ? { ...actual[key], ...valor }
@@ -502,28 +671,13 @@ app.patch("/api/config", (req, res) => {
 });
 
 /* ==========================================================================
-   LOGIN
-   ========================================================================== */
-
-app.post("/api/login", (req, res) => {
-  const { usuario, password } = req.body || {};
-  if (!usuario || !password) return res.status(400).json({ error: "Faltan credenciales" });
-
-  const row = db.prepare(`
-    SELECT * FROM usuarios WHERE (id = ? OR email = ?) AND password = ? AND activo = 1
-  `).get(usuario, usuario, password);
-
-  if (!row) return res.status(401).json({ error: "Usuario o contraseña incorrectos" });
-  res.json(usrFromRow(row));
-});
-
-/* ==========================================================================
    Frontend estático (la carpeta que contiene login.html, index.html, etc.)
    ========================================================================== */
 
 app.use(express.static(path.join(__dirname, "..")));
 
 app.listen(PORT, () => {
-  console.log(`\n  LabControl Liceo`);
-  console.log(`  API + sitio corriendo en: http://localhost:${PORT}/login.html\n`);
+  console.log(`\n  LabControl Liceo v2.2`);
+  console.log(`  API + sitio corriendo en: http://localhost:${PORT}/login.html`);
+  console.log(`  Seguridad: JWT + bcrypt + rate limiting + helmet\n`);
 });

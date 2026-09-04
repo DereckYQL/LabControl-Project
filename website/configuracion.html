@@ -4,7 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Configuración · Insuco LabControl</title>
-<link rel="stylesheet" href="style.css?v=10" />
+<link rel="stylesheet" href="style.css?v=11" />
 <script>try{var t=localStorage.getItem("lc_tema");if(t==="dark-sidebar")t="oscuro";if(t==="blue-sidebar")t="azul";if(t==="green-sidebar")t="verde";if(!["claro","azul","verde","oscuro"].includes(t))t="claro";document.documentElement.dataset.theme=t}catch(e){}</script>
 </head>
 <body>
@@ -44,9 +44,9 @@
   </main>
 </div>
 
-<script src="data.js?v=5"></script>
+<script src="data.js?v=7"></script>
 <script src="lucide.min.js?v=1"></script>
-<script src="app.js?v=6"></script>
+<script src="app.js?v=7"></script>
 <script>
   renderSidebar("configuracion.html");
   const esAdmin = AUTH.esAdmin();
@@ -399,7 +399,7 @@
           <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:20px">
             <div class="cfg-sys-card">
               <div class="cfg-sys-card__label">Versión del sistema</div>
-              <div class="cfg-sys-card__value">LabControl v2.1</div>
+              <div class="cfg-sys-card__value">LabControl v2.2</div>
             </div>
             <div class="cfg-sys-card">
               <div class="cfg-sys-card__label">Total laboratorios</div>
@@ -486,26 +486,22 @@
     config.sitio.tema = temaId;
   }
 
-  function cambiarContrasena() {
+  async function cambiarContrasena() {
     const actual   = document.getElementById("s-pass-actual").value;
     const nueva    = document.getElementById("s-pass-nueva").value;
     const confirma = document.getElementById("s-pass-confirm").value;
     if (!actual || !nueva) { showToast("Completa todos los campos.", "error"); return; }
     if (nueva !== confirma) { showToast("Las contraseñas no coinciden.", "error"); return; }
     if (nueva.length < 6)   { showToast("La contraseña debe tener al menos 6 caracteres.", "error"); return; }
-    if (usuario && usuario.password !== actual) {
-      showToast("La contraseña actual es incorrecta.", "error");
-      return;
+    try {
+      await apiSend("POST", "/change-password", { currentPassword: actual, newPassword: nueva });
+      showToast("Contraseña actualizada correctamente.");
+      ["s-pass-actual", "s-pass-nueva", "s-pass-confirm"].forEach((id) =>
+        document.getElementById(id).value = ""
+      );
+    } catch (e) {
+      showToast(e.message || "No se pudo actualizar la contraseña.", "error");
     }
-    actualizarUsuario(sesion.id, { password: nueva })
-      .then(() => {
-        if (usuario) usuario.password = nueva;
-        showToast("Contraseña actualizada correctamente.");
-        ["s-pass-actual", "s-pass-nueva", "s-pass-confirm"].forEach((id) =>
-          document.getElementById(id).value = ""
-        );
-      })
-      .catch(() => showToast("No se pudo actualizar la contraseña.", "error"));
   }
 
   /* -------- Guardar cambios -------- */
