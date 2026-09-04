@@ -52,7 +52,7 @@
   ];
 
   const USUARIOS = [
-    { id: "admin", nombre: "Administrador", apellido: "Sistema", iniciales: "AD", email: "admin@insuco.cl", password: "admin123", rol: "admin", area: "Administración", especialidad: "Gestión de sistemas y redes", nivelAcceso: "total", activo: true },
+    { id: "INSUCO", nombre: "Administrador", apellido: "Sistema", iniciales: "AD", email: "admin@liceo.cl", password: "Insuco1336", rol: "admin", area: "Administración", especialidad: "Gestión de sistemas y redes", nivelAcceso: "total", activo: true },
     { id: "prof_juan", nombre: "Juan", apellido: "Pérez", iniciales: "JP", email: "jperez@insuco.cl", password: "juan123", rol: "programacion", area: "Programación", especialidad: "Desarrollo Web y Redes", nivelAcceso: "tecnico", activo: true },
     { id: "prof_ana", nombre: "Ana", apellido: "López", iniciales: "AL", email: "alopez@insuco.cl", password: "ana123", rol: "programacion", area: "Programación", especialidad: "Bases de Datos y Programación", nivelAcceso: "tecnico", activo: true },
     { id: "prof_diego", nombre: "Diego", apellido: "Rojas", iniciales: "DR", email: "drojas@insuco.cl", password: "diego123", rol: "programacion", area: "Programación", especialidad: "Sistemas Operativos y Linux", nivelAcceso: "tecnico", activo: true },
@@ -73,7 +73,7 @@
     {
       id: "rep_001", tipo: "uso", titulo: "Uso mensual de laboratorios",
       descripcion: "Reporte de horas de uso por laboratorio en el mes de julio 2026.",
-      fecha: "2026-07-31", generadoPor: "admin",
+      fecha: "2026-07-31", generadoPor: "INSUCO",
       datos: { labels: ["Lab 1", "Lab 2", "Lab 3", "Lab 4", "Lab Redes"], valores: [72, 68, 55, 20, 80] }
     },
     {
@@ -89,13 +89,13 @@
     {
       id: "rep_003", tipo: "disponibilidad", titulo: "Disponibilidad semanal",
       descripcion: "Porcentaje de disponibilidad por laboratorio — semana del 17 al 21 de agosto 2026.",
-      fecha: "2026-08-21", generadoPor: "admin",
+      fecha: "2026-08-21", generadoPor: "INSUCO",
       datos: { labels: ["Lab 1", "Lab 2", "Lab 3", "Lab 4", "Lab Redes"], valores: [85, 90, 60, 0, 95] }
     },
     {
       id: "rep_004", tipo: "inventario", titulo: "Inventario de equipos actualizado",
       descripcion: "Listado completo del estado de todos los equipos en los laboratorios.",
-      fecha: "2026-08-20", generadoPor: "admin",
+      fecha: "2026-08-20", generadoPor: "INSUCO",
       datos: { total: 145, activos: 141, enFalla: 3, enMantencion: 1 }
     }
   ];
@@ -106,7 +106,7 @@
   const CONFIG = {
     sitio: { nombreInstitucion: "Instituto Superior de Comercio", nombreSistema: "Insuco LabControl", logo: "", tema: "claro", idioma: "es" },
     red: { subredLabs: "192.168.10.0/24", servidorDNS: "192.168.1.1", puertaEnlace: "192.168.1.254", wifiHabilitado: true },
-    notificaciones: { emailAdmin: "admin@insuco.cl", alertaFallas: true, alertaDisponibilidad: true, alertaReservas: true, alertaReportes: true, recordatorioReserva: false },
+    notificaciones: { emailAdmin: "admin@liceo.cl", alertaFallas: true, alertaDisponibilidad: true, alertaReservas: true, alertaReportes: true, recordatorioReserva: false },
     seguridad: { sesionTimeout: 30, intentosLoginMax: 5, registroActividad: true },
     laboratorios: { horaApertura: "07:30", horaCierre: "18:00", permitirReservaExterna: true, anticipacionMaxReserva: 7 }
   };

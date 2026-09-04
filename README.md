@@ -16,6 +16,15 @@ Solo el **Administrador** puede gestionar usuarios y acceder a la configuración
 
 ## Cambios
 
+> **v2.3** — **Estabilidad y Calidad (P2)**:
+> > - **Tabs corregidos con múltiples grupos**: cada grupo `.tabs` ahora solo afecta a sus propios paneles (en `laboratorios` y `usuarios`), evitando que un cambio en una pestaña desactive la de otra sección.
+> > - **División por cero corregida en `renderDonut`**: se filtran los laboratorios con 0 equipos antes de calcular porcentajes; con total 0 se muestra "Sin equipos". También se protege `drawBarChart`.
+> > - **Se eliminó `new Function()` y la carga síncrona (`XMLHttpRequest`)** en `data.js`: el modo demo ahora carga `datos-demo.js` de forma asíncrona y dinámica (sin ejecutar código como texto ni bloquear el hilo).
+> > - **Manejo de errores con UI**: todas las operaciones de carga de datos (`index`, `laboratorios`, `usuarios`, `equipos`, `disponibilidad`, `reportes`) ahora muestran un aviso visual (toast) si algo falla en lugar de fallar en silencio.
+> > - **Event listeners de navegación limpios**: se evitan listeners duplicados en el sidebar y se gestiona correctamente el temporizador de notificaciones.
+> > - **Selectores CSS duplicados resueltos**: se eliminaron las reglas repetidas de reportes y el `font-family` duplicado del tema oscuro.
+> > - **Service Worker real con offline caching**: además de notificaciones, ahora precachea los assets estáticos y sirve la app en modo offline (network-first para páginas, cache-first para estáticos).
+
 > **v2.2** — **Seguridad P1 — Capa de autenticación y protección completa**:
 > - **JWT (JSON Web Tokens)**: la sesión ahora usa tokens firmados en el servidor. El token se almacena en `localStorage` y se envía en el header `Authorization` de cada petición. Si el token expira, el usuario es redirigido a login automáticamente.
 > - **Contraseñas hasheadas con bcrypt**: todas las contraseñas se almacenan con hash bcrypt (incluidas las del seed). Las contraseñas en texto plano de versiones anteriores se hashean automáticamente al migrar.
