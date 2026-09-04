@@ -26,6 +26,7 @@ function actualizarIconosLucide() {
   if (!window.lucide || typeof window.lucide.createIcons !== "function") return;
   try {
     window.lucide.createIcons();
+    initKeyboardToggles(document.body);
     if (!__iconsObserver) {
       let pendiente = null;
       __iconsObserver = new MutationObserver(() => {
@@ -151,7 +152,7 @@ function inicializarNotificaciones() {
   const wrap = document.createElement("div");
   wrap.className = "notif-wrap";
   wrap.innerHTML = `
-    <button class="notif-btn" type="button" title="Notificaciones" aria-label="Notificaciones">
+    <button class="notif-btn" type="button" title="Notificaciones" aria-label="Notificaciones" aria-expanded="false">
       <i data-lucide="bell"></i>
       <span class="notif-btn__badge" style="display:none"></span>
     </button>
@@ -177,12 +178,14 @@ function inicializarNotificaciones() {
     e.stopPropagation();
     const abierta = panel.style.display !== "none";
     panel.style.display = abierta ? "none" : "block";
+    btn.setAttribute("aria-expanded", abierta ? "false" : "true");
     if (!abierta) renderListaNotificaciones();
   });
 
   document.addEventListener("click", (e) => {
     if (panel.style.display === "block" && !panel.contains(e.target)) {
       panel.style.display = "none";
+      btn.setAttribute("aria-expanded", "false");
     }
   });
 
@@ -580,19 +583,75 @@ function esc(str) {
   return div.innerHTML;
 }
 
+function __scopeDeTabs(group) {
+  return group.closest(".card") || group.parentElement || document;
+}
+
+function __instalarARIAEnTabs(scope) {
+  scope.querySelectorAll(".tabs").forEach((group, gi) => {
+    if (group.getAttribute("role") === "tablist") return;
+    group.setAttribute("role", "tablist");
+    if (!group.getAttribute("aria-label")) group.setAttribute("aria-label", "Pestañas");
+    group.querySelectorAll(".tab-btn").forEach((btn, i) => {
+      const pid = `${group.id || "tablist-" + gi}-${btn.dataset.tab}`;
+      btn.id = `tab-${pid}`;
+      btn.setAttribute("role", "tab");
+      btn.setAttribute("aria-selected", btn.classList.contains("is-active") ? "true" : "false");
+      btn.setAttribute("aria-controls", `panel-${pid}`);
+      btn.setAttribute("tabindex", btn.classList.contains("is-active") ? "0" : "-1");
+    });
+    __scopeDeTabs(group).querySelectorAll(".tab-panel").forEach((panel) => {
+      if (!panel.dataset.panel || panel.id) return;
+      const pid = `${group.id || "tablist-" + gi}-${panel.dataset.panel}`;
+      panel.id = `panel-${pid}`;
+      panel.setAttribute("role", "tabpanel");
+      panel.setAttribute("aria-labelledby", `tab-${pid}`);
+      panel.setAttribute("tabindex", "0");
+      panel.setAttribute("aria-hidden", panel.classList.contains("is-active") ? "false" : "true");
+    });
+  });
+}
+
+function __activarTab(btn, moverFoco) {
+  const group = btn.closest(".tabs");
+  if (!group) return;
+  group.querySelectorAll(".tab-btn").forEach((b) => {
+    const activo = b === btn;
+    b.classList.toggle("is-active", activo);
+    b.setAttribute("aria-selected", activo ? "true" : "false");
+    b.setAttribute("tabindex", activo ? "0" : "-1");
+  });
+  const panel = btn.dataset.tab;
+  __scopeDeTabs(group).querySelectorAll(".tab-panel").forEach((p) => {
+    const activo = p.dataset.panel === panel;
+    p.classList.toggle("is-active", activo);
+    p.setAttribute("aria-hidden", activo ? "false" : "true");
+  });
+  if (moverFoco && typeof btn.focus === "function") btn.focus();
+}
+
 function initTabs(container = document) {
+  __instalarARIAEnTabs(container);
   container.addEventListener("click", (e) => {
+    const btn = e.target.closest(".tab-btn");
+    if (!btn) return;
+    __activarTab(btn, false);
+  });
+  container.addEventListener("keydown", (e) => {
     const btn = e.target.closest(".tab-btn");
     if (!btn) return;
     const group = btn.closest(".tabs");
     if (!group) return;
-    group.querySelectorAll(".tab-btn").forEach((b) => b.classList.remove("is-active"));
-    btn.classList.add("is-active");
-    const panel = btn.dataset.tab;
-    const scope = group.closest(".card") || group.parentElement || document;
-    scope.querySelectorAll(".tab-panel").forEach((p) => {
-      p.classList.toggle("is-active", p.dataset.panel === panel);
-    });
+    const tabs = Array.from(group.querySelectorAll(".tab-btn"));
+    const idx = tabs.indexOf(btn);
+    let siguiente = -1;
+    if (e.key === "ArrowRight" || e.key === "ArrowDown") siguiente = (idx + 1) % tabs.length;
+    else if (e.key === "ArrowLeft" || e.key === "ArrowUp") siguiente = (idx - 1 + tabs.length) % tabs.length;
+    else if (e.key === "Home") siguiente = 0;
+    else if (e.key === "End") siguiente = tabs.length - 1;
+    else return;
+    e.preventDefault();
+    __activarTab(tabs[siguiente], true);
   });
 }
 

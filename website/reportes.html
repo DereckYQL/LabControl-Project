@@ -11,7 +11,7 @@
 <meta property="og:url" content="https://dereckyql.github.io/LabControl-Project/reportes.html" />
 <title>Reportes · Insuco LabControl</title>
 <link rel="icon" type="image/png" href="img/logo-insuco.png" />
-<link rel="stylesheet" href="style.css?v=11" />
+<link rel="stylesheet" href="style.css?v=12" />
 <script>try{var t=localStorage.getItem("lc_tema");if(t==="dark-sidebar")t="oscuro";if(t==="blue-sidebar"||t==="green-sidebar"||t==="azul"||t==="verde")t="claro";if(!["claro","oscuro"].includes(t))t="claro";document.documentElement.dataset.theme=t}catch(e){}</script>
 </head>
 <body>
@@ -98,11 +98,11 @@
       </div>
       <div class="form-group">
         <label class="form-label">Título (obligatorio)</label>
-        <input class="form-input" id="nuevo-rep-titulo" type="text" placeholder="Ej: Reporte de agosto 2026" required />
+        <input class="form-input" id="nuevo-rep-titulo" type="text" placeholder="Ej: Reporte de agosto 2026" required minlength="3" />
       </div>
       <div class="form-group">
         <label class="form-label">Descripción (obligatoria)</label>
-        <textarea class="form-input" id="nuevo-rep-descripcion" rows="4" required
+        <textarea class="form-input" id="nuevo-rep-descripcion" rows="4" required minlength="10"
           placeholder="Describe el contexto y las conclusiones del reporte. Sin límite de extensión."></textarea>
       </div>
       <div class="form-row">
@@ -136,7 +136,7 @@
 
 <script src="data.js?v=7"></script>
 <script src="lucide.min.js?v=1"></script>
-<script src="app.js?v=7"></script>
+<script src="app.js?v=8"></script>
 <script>
   renderSidebar("reportes.html");
 

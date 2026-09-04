@@ -16,6 +16,13 @@ Solo el **Administrador** puede gestionar usuarios y acceder a la configuración
 
 ## Cambios
 
+> **v2.5** — **Accesibilidad y UX (P3) completado**:
+> > - **Toggles accesibles por teclado (final)**: la inicialización de los interruptores con `role="switch"` ahora se ejecuta de verdad — antes la función existía pero nunca se llamaba. Se activan con `Espacio`/`Enter` en `Configuración` y en cualquier página.
+> > - **Mapa 2D accesible por teclado**: cada laboratorio del mapa ahora es enfocable (`tabindex="0"`), anuncia su nombre y estado (`aria-label`, `role="button"`) y responde a `Enter`/`Espacio`, con anillo de foco visible.
+> > - **Tabs con roles ARIA**: las pestañas (`laboratorios`, `usuarios`) ahora usan `role="tablist"`/`tab`/`tabpanel`, `aria-selected` y navegación por teclado con flechas, `Home` y `End`.
+> > - **`aria-expanded` en notificaciones**: la campana lateral indica si el panel está abierto o cerrado para lectores de pantalla.
+> > - **`minlength` adicional**: límites mínimos en login (usuario y contraseña), nuevo usuario y campos de reportes/reservas que aún no lo tenían.
+
 > **v2.4** — **Accesibilidad y UX (P3)**:
 > > - **Skip-nav y ARIA**: en todas las páginas se agregó un enlace "Saltar al contenido" y roles/atributos ARIA (`role="main"`, `aria-labelledby` en modales, etc.) para mejorar la navegación con teclado y lectores de pantalla.
 > > - **Toggles accesibles por teclado**: los interruptores de *Configuración* ahora son botones con `role="switch"` y `aria-checked`, operables con `Espacio`/`Enter`.

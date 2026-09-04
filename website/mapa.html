@@ -11,7 +11,7 @@
 <meta property="og:url" content="https://dereckyql.github.io/LabControl-Project/mapa.html" />
 <title>Mapa 2D · Insuco LabControl</title>
 <link rel="icon" type="image/png" href="img/logo-insuco.png" />
-<link rel="stylesheet" href="style.css?v=11" />
+<link rel="stylesheet" href="style.css?v=12" />
 <script>try{var t=localStorage.getItem("lc_tema");if(t==="dark-sidebar")t="oscuro";if(t==="blue-sidebar"||t==="green-sidebar"||t==="azul"||t==="verde")t="claro";if(!["claro","oscuro"].includes(t))t="claro";document.documentElement.dataset.theme=t}catch(e){}</script>
 </head>
 <body>
@@ -102,7 +102,7 @@
 
 <script src="data.js?v=7"></script>
 <script src="lucide.min.js?v=1"></script>
-<script src="app.js?v=7"></script>
+<script src="app.js?v=8"></script>
 <script>
   renderSidebar("mapa.html");
 
@@ -124,7 +124,17 @@
       rect.style.fill = COLORES_MAPA[lab.estado];
       rect.setAttribute("stroke", "#ffffff");
       rect.setAttribute("stroke-width", "2");
+      rect.setAttribute("aria-hidden", "true");
+      g.setAttribute("role", "button");
+      g.setAttribute("tabindex", "0");
+      g.setAttribute("aria-label", `${lab.nombre} (${lab.sala}) — ${ESTADOS[lab.estado].label}`);
       g.addEventListener("click", () => seleccionarLab(lab.id));
+      g.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          seleccionarLab(lab.id);
+        }
+      });
     });
   });
 

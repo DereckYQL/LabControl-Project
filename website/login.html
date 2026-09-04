@@ -11,7 +11,7 @@
 <meta property="og:url" content="https://dereckyql.github.io/LabControl-Project/login.html" />
 <title>Iniciar sesión · Insuco LabControl</title>
 <link rel="icon" type="image/png" href="img/logo-insuco.png" />
-<link rel="stylesheet" href="style.css?v=11" />
+<link rel="stylesheet" href="style.css?v=12" />
 <script>try{var t=localStorage.getItem("lc_tema");if(t==="dark-sidebar")t="oscuro";if(t==="blue-sidebar"||t==="green-sidebar"||t==="azul"||t==="verde")t="claro";if(!["claro","oscuro"].includes(t))t="claro";document.documentElement.dataset.theme=t}catch(e){}</script>
 </head>
 <body class="login-body">
@@ -32,11 +32,11 @@
   <form id="login-form">
     <div class="form-group">
       <label class="form-label" for="input-user">Usuario o correo</label>
-      <input class="form-input" id="input-user" type="text" placeholder="ej. prof_juan" autocomplete="username" required />
+      <input class="form-input" id="input-user" type="text" placeholder="ej. prof_juan" autocomplete="username" required minlength="3" />
     </div>
     <div class="form-group">
       <label class="form-label" for="input-pass">Contraseña</label>
-      <input class="form-input" id="input-pass" type="password" placeholder="••••••••" autocomplete="current-password" required />
+      <input class="form-input" id="input-pass" type="password" placeholder="••••••••" autocomplete="current-password" required minlength="4" />
     </div>
     <div id="login-error" class="login-error" style="display:none">
       Usuario o contraseña incorrectos.

@@ -11,7 +11,7 @@
 <meta property="og:url" content="https://dereckyql.github.io/LabControl-Project/usuarios.html" />
 <title>Usuarios · Insuco LabControl</title>
 <link rel="icon" type="image/png" href="img/logo-insuco.png" />
-<link rel="stylesheet" href="style.css?v=11" />
+<link rel="stylesheet" href="style.css?v=12" />
 <script>try{var t=localStorage.getItem("lc_tema");if(t==="dark-sidebar")t="oscuro";if(t==="blue-sidebar"||t==="green-sidebar"||t==="azul"||t==="verde")t="claro";if(!["claro","oscuro"].includes(t))t="claro";document.documentElement.dataset.theme=t}catch(e){}</script>
 </head>
 <body>
@@ -115,11 +115,11 @@
       <div class="form-row">
         <div class="form-group">
           <label class="form-label">Nombre</label>
-          <input class="form-input" id="usr-nombre" type="text" placeholder="Nombre" required />
+          <input class="form-input" id="usr-nombre" type="text" placeholder="Nombre" required minlength="2" />
         </div>
         <div class="form-group">
           <label class="form-label">Apellido</label>
-          <input class="form-input" id="usr-apellido" type="text" placeholder="Apellido" required />
+          <input class="form-input" id="usr-apellido" type="text" placeholder="Apellido" required minlength="2" />
         </div>
       </div>
       <div class="form-group">
@@ -129,7 +129,7 @@
       <div class="form-row">
         <div class="form-group">
           <label class="form-label">Usuario (ID)</label>
-          <input class="form-input" id="usr-id" type="text" placeholder="prof_nombre" required />
+          <input class="form-input" id="usr-id" type="text" placeholder="prof_nombre" required minlength="3" />
         </div>
         <div class="form-group">
           <label class="form-label">Contraseña</label>
@@ -174,7 +174,7 @@
 
 <script src="data.js?v=7"></script>
 <script src="lucide.min.js?v=1"></script>
-<script src="app.js?v=7"></script>
+<script src="app.js?v=8"></script>
 <script>
   renderSidebar("usuarios.html");
   initTabs();
@@ -315,12 +315,7 @@
     btnActividad.style.display = verActividad ? "" : "none";
     if ((!verPermisos && btnPermisos.classList.contains("is-active")) ||
         (!verActividad && btnActividad.classList.contains("is-active"))) {
-      const tabsGroup = btnPermisos.closest(".tabs");
-      tabsGroup.querySelectorAll(".tab-btn").forEach((b) => b.classList.remove("is-active"));
-      tabsGroup.querySelector('.tab-btn[data-tab="det-info"]').classList.add("is-active");
-      tabsGroup.parentElement.querySelectorAll(".tab-panel").forEach((p) => {
-        p.classList.toggle("is-active", p.dataset.panel === "det-info");
-      });
+      __activarTab(document.querySelector('.tab-btn[data-tab="det-info"]'), false);
     }
 
     // Info
