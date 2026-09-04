@@ -3,11 +3,19 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="description" content="Gestion de profesores, permisos y niveles de acceso del sistema LabControl." />
+<meta property="og:title" content="Usuarios · Insuco LabControl" />
+<meta property="og:description" content="Gestion de profesores, permisos y niveles de acceso del sistema LabControl." />
+<meta property="og:type" content="website" />
+<meta property="og:image" content="https://dereckyql.github.io/LabControl-Project/img/logo-insuco.png" />
+<meta property="og:url" content="https://dereckyql.github.io/LabControl-Project/usuarios.html" />
 <title>Usuarios · Insuco LabControl</title>
+<link rel="icon" type="image/png" href="img/logo-insuco.png" />
 <link rel="stylesheet" href="style.css?v=11" />
 <script>try{var t=localStorage.getItem("lc_tema");if(t==="dark-sidebar")t="oscuro";if(t==="blue-sidebar"||t==="green-sidebar"||t==="azul"||t==="verde")t="claro";if(!["claro","oscuro"].includes(t))t="claro";document.documentElement.dataset.theme=t}catch(e){}</script>
 </head>
 <body>
+  <a class="skip-nav" href="#main-content">Saltar al contenido</a>
 <div class="app-layout">
 
   <aside class="sidebar">
@@ -25,7 +33,7 @@
     </div>
   </aside>
 
-  <main class="main-content">
+  <main class="main-content" id="main-content" role="main">
     <header class="page-header">
       <div>
         <h1>Usuarios</h1>
@@ -97,7 +105,7 @@
 </div>
 
 <!-- Modal nuevo / editar usuario -->
-<div class="modal-overlay" id="modal-usuario" style="display:none" role="dialog" aria-modal="true">
+<div class="modal-overlay" id="modal-usuario" style="display:none" role="dialog" aria-modal="true" aria-labelledby="modal-usr-titulo">
   <div class="modal modal--lg">
     <div class="modal__header">
       <span class="modal__title" id="modal-usr-titulo">Nuevo usuario</span>
@@ -107,25 +115,25 @@
       <div class="form-row">
         <div class="form-group">
           <label class="form-label">Nombre</label>
-          <input class="form-input" id="usr-nombre" type="text" placeholder="Nombre" />
+          <input class="form-input" id="usr-nombre" type="text" placeholder="Nombre" required />
         </div>
         <div class="form-group">
           <label class="form-label">Apellido</label>
-          <input class="form-input" id="usr-apellido" type="text" placeholder="Apellido" />
+          <input class="form-input" id="usr-apellido" type="text" placeholder="Apellido" required />
         </div>
       </div>
       <div class="form-group">
         <label class="form-label">Correo institucional</label>
-        <input class="form-input" id="usr-email" type="email" placeholder="nombre@liceo.cl" />
+        <input class="form-input" id="usr-email" type="email" placeholder="nombre@liceo.cl" required />
       </div>
       <div class="form-row">
         <div class="form-group">
           <label class="form-label">Usuario (ID)</label>
-          <input class="form-input" id="usr-id" type="text" placeholder="prof_nombre" />
+          <input class="form-input" id="usr-id" type="text" placeholder="prof_nombre" required />
         </div>
         <div class="form-group">
           <label class="form-label">Contraseña</label>
-          <input class="form-input" id="usr-pass" type="password" placeholder="Mínimo 6 caracteres" />
+          <input class="form-input" id="usr-pass" type="password" placeholder="Mínimo 6 caracteres" required minlength="6" />
         </div>
       </div>
       <div class="form-row">
@@ -399,13 +407,13 @@
   // Modal nuevo usuario
   document.getElementById("btn-nuevo-usuario").addEventListener("click", () => {
     document.getElementById("modal-usr-titulo").textContent = "Nuevo usuario";
-    document.getElementById("modal-usuario").style.display = "flex";
+    abrirModal("modal-usuario");
   });
   document.getElementById("btn-cerrar-usr-modal").addEventListener("click", () =>
-    document.getElementById("modal-usuario").style.display = "none"
+    cerrarModal(document.getElementById("modal-usuario"))
   );
   document.getElementById("btn-cancelar-usr-modal").addEventListener("click", () =>
-    document.getElementById("modal-usuario").style.display = "none"
+    cerrarModal(document.getElementById("modal-usuario"))
   );
   document.getElementById("btn-guardar-usr").addEventListener("click", () => {
     const nombre = document.getElementById("usr-nombre").value.trim();
@@ -435,14 +443,14 @@
         renderStats(usuarios);
         renderGrid(usuarios);
         showToast(`Usuario ${nombre} ${apellido} creado correctamente.`);
-        document.getElementById("modal-usuario").style.display = "none";
+        cerrarModal(document.getElementById("modal-usuario"));
       })
       .catch((err) => showToast(err.message || "No se pudo crear el usuario.", "error"));
   });
 
   document.getElementById("modal-usuario").addEventListener("click", (e) => {
     if (e.target === document.getElementById("modal-usuario"))
-      document.getElementById("modal-usuario").style.display = "none";
+      cerrarModal(document.getElementById("modal-usuario"));
   });
 </script>
 </body>

@@ -3,11 +3,19 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="description" content="Reportes de uso, disponibilidad, fallas e inventario de los laboratorios del Liceo INSUCO." />
+<meta property="og:title" content="Reportes · Insuco LabControl" />
+<meta property="og:description" content="Reportes de uso, disponibilidad, fallas e inventario de los laboratorios del Liceo INSUCO." />
+<meta property="og:type" content="website" />
+<meta property="og:image" content="https://dereckyql.github.io/LabControl-Project/img/logo-insuco.png" />
+<meta property="og:url" content="https://dereckyql.github.io/LabControl-Project/reportes.html" />
 <title>Reportes · Insuco LabControl</title>
+<link rel="icon" type="image/png" href="img/logo-insuco.png" />
 <link rel="stylesheet" href="style.css?v=11" />
 <script>try{var t=localStorage.getItem("lc_tema");if(t==="dark-sidebar")t="oscuro";if(t==="blue-sidebar"||t==="green-sidebar"||t==="azul"||t==="verde")t="claro";if(!["claro","oscuro"].includes(t))t="claro";document.documentElement.dataset.theme=t}catch(e){}</script>
 </head>
 <body>
+  <a class="skip-nav" href="#main-content">Saltar al contenido</a>
 <div class="app-layout">
 
   <aside class="sidebar">
@@ -25,7 +33,7 @@
     </div>
   </aside>
 
-  <main class="main-content">
+  <main class="main-content" id="main-content" role="main">
     <header class="page-header">
       <div>
         <h1>Reportes</h1>
@@ -70,7 +78,7 @@
 </div>
 
 <!-- Modal nuevo / editar reporte -->
-<div class="modal-overlay" id="modal-reporte" style="display:none" role="dialog" aria-modal="true">
+<div class="modal-overlay" id="modal-reporte" style="display:none" role="dialog" aria-modal="true" aria-labelledby="modal-rep-titulo">
   <div class="modal" style="max-width:560px">
     <div class="modal__header">
       <span class="modal__title" id="modal-rep-titulo">Generar nuevo reporte</span>
@@ -90,11 +98,11 @@
       </div>
       <div class="form-group">
         <label class="form-label">Título (obligatorio)</label>
-        <input class="form-input" id="nuevo-rep-titulo" type="text" placeholder="Ej: Reporte de agosto 2026" />
+        <input class="form-input" id="nuevo-rep-titulo" type="text" placeholder="Ej: Reporte de agosto 2026" required />
       </div>
       <div class="form-group">
         <label class="form-label">Descripción (obligatoria)</label>
-        <textarea class="form-input" id="nuevo-rep-descripcion" rows="4"
+        <textarea class="form-input" id="nuevo-rep-descripcion" rows="4" required
           placeholder="Describe el contexto y las conclusiones del reporte. Sin límite de extensión."></textarea>
       </div>
       <div class="form-row">
@@ -315,7 +323,7 @@
     document.getElementById("nuevo-rep-descripcion").value  = rep.descripcion ?? "";
     actualizarHintOtro();
     renderArchivosTemporales();
-    document.getElementById("modal-reporte").style.display = "flex";
+    abrirModal("modal-reporte");
   }
 
   async function eliminarReporteActual() {
@@ -367,11 +375,11 @@
     document.getElementById("nuevo-rep-descripcion").value  = "";
     actualizarHintOtro();
     renderArchivosTemporales();
-    document.getElementById("modal-reporte").style.display = "flex";
+    abrirModal("modal-reporte");
   }
 
   function cerrarModalReporte() {
-    document.getElementById("modal-reporte").style.display = "none";
+    cerrarModal(document.getElementById("modal-reporte"));
   }
 
   document.getElementById("btn-nuevo-reporte").addEventListener("click", abrirModalNuevo);

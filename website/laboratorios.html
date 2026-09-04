@@ -3,11 +3,19 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="description" content="Consulta y administra los laboratorios de computacion del Liceo INSUCO: estado, hardware, servicios y agenda." />
+<meta property="og:title" content="Laboratorios · Insuco LabControl" />
+<meta property="og:description" content="Consulta y administra los laboratorios de computacion del Liceo INSUCO: estado, hardware, servicios y agenda." />
+<meta property="og:type" content="website" />
+<meta property="og:image" content="https://dereckyql.github.io/LabControl-Project/img/logo-insuco.png" />
+<meta property="og:url" content="https://dereckyql.github.io/LabControl-Project/laboratorios.html" />
 <title>Laboratorios · Insuco LabControl</title>
+<link rel="icon" type="image/png" href="img/logo-insuco.png" />
 <link rel="stylesheet" href="style.css?v=11" />
 <script>try{var t=localStorage.getItem("lc_tema");if(t==="dark-sidebar")t="oscuro";if(t==="blue-sidebar"||t==="green-sidebar"||t==="azul"||t==="verde")t="claro";if(!["claro","oscuro"].includes(t))t="claro";document.documentElement.dataset.theme=t}catch(e){}</script>
 </head>
 <body>
+  <a class="skip-nav" href="#main-content">Saltar al contenido</a>
 <div class="app-layout">
 
   <aside class="sidebar">
@@ -25,7 +33,7 @@
     </div>
   </aside>
 
-  <main class="main-content">
+  <main class="main-content" id="main-content" role="main">
 
     <!-- ===== Vista listado ===== -->
     <div id="vista-listado">
@@ -125,10 +133,10 @@
 </div>
 
 <!-- Modal cambiar estado -->
-<div class="modal-overlay" id="modal-estado" style="display:none" role="dialog" aria-modal="true">
+<div class="modal-overlay" id="modal-estado" style="display:none" role="dialog" aria-modal="true" aria-labelledby="modal-estado-titulo">
   <div class="modal">
     <div class="modal__header">
-      <span class="modal__title">Cambiar estado</span>
+      <span class="modal__title" id="modal-estado-titulo">Cambiar estado</span>
       <button class="modal__close" id="btn-cerrar-modal"><i data-lucide="x"></i></button>
     </div>
     <div class="modal__body">
@@ -264,13 +272,13 @@
   document.getElementById("btn-cambiar-estado")?.addEventListener("click", () => {
     const lab = labsCache.find((l) => l.id === Number(idSeleccionado));
     if (lab) document.getElementById("select-estado").value = lab.estado;
-    document.getElementById("modal-estado").style.display = "flex";
+    abrirModal("modal-estado");
   });
   document.getElementById("btn-cerrar-modal").addEventListener("click", () =>
-    document.getElementById("modal-estado").style.display = "none"
+    cerrarModal(document.getElementById("modal-estado"))
   );
   document.getElementById("btn-modal-cancelar").addEventListener("click", () =>
-    document.getElementById("modal-estado").style.display = "none"
+    cerrarModal(document.getElementById("modal-estado"))
   );
   document.getElementById("btn-modal-guardar").addEventListener("click", () => {
     const nuevoEstado = document.getElementById("select-estado").value;
@@ -282,12 +290,12 @@
         showToast(`Estado actualizado a "${ESTADOS[nuevoEstado].label}".`);
       })
       .catch(() => showToast("No se pudo actualizar el estado.", "error"));
-    document.getElementById("modal-estado").style.display = "none";
+    cerrarModal(document.getElementById("modal-estado"));
   });
 
   document.getElementById("modal-estado").addEventListener("click", (e) => {
     if (e.target === document.getElementById("modal-estado"))
-      document.getElementById("modal-estado").style.display = "none";
+      cerrarModal(document.getElementById("modal-estado"));
   });
 </script>
 </body>

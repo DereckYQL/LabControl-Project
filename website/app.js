@@ -595,3 +595,81 @@ function initTabs(container = document) {
     });
   });
 }
+
+/* ======================================================
+   ACCESIBILIDAD: modales con focus trap y toggles por teclado
+   ====================================================== */
+
+function obtenerFocusables(overlay) {
+  const selector = [
+    "a[href]",
+    "button:not([disabled])",
+    "input:not([disabled]):not([type=hidden])",
+    "select:not([disabled])",
+    "textarea:not([disabled])",
+    "[tabindex]:not([tabindex='-1'])"
+  ].join(", ");
+  return Array.from(overlay.querySelectorAll(selector)).filter((el) => el.offsetParent !== null);
+}
+
+function cerrarModal(overlay, ultimoFoco) {
+  overlay.style.display = "none";
+  if (ultimoFoco && typeof ultimoFoco.focus === "function") ultimoFoco.focus();
+}
+
+/**
+ * Abre un modal aplicando focus trap: al abrir enfoca el primer elemento
+ * interactivo, atrapa Tab/Shift+Tab dentro del modal y cierra con Escape
+ * (restaurando el foco al elemento que lo abrió).
+ */
+function abrirModal(overlayId, closeSelector = ".modal__close") {
+  const overlay = document.getElementById(overlayId);
+  if (!overlay) return;
+  overlay.style.display = "flex";
+  const ultimoFoco = document.activeElement;
+  const focusables = obtenerFocusables(overlay);
+  if (focusables.length) focusables[0].focus();
+
+  const close = (e) => {
+    if (e && e.type === "keydown" && e.key !== "Escape") return;
+    const overlayClean = document.getElementById(overlayId);
+    if (overlayClean) cerrarModal(overlayClean, ultimoFoco);
+    document.removeEventListener("keydown", onKey);
+    document.removeEventListener("click", onCierre);
+  };
+  const onKey = (e) => {
+    if (e.key === "Escape") { e.preventDefault(); close(); return; }
+    if (e.key !== "Tab") return;
+    const focus = obtenerFocusables(overlay);
+    if (!focus.length) return;
+    const first = focus[0];
+    const last = focus[focus.length - 1];
+    if (e.shiftKey && document.activeElement === first) {
+      e.preventDefault();
+      last.focus();
+    } else if (!e.shiftKey && document.activeElement === last) {
+      e.preventDefault();
+      first.focus();
+    }
+  };
+  const onCierre = (e) => {
+    if (e.target === overlay) close();
+    const boton = e.target.closest(closeSelector);
+    if (boton) close();
+  };
+  document.addEventListener("keydown", onKey);
+  document.addEventListener("click", onCierre);
+}
+
+function initKeyboardToggles(root = document) {
+  root.querySelectorAll(".toggle[role='switch']").forEach((toggle) => {
+    if (toggle.dataset.keyInit) return;
+    toggle.dataset.keyInit = "1";
+    toggle.addEventListener("keydown", (e) => {
+      if (e.key === " " || e.key === "Enter") {
+        e.preventDefault();
+        toggle.click();
+      }
+    });
+  });
+}

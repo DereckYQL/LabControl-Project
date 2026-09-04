@@ -287,7 +287,7 @@ h1 + p { margin: 4px 0 0; color: var(--color-text-muted); font-size: .9rem; }
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 10px;
+  gap: 5px;
   padding: 20px 14px;
   border-bottom: 1px solid rgba(148, 197, 255, .1);
 }
@@ -302,9 +302,9 @@ h1 + p { margin: 4px 0 0; color: var(--color-text-muted); font-size: .9rem; }
 
 .sidebar__brand-name {
   font-family: "Outfit", "Segoe UI", system-ui, sans-serif;
-  font-size: 1rem;
+  font-size: 1.25rem;
   font-weight: 800;
-  letter-spacing: .14em;
+  letter-spacing: .12em;
   text-transform: uppercase;
   text-align: center;
   line-height: 1.3;
@@ -313,16 +313,6 @@ h1 + p { margin: 4px 0 0; color: var(--color-text-muted); font-size: .9rem; }
   text-shadow:
     0 0 12px rgba(255, 213, 74, .55),
     0 0 32px rgba(247, 228, 10, .45);
-}
-.sidebar__brand-name::before {
-  content: "//";
-  margin-right: 7px;
-  font-weight: 600;
-  background: var(--grad-primary);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-  filter: drop-shadow(0 0 6px rgba(255, 213, 74, .6));
 }
 
 .sidebar__nav {
@@ -1521,8 +1511,7 @@ tbody tr:hover { background: var(--row-hover); }
     gap: 8px;
   }
   .sidebar__brand img { width: 44px; height: 44px; }
-  .sidebar__brand-name { font-size: .66rem; letter-spacing: .07em; }
-  .sidebar__brand-name::before { margin-right: 4px; }
+  .sidebar__brand-name { font-size: .84rem; letter-spacing: .07em; }
 
   /* Usuario al lado del logo */
   .sidebar__user {
@@ -1597,7 +1586,7 @@ tbody tr:hover { background: var(--row-hover); }
   h1 { font-size: 1.35rem; }
   .sidebar__brand { gap: 6px; padding: 2px 3px; }
   .sidebar__brand img { width: 38px; height: 38px; }
-  .sidebar__brand-name { font-size: .56rem; letter-spacing: .04em; }
+  .sidebar__brand-name { font-size: .72rem; letter-spacing: .04em; }
 }
 
 @media (max-width: 400px) {
@@ -2008,4 +1997,62 @@ textarea.form-input { resize: vertical; min-height: 90px; }
 /* En móvil la campana acompaña al botón hamburguesa */
 @media (max-width: 900px) {
   .notif-wrap { top: 10px; right: 58px; }
+}
+
+/* ==========================================================
+   ACCESIBILIDAD
+   ========================================================== */
+
+/* Skip-nav: enlace para saltar al contenido */
+.skip-nav {
+  position: absolute;
+  left: -9999px;
+  top: -9999px;
+  z-index: 2000;
+  background: var(--color-primary);
+  color: #000;
+  font-weight: 800;
+  padding: 10px 18px;
+  border-radius: 0 0 10px 0;
+  text-decoration: none;
+  font-size: .9rem;
+  outline: none;
+}
+.skip-nav:focus {
+  left: 0;
+  top: 0;
+  box-shadow: 0 0 0 3px #000, 0 4px 14px rgba(0, 0, 0, .4);
+}
+
+/* Toggles accesibles (role="switch"): estado y foco por teclado */
+.toggle[role="switch"] {
+  display: inline-flex;
+  border: none;
+  cursor: pointer;
+  flex-shrink: 0;
+  outline: none;
+}
+.toggle[role="switch"]:focus-visible {
+  box-shadow: 0 0 0 3px var(--color-primary);
+}
+.toggle[role="switch"] .toggle__knob { pointer-events: none; }
+
+/* Contraste del código en sugerencias de login (claro y oscuro) */
+.login-hint { color: var(--color-text); }
+[data-theme="oscuro"] .login-hint code {
+  background: #1f2937;
+  border-color: rgba(148, 197, 255, .35);
+  color: #7dd3fc;
+}
+
+/* ---- prefers-reduced-motion: usuario pide menos movimiento ---- */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

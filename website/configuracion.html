@@ -3,11 +3,19 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="description" content="Configuracion avanzada del sistema LabControl: sitio, laboratorios, equipos, red y seguridad." />
+<meta property="og:title" content="Configuracion · Insuco LabControl" />
+<meta property="og:description" content="Configuracion avanzada del sistema LabControl: sitio, laboratorios, equipos, red y seguridad." />
+<meta property="og:type" content="website" />
+<meta property="og:image" content="https://dereckyql.github.io/LabControl-Project/img/logo-insuco.png" />
+<meta property="og:url" content="https://dereckyql.github.io/LabControl-Project/configuracion.html" />
 <title>Configuración · Insuco LabControl</title>
+<link rel="icon" type="image/png" href="img/logo-insuco.png" />
 <link rel="stylesheet" href="style.css?v=11" />
 <script>try{var t=localStorage.getItem("lc_tema");if(t==="dark-sidebar")t="oscuro";if(t==="blue-sidebar")t="azul";if(t==="green-sidebar")t="verde";if(!["claro","azul","verde","oscuro"].includes(t))t="claro";document.documentElement.dataset.theme=t}catch(e){}</script>
 </head>
 <body>
+  <a class="skip-nav" href="#main-content">Saltar al contenido</a>
 <div class="app-layout">
 
   <aside class="sidebar">
@@ -25,7 +33,7 @@
     </div>
   </aside>
 
-  <main class="main-content">
+  <main class="main-content" id="main-content" role="main">
     <header class="page-header">
       <div>
         <h1>Configuración</h1>
@@ -209,13 +217,13 @@
             { id:"n-reportes",   label:"Nuevos reportes y cambios en reportes",  checked: config.notificaciones?.alertaReportes ?? true },
             { id:"n-recordator", label:"Recordatorio 30 min antes de reserva",   checked: config.notificaciones?.recordatorioReserva ?? false },
           ].map((n) => `
-            <label class="toggle-row">
+            <div class="toggle-row">
               <span>${n.label}</span>
-              <div class="toggle ${n.checked ? "toggle--on" : ""}" id="${n.id}"
+              <button type="button" role="switch" aria-checked="${n.checked}" class="toggle ${n.checked ? "toggle--on" : ""}" id="${n.id}"
                 onclick="toggleSwitch('${n.id}')">
                 <div class="toggle__knob"></div>
-              </div>
-            </label>
+              </button>
+            </div>
           `).join("")}
         </div>
         <div class="cfg-section">
@@ -237,15 +245,15 @@
         <div class="cfg-section">
           <div class="form-group">
             <label class="form-label">Contraseña actual</label>
-            <input class="form-input" id="s-pass-actual" type="password" placeholder="••••••••" style="max-width:280px" />
+            <input class="form-input" id="s-pass-actual" type="password" placeholder="••••••••" style="max-width:280px" required />
           </div>
           <div class="form-group">
             <label class="form-label">Nueva contraseña</label>
-            <input class="form-input" id="s-pass-nueva" type="password" placeholder="Mínimo 6 caracteres" style="max-width:280px" />
+            <input class="form-input" id="s-pass-nueva" type="password" placeholder="Mínimo 6 caracteres" style="max-width:280px" required minlength="6" />
           </div>
           <div class="form-group">
             <label class="form-label">Confirmar contraseña</label>
-            <input class="form-input" id="s-pass-confirm" type="password" placeholder="Repite la nueva contraseña" style="max-width:280px" />
+            <input class="form-input" id="s-pass-confirm" type="password" placeholder="Repite la nueva contraseña" style="max-width:280px" required minlength="6" />
           </div>
           <button class="btn btn--primary" onclick="cambiarContrasena()" style="margin-top:4px">Cambiar contraseña</button>
           <hr style="margin:24px 0;border-color:var(--color-border)">
@@ -297,13 +305,13 @@
             <label class="form-label">Anticipación máxima para reservas (días)</label>
             <input class="form-input" type="number" id="cfg-anticip" value="${config.laboratorios.anticipacionMaxReserva}" style="max-width:120px" min="1" max="30" />
           </div>
-          <label class="toggle-row">
+          <div class="toggle-row">
             <span>Permitir reservas de otras áreas</span>
-            <div class="toggle ${config.laboratorios.permitirReservaExterna ? "toggle--on" : ""}"
+            <button type="button" role="switch" aria-checked="${config.laboratorios.permitirReservaExterna}" class="toggle ${config.laboratorios.permitirReservaExterna ? "toggle--on" : ""}"
               id="tog-reserva-ext" onclick="toggleSwitch('tog-reserva-ext')">
               <div class="toggle__knob"></div>
-            </div>
-          </label>
+            </button>
+          </div>
         </div>
       `;
 
@@ -312,24 +320,24 @@
         <h2 class="cfg-panel__title">Configuración de equipos</h2>
         <div class="cfg-admin-badge"><i data-lucide="key-round"></i> Solo administradores</div>
         <div class="cfg-section">
-          <label class="toggle-row">
+          <div class="toggle-row">
             <span>Habilitar control remoto global</span>
-            <div class="toggle toggle--on" id="tog-remoto" onclick="toggleSwitch('tog-remoto')">
+            <button type="button" role="switch" aria-checked="true" class="toggle toggle--on" id="tog-remoto" onclick="toggleSwitch('tog-remoto')">
               <div class="toggle__knob"></div>
-            </div>
-          </label>
-          <label class="toggle-row">
+            </button>
+          </div>
+          <div class="toggle-row">
             <span>Apagado automático al cierre</span>
-            <div class="toggle" id="tog-apagado" onclick="toggleSwitch('tog-apagado')">
+            <button type="button" role="switch" aria-checked="false" class="toggle" id="tog-apagado" onclick="toggleSwitch('tog-apagado')">
               <div class="toggle__knob"></div>
-            </div>
-          </label>
-          <label class="toggle-row">
+            </button>
+          </div>
+          <div class="toggle-row">
             <span>Monitoreo de estado en tiempo real</span>
-            <div class="toggle toggle--on" id="tog-monitor" onclick="toggleSwitch('tog-monitor')">
+            <button type="button" role="switch" aria-checked="true" class="toggle toggle--on" id="tog-monitor" onclick="toggleSwitch('tog-monitor')">
               <div class="toggle__knob"></div>
-            </div>
-          </label>
+            </button>
+          </div>
           <div class="form-group" style="margin-top:14px">
             <label class="form-label">Intervalo de actualización (segundos)</label>
             <input class="form-input" type="number" id="cfg-intervalo" value="30" min="5" max="300" style="max-width:120px" />
@@ -354,13 +362,13 @@
             <label class="form-label">Puerta de enlace</label>
             <input class="form-input" id="cfg-gateway" value="${config.red.puertaEnlace}" />
           </div>
-          <label class="toggle-row">
+          <div class="toggle-row">
             <span>Red WiFi habilitada en laboratorios</span>
-            <div class="toggle ${config.red.wifiHabilitado ? "toggle--on" : ""}"
+            <button type="button" role="switch" aria-checked="${config.red.wifiHabilitado}" class="toggle ${config.red.wifiHabilitado ? "toggle--on" : ""}"
               id="tog-wifi" onclick="toggleSwitch('tog-wifi')">
               <div class="toggle__knob"></div>
-            </div>
-          </label>
+            </button>
+          </div>
         </div>
       `;
 
@@ -381,13 +389,13 @@
             <label class="form-label">Intentos de login antes de bloqueo</label>
             <input class="form-input" type="number" id="cfg-intentos" value="${config.seguridad.intentosLoginMax}" min="3" max="10" style="max-width:120px" />
           </div>
-          <label class="toggle-row">
+          <div class="toggle-row">
             <span>Registro de actividad de usuarios</span>
-            <div class="toggle ${config.seguridad.registroActividad ? "toggle--on" : ""}"
+            <button type="button" role="switch" aria-checked="${config.seguridad.registroActividad}" class="toggle ${config.seguridad.registroActividad ? "toggle--on" : ""}"
               id="tog-registro" onclick="toggleSwitch('tog-registro')">
               <div class="toggle__knob"></div>
-            </div>
-          </label>
+            </button>
+          </div>
         </div>
       `;
 
@@ -399,7 +407,7 @@
           <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:20px">
             <div class="cfg-sys-card">
               <div class="cfg-sys-card__label">Versión del sistema</div>
-              <div class="cfg-sys-card__value">LabControl v2.3</div>
+              <div class="cfg-sys-card__value">LabControl v2.4</div>
             </div>
             <div class="cfg-sys-card">
               <div class="cfg-sys-card__label">Total laboratorios</div>
@@ -431,7 +439,8 @@
   function toggleSwitch(id) {
     const el = document.getElementById(id);
     if (!el) return;
-    el.classList.toggle("toggle--on");
+    const activo = el.classList.toggle("toggle--on");
+    el.setAttribute("aria-checked", String(activo));
   }
 
   /* -------- Notificaciones del sistema (PC y celular) -------- */

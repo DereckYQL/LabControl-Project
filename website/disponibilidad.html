@@ -3,11 +3,19 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="description" content="Estado actual y agenda de reservas de los laboratorios del Liceo INSUCO." />
+<meta property="og:title" content="Disponibilidad · Insuco LabControl" />
+<meta property="og:description" content="Estado actual y agenda de reservas de los laboratorios del Liceo INSUCO." />
+<meta property="og:type" content="website" />
+<meta property="og:image" content="https://dereckyql.github.io/LabControl-Project/img/logo-insuco.png" />
+<meta property="og:url" content="https://dereckyql.github.io/LabControl-Project/disponibilidad.html" />
 <title>Disponibilidad · Insuco LabControl</title>
+<link rel="icon" type="image/png" href="img/logo-insuco.png" />
 <link rel="stylesheet" href="style.css?v=11" />
 <script>try{var t=localStorage.getItem("lc_tema");if(t==="dark-sidebar")t="oscuro";if(t==="blue-sidebar"||t==="green-sidebar"||t==="azul"||t==="verde")t="claro";if(!["claro","oscuro"].includes(t))t="claro";document.documentElement.dataset.theme=t}catch(e){}</script>
 </head>
 <body>
+  <a class="skip-nav" href="#main-content">Saltar al contenido</a>
 <div class="app-layout">
 
   <aside class="sidebar">
@@ -25,7 +33,7 @@
     </div>
   </aside>
 
-  <main class="main-content">
+  <main class="main-content" id="main-content" role="main">
     <header class="page-header">
       <div>
         <h1>Disponibilidad de laboratorios</h1>
@@ -82,10 +90,10 @@
 </div>
 
 <!-- Modal: cambiar estado -->
-<div class="modal-overlay" id="modal-estado" style="display:none" role="dialog" aria-modal="true">
+<div class="modal-overlay" id="modal-estado" style="display:none" role="dialog" aria-modal="true" aria-labelledby="modal-estado-titulo">
   <div class="modal">
     <div class="modal__header">
-      <span class="modal__title">Cambiar estado del laboratorio</span>
+      <span class="modal__title" id="modal-estado-titulo">Cambiar estado del laboratorio</span>
       <button class="modal__close" id="btn-cerrar-estado"><i data-lucide="x"></i></button>
     </div>
     <div class="modal__body">
@@ -107,10 +115,10 @@
 </div>
 
 <!-- Modal: nueva reserva -->
-<div class="modal-overlay" id="modal-reserva" style="display:none" role="dialog" aria-modal="true">
+<div class="modal-overlay" id="modal-reserva" style="display:none" role="dialog" aria-modal="true" aria-labelledby="modal-reserva-titulo">
   <div class="modal">
     <div class="modal__header">
-      <span class="modal__title">Agendar uso de laboratorio</span>
+      <span class="modal__title" id="modal-reserva-titulo">Agendar uso de laboratorio</span>
       <button class="modal__close" id="btn-cerrar-reserva"><i data-lucide="x"></i></button>
     </div>
     <div class="modal__body">
@@ -121,7 +129,7 @@
       <div class="form-row">
         <div class="form-group">
           <label class="form-label">Fecha</label>
-          <input class="form-input" type="date" id="res-fecha" />
+          <input class="form-input" type="date" id="res-fecha" required />
         </div>
         <div class="form-group">
           <label class="form-label">Hora inicio</label>
@@ -134,7 +142,7 @@
       </div>
       <div class="form-group">
         <label class="form-label">Motivo / Actividad</label>
-        <input class="form-input" type="text" id="res-motivo" placeholder="Ej: Clase de Estadística aplicada" />
+        <input class="form-input" type="text" id="res-motivo" placeholder="Ej: Clase de Estadística aplicada" required />
       </div>
     </div>
     <div class="modal__footer">
@@ -231,7 +239,7 @@
     const lab = labsCache.find((l) => l.id === labId);
     document.getElementById("modal-estado-lab").textContent = `Laboratorio: ${lab.nombre} (${lab.sala})`;
     document.getElementById("select-nuevo-estado").value = lab.estado;
-    document.getElementById("modal-estado").style.display = "flex";
+    abrirModal("modal-estado");
   }
 
   function cancelarReserva(id) {
@@ -246,10 +254,10 @@
 
   // Modal estado
   document.getElementById("btn-cerrar-estado").addEventListener("click", () =>
-    document.getElementById("modal-estado").style.display = "none"
+    cerrarModal(document.getElementById("modal-estado"))
   );
   document.getElementById("btn-cancelar-estado").addEventListener("click", () =>
-    document.getElementById("modal-estado").style.display = "none"
+    cerrarModal(document.getElementById("modal-estado"))
   );
   document.getElementById("btn-guardar-estado").addEventListener("click", () => {
     const nuevoEstado = document.getElementById("select-nuevo-estado").value;
@@ -262,7 +270,7 @@
         showToast(`Estado actualizado a "${ESTADOS[nuevoEstado].label}".`);
       })
       .catch(() => showToast("No se pudo actualizar el estado.", "error"));
-    document.getElementById("modal-estado").style.display = "none";
+    cerrarModal(document.getElementById("modal-estado"));
   });
 
   // Modal reserva
@@ -273,13 +281,13 @@
     const hoy = new Date().toISOString().split("T")[0];
     document.getElementById("res-fecha").value = hoy;
     document.getElementById("res-fecha").min = hoy;
-    document.getElementById("modal-reserva").style.display = "flex";
+    abrirModal("modal-reserva");
   });
   document.getElementById("btn-cerrar-reserva").addEventListener("click", () =>
-    document.getElementById("modal-reserva").style.display = "none"
+    cerrarModal(document.getElementById("modal-reserva"))
   );
   document.getElementById("btn-cancelar-reserva").addEventListener("click", () =>
-    document.getElementById("modal-reserva").style.display = "none"
+    cerrarModal(document.getElementById("modal-reserva"))
   );
   document.getElementById("btn-guardar-reserva").addEventListener("click", () => {
     const labId   = Number(document.getElementById("res-lab").value);
@@ -303,13 +311,13 @@
         showToast("Reserva agendada correctamente.");
       })
       .catch(() => showToast("No se pudo agendar la reserva.", "error"));
-    document.getElementById("modal-reserva").style.display = "none";
+    cerrarModal(document.getElementById("modal-reserva"));
   });
 
   // Cerrar modal al hacer clic en overlay
   document.querySelectorAll(".modal-overlay").forEach((overlay) => {
     overlay.addEventListener("click", (e) => {
-      if (e.target === overlay) overlay.style.display = "none";
+      if (e.target === overlay) cerrarModal(overlay);
     });
   });
 

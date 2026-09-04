@@ -10,7 +10,7 @@
  *   - Las notificaciones del sistema se mantienen igual.
  */
 
-const CACHE_NAME = "labcontrol-v2.3";
+const CACHE_NAME = "labcontrol-v2.4";
 const PRECACHE_URLS = [
   "./",
   "index.html",

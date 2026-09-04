@@ -16,6 +16,16 @@ Solo el **Administrador** puede gestionar usuarios y acceder a la configuración
 
 ## Cambios
 
+> **v2.4** — **Accesibilidad y UX (P3)**:
+> > - **Skip-nav y ARIA**: en todas las páginas se agregó un enlace "Saltar al contenido" y roles/atributos ARIA (`role="main"`, `aria-labelledby` en modales, etc.) para mejorar la navegación con teclado y lectores de pantalla.
+> > - **Toggles accesibles por teclado**: los interruptores de *Configuración* ahora son botones con `role="switch"` y `aria-checked`, operables con `Espacio`/`Enter`.
+> > - **Focus trap en modales**: al abrir un modal se enfoca el primer control, `Tab`/`Shift+Tab` se mantienen dentro, `Escape` cierra y el foco vuelve al elemento que abrió el modal.
+> > - **Contraste corregido**: se mejoró el color del texto y del código en las sugerencias de login (`.login-hint code`), claro y oscuro.
+> > - **`prefers-reduced-motion`**: si el usuario pide menos movimiento en su sistema, se desactivan animaciones y transiciones.
+> > - **SEO y metadatos**: `<meta description>`, `favicon` y Open Graph tags en todas las páginas.
+> > - **Validación HTML5**: se agregaron `required`/`minlength` a los formularios de usuarios, reservas, reportes y cambio de contraseña.
+> - **Mejora visual del sidebar**: se eliminó el prefijo `//` del nombre de marca y el título "LabControl" ahora es más grande y queda más pegado al logo.
+
 > **v2.3** — **Estabilidad y Calidad (P2)**:
 > > - **Tabs corregidos con múltiples grupos**: cada grupo `.tabs` ahora solo afecta a sus propios paneles (en `laboratorios` y `usuarios`), evitando que un cambio en una pestaña desactive la de otra sección.
 > > - **División por cero corregida en `renderDonut`**: se filtran los laboratorios con 0 equipos antes de calcular porcentajes; con total 0 se muestra "Sin equipos". También se protege `drawBarChart`.
