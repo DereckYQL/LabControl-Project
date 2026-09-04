@@ -16,11 +16,22 @@ Solo el **Administrador** puede gestionar usuarios y acceder a la configuración
 
 ## Cambios
 
-> **v2.1** — **Amarillo más claro en toda la página**: el amarillo institucional se
-> aclara a `rgb(247, 228, 10)` en todos los temas, fondos decorativos, glows y el
-> selector de apariencia. Además, en **Configuración → Apariencia** se quitan las
-> opciones **Dorado** y **Verde**; ahora solo están disponibles **Claro** y **Oscuro**
-> (los usuarios con un tema antes guardado pasan automáticamente a Claro).
+> **v2.2** — **Seguridad P1 — Capa de autenticación y protección completa**:
+> - **JWT (JSON Web Tokens)**: la sesión ahora usa tokens firmados en el servidor. El token se almacena en `localStorage` y se envía en el header `Authorization` de cada petición. Si el token expira, el usuario es redirigido a login automáticamente.
+> - **Contraseñas hasheadas con bcrypt**: todas las contraseñas se almacenan con hash bcrypt (incluidas las del seed). Las contraseñas en texto plano de versiones anteriores se hashean automáticamente al migrar.
+> - **Autorización server-side**: todos los endpoints verifican el token JWT. Los endpoints de escritura (crear, editar, eliminar) requieren rol de administrador. La autorización de reportes y reservas se valida contra el ID del usuario en el token, no del cliente.
+> - **Rate limiting**: 10 intentos de login cada 15 minutos; 200 peticiones generales cada 15 minutos.
+> - **Headers de seguridad (helmet)**: CSP, X-Frame-Options, HSTS, X-Content-Type-Options y más.
+> - **CORS configurado**: solo permite peticiones del mismo origen.
+> - **Validación de entradas**: `express-validator` en todos los endpoints de escritura (usuarios, reportes, agenda).
+> - **Passwords nunca expuestos**: `GET /api/usuarios` y `GET /api/usuarios/:id` ya no retornan el campo `password`.
+> - **Nuevo endpoint**: `POST /api/change-password` para cambio de contraseña server-side con verificación de la contraseña actual.
+> - **Modo demo actualizado**: el login en demo ahora retorna un token y el usuario. Las funciones de eliminación ya no necesitan `usuarioId` como parámetro (el servidor lo obtiene del token).
+> - Se corrige `renderDonut` para manejar división por cero cuando no hay equipos.
+> - Se añade función `esc()` en `app.js` para escape de HTML (prevención XSS).
+> - Se corrige el tab system para que solo afecte paneles dentro de su propio grupo `.tabs`.
+> - Se remueve `autocomplete="off"` del login para permitir gestores de contraseñas.
+> - Se agrega `autocomplete="username"` y `autocomplete="current-password"` en los campos de login.
 
 > **v2.0** — **Identidad visual oficial de INSUCO**: la interfaz adopta los colores
 > institucionales del liceo — **amarillo** (`#ffc300` / dorado `#ff8f00`), **blanco**
@@ -78,8 +89,11 @@ labcontrol/
 
 ## Próximos pasos sugeridos
 
-1. **Seguridad**: hashear las contraseñas (ej. `bcrypt`) y mover la sesión a cookies firmadas o JWT en vez de guardar todo en `localStorage`. Hoy, por simplicidad de demostración, la contraseña viaja igual que en la versión anterior (sin hash).
+1. ~~Seguridad: hashear las contraseñas y mover la sesión a JWT~~ **(v2.2 completado)**.
 2. Subir fotos reales de cada laboratorio.
 3. Conectar el control remoto a un agente real instalado en cada equipo (hoy solo registra el comando en un log simulado, no se guarda en la base de datos).
 4. Agregar un `backend/database/schema.sql` versionado en control de código si se quiere llevar historial de migraciones.
 5. Evaluar la app móvil (etapa 2 del proyecto), consumiendo la misma API REST.
+6. Eliminar scripts inline de los HTML y migrar a módulos ES (mejora CSP y mantenibilidad).
+7. Agregar tests automatizados (Jest para backend, Playwright para frontend).
+8. Implementar refresh tokens para sesiones de larga duración.
