@@ -216,7 +216,7 @@ function seed() {
     {
       id: "rep_001", tipo: "uso", titulo: "Uso mensual de laboratorios",
       descripcion: "Reporte de horas de uso por laboratorio en el mes de julio 2026.",
-      fecha: "2026-07-31", generadoPor: "admin",
+      fecha: "2026-07-31", generadoPor: "INSUCO",
       datos: { labels: ["Lab 1", "Lab 2", "Lab 3", "Lab 4", "Lab Redes"], valores: [72, 68, 55, 20, 80] }
     },
     {
@@ -232,13 +232,13 @@ function seed() {
     {
       id: "rep_003", tipo: "disponibilidad", titulo: "Disponibilidad semanal",
       descripcion: "Porcentaje de disponibilidad por laboratorio — semana del 17 al 21 de agosto 2026.",
-      fecha: "2026-08-21", generadoPor: "admin",
+      fecha: "2026-08-21", generadoPor: "INSUCO",
       datos: { labels: ["Lab 1", "Lab 2", "Lab 3", "Lab 4", "Lab Redes"], valores: [85, 90, 60, 0, 95] }
     },
     {
       id: "rep_004", tipo: "inventario", titulo: "Inventario de equipos actualizado",
       descripcion: "Listado completo del estado de todos los equipos en los laboratorios.",
-      fecha: "2026-08-20", generadoPor: "admin",
+      fecha: "2026-08-20", generadoPor: "INSUCO",
       datos: { total: 145, activos: 141, enFalla: 3, enMantencion: 1 }
     }
   ];

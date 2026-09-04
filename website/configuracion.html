@@ -175,10 +175,10 @@
             <label class="form-label">Tema de color</label>
             <div class="tema-grid" id="tema-grid">
               ${[
-                { id:"claro",  label:"Claro (por defecto)", bg:"#f0ecfa" },
-                { id:"azul",   label:"Violeta",            bg:"#ece8fb" },
-                { id:"verde",  label:"Verde",               bg:"#d3f2e3" },
-                { id:"oscuro", label:"Oscuro",              bg:"#16101f" },
+                { id:"claro",  label:"Claro (por defecto)", bg:"#fffcf2" },
+                { id:"azul",   label:"Dorado",             bg:"#fff8e1" },
+                { id:"verde",  label:"Verde",               bg:"#eaf4ee" },
+                { id:"oscuro", label:"Oscuro",              bg:"#141414" },
               ].map((t) => `
                 <div class="tema-item ${temaActivo() === t.id ? "is-active" : ""}"
                   onclick="seleccionarTema('${t.id}', this)"
