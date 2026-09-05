@@ -18,10 +18,11 @@ Solo el **Administrador** puede gestionar usuarios y acceder a la configuración
 
 > **v2.8** — **Ajustes de notificaciones y botones**:
 > > - **Panel de notificaciones sobre todo y translúcido**: el recuadro ya no queda debajo de otros elementos y ahora es semi-transparente con desenfoque del fondo. Se corrigió la causa real: el sidebar no apilaba sobre el contenido (que conserva un contexto por la animación `page-in`), ahora tiene `z-index: 90` por debajo de modales y toasts.
-> > - **Botón de ayuda (?) más grande**: el símbolo de interrogación ahora llena mejor el círculo del botón (26px), venciendo la regla genérica `.btn svg.lucide` que lo reducía a 15px.
+> > - **Botón de ayuda (?) más grande**: el símbolo de interrogación ahora llena mejor el círculo del botón (26px), venciendo la regla genérica `.btn svg.lucide` que lo reducía a 15px. El botón pasó a ser un círculo de exactamente 26px, del mismo tamaño que el símbolo y centrado.
+> > - **Iconos de botones corregidos en todos los botones**: se eliminó la regla genérica `.btn svg.lucide { width:15px }` que encogía cada símbolo dentro de un `.btn` (Encender/Apagar/Reiniciar en equipos, Imprimir/Editar/Eliminar en reportes, etc.); ahora cada icono usa su tamaño real (base 20px).
 > > - **Botones 100% clicables**: se corrigió que los iconos de lucide interceptaran el clic y se re-renderizaran en bucle; ahora toda la superficie de los botones de ayuda, notificaciones y cerrar sesión responde al clic.
 > > - **Título más pegado al logo**: el nombre de LabControl en el sidebar sube más hacia el logo.
-> > - *Hotfix*: la versión visible sigue siendo `v2.8`; el cache busting pasa a `?v=2.8.1` y la caché del service worker a `labcontrol-v2.8.1` para que los arreglos lleguen a PC y celular.
+> > - *Hotfix*: la versión visible sigue siendo `v2.8`; el cache busting pasa por `?v=2.8.1` y `?v=2.8.2` (y la caché del service worker a `labcontrol-v2.8.1`/`labcontrol-v2.8.2`) para que los arreglos lleguen a PC y celular.
 
 > **v2.7** — **Ventana de notificaciones y ayuda en Configuración**:
 > > - **Ventana de notificaciones corregida**: el panel ya no sale recortado. En escritorio se abre hacia la derecha de la campana (antes se anclaba a la izquierda y quedaba cortado por el borde de la pantalla) y en celular se ajusta su ancho para que siempre quede completa, tirándola hacia la derecha.
