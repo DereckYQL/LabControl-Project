@@ -1,15 +1,8 @@
-/* ==========================================================
-   Insuco LabControl — Hoja de estilos con temas
-   Temas: claro (original v1.4) · azul · verde · oscuro
-   El tema activo se aplica con <html data-theme="...">
-   ========================================================== */
+/* Hoja de estilos con temas (el activo se aplica con <html data-theme>) */
 
 @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800&family=ABeeZee:ital@0;1&display=swap');
 
-/* ==========================================================
-   PALETAS POR TEMA
-   ========================================================== */
-
+/* PALETAS POR TEMA */
 :root,
 [data-theme="claro"] {
   color-scheme: light;
@@ -210,10 +203,7 @@
   --primary-gradient: var(--grad-primary);
 }
 
-/* ==========================================================
-   BASE
-   ========================================================== */
-
+/* BASE */
 * { box-sizing: border-box; }
 
 html, body { margin: 0; padding: 0; }
@@ -259,17 +249,13 @@ h1 + p { margin: 4px 0 0; color: var(--color-text-muted); font-size: .9rem; }
   to   { opacity: 1; transform: none; }
 }
 
-/* ==========================================================
-   LAYOUT PRINCIPAL
-   ========================================================== */
-
+/* LAYOUT PRINCIPAL */
 .app-layout {
   display: flex;
   min-height: 100vh;
 }
 
-/* ---------- Sidebar ---------- */
-
+/* Sidebar */
 .sidebar {
   width: 250px;
   flex-shrink: 0;
@@ -417,8 +403,7 @@ h1 + p { margin: 4px 0 0; color: var(--color-text-muted); font-size: .9rem; }
 
 .sidebar__toggle { display: none; }
 
-/* ---------- Contenido ---------- */
-
+/* Contenido */
 .main-content {
   flex: 1;
   padding: 30px 34px 52px;
@@ -458,10 +443,7 @@ h1 + p { margin: 4px 0 0; color: var(--color-text-muted); font-size: .9rem; }
   color: var(--color-text-muted);
 }
 
-/* ==========================================================
-   LOGIN
-   ========================================================== */
-
+/* LOGIN */
 .login-body {
   min-height: 100vh;
   display: flex;
@@ -574,10 +556,7 @@ h1 + p { margin: 4px 0 0; color: var(--color-text-muted); font-size: .9rem; }
   border-color: rgba(72, 187, 120, .4);
 }
 
-/* ==========================================================
-   COMPONENTES
-   ========================================================== */
-
+/* COMPONENTES */
 .card {
   background: var(--color-surface);
   border: 1px solid var(--color-border);
@@ -588,8 +567,7 @@ h1 + p { margin: 4px 0 0; color: var(--color-text-muted); font-size: .9rem; }
 }
 .card:hover { box-shadow: var(--shadow-md); }
 
-/* ---------- Botones ---------- */
-
+/* Botones */
 .btn {
   display: inline-flex;
   align-items: center;
@@ -642,8 +620,7 @@ h1 + p { margin: 4px 0 0; color: var(--color-text-muted); font-size: .9rem; }
 
 .btn--sm { padding: 6px 12px; font-size: .78rem; border-radius: 9px; }
 
-/* ---------- Botón de ayuda (?) de Configuración ---------- */
-
+/* Botón de ayuda (?) de Configuración */
 .cfg-acciones {
   position: relative;
   display: flex;
@@ -704,8 +681,7 @@ h1 + p { margin: 4px 0 0; color: var(--color-text-muted); font-size: .9rem; }
 .cfg-ayuda-menu button:hover { background: var(--surface-deep); }
 .cfg-ayuda-menu button svg.lucide { width: 16px; height: 16px; opacity: .85; }
 
-/* ---------- Contenido del modal de ayuda ---------- */
-
+/* Contenido del modal de ayuda */
 #modal-ayuda .modal__body { max-height: 62vh; overflow-y: auto; }
 
 .ayuda-faq { display: flex; flex-direction: column; gap: 12px; }
@@ -726,8 +702,7 @@ h1 + p { margin: 4px 0 0; color: var(--color-text-muted); font-size: .9rem; }
 .ayuda-acerca { text-align: center; }
 .ayuda-acerca img { margin-bottom: 12px; }
 
-/* ---------- Formularios ---------- */
-
+/* Formularios */
 .form-group { margin-bottom: 15px; flex: 1; min-width: 0; }
 
 .form-label {
@@ -761,8 +736,7 @@ h1 + p { margin: 4px 0 0; color: var(--color-text-muted); font-size: .9rem; }
 
 .form-row { display: flex; gap: 13px; flex-wrap: wrap; }
 
-/* ---------- Badges ---------- */
-
+/* Badges */
 .badge {
   display: inline-flex;
   align-items: center;
@@ -800,8 +774,7 @@ h1 + p { margin: 4px 0 0; color: var(--color-text-muted); font-size: .9rem; }
   50%      { opacity: .45; transform: scale(.75); }
 }
 
-/* ---------- Stat cards ---------- */
-
+/* Stat cards */
 .stat-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(172px, 1fr));
@@ -857,8 +830,7 @@ h1 + p { margin: 4px 0 0; color: var(--color-text-muted); font-size: .9rem; }
 .rep-card__icon.stat-card__icon--danger  { background: var(--soft-danger); }
 .rep-card__icon.stat-card__icon--warning { background: var(--soft-warning); }
 
-/* ---------- Tabs ---------- */
-
+/* Tabs */
 .tabs {
   display: flex;
   gap: 2px;
@@ -890,10 +862,7 @@ h1 + p { margin: 4px 0 0; color: var(--color-text-muted); font-size: .9rem; }
 .tab-panel { display: none; padding: 20px; }
 .tab-panel.is-active { display: block; animation: fade-in .25s ease; }
 
-/* ==========================================================
-   TABLAS
-   ========================================================== */
-
+/* TABLAS */
 .table-wrap { overflow-x: auto; }
 
 table {
@@ -926,8 +895,7 @@ tbody tr:last-child td { border-bottom: none; }
 tbody tr { transition: background .15s; }
 tbody tr:hover { background: var(--row-hover); }
 
-/* ---------- Info grid (dl) ---------- */
-
+/* Info grid (dl) */
 .info-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
@@ -997,10 +965,7 @@ tbody tr:hover { background: var(--row-hover); }
   flex-shrink: 0;
 }
 
-/* ==========================================================
-   TARJETAS DE LABORATORIO
-   ========================================================== */
-
+/* TARJETAS DE LABORATORIO */
 .lab-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(252px, 1fr));
@@ -1062,8 +1027,7 @@ tbody tr:hover { background: var(--row-hover); }
   color: var(--color-primary);
 }
 
-/* ---------- Estado en tiempo real ---------- */
-
+/* Estado en tiempo real */
 .status-row {
   display: flex;
   align-items: center;
@@ -1109,8 +1073,7 @@ tbody tr:hover { background: var(--row-hover); }
   box-shadow: 0 0 8px currentColor;
 }
 
-/* ---------- Donut ---------- */
-
+/* Donut */
 .donut-wrap {
   display: flex;
   gap: 26px;
@@ -1135,10 +1098,7 @@ tbody tr:hover { background: var(--row-hover); }
   box-shadow: 0 0 6px rgba(15, 27, 51, .2);
 }
 
-/* ==========================================================
-   USUARIOS
-   ========================================================== */
-
+/* USUARIOS */
 .usr-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(232px, 1fr));
@@ -1229,10 +1189,7 @@ tbody tr:hover { background: var(--row-hover); }
 .actividad-item__texto { font-size: .87rem; font-weight: 700; }
 .actividad-item__fecha { font-size: .74rem; color: var(--color-text-muted); }
 
-/* ==========================================================
-   REPORTES
-   ========================================================== */
-
+/* REPORTES */
 .rep-card__arrow {
   color: var(--color-primary);
   font-size: 1.15rem;
@@ -1242,10 +1199,7 @@ tbody tr:hover { background: var(--row-hover); }
 }
 .rep-card:hover .rep-card__arrow { transform: translateX(4px); }
 
-/* ==========================================================
-   MODALES
-   ========================================================== */
-
+/* MODALES */
 .modal-overlay {
   position: fixed;
   inset: 0;
@@ -1307,10 +1261,7 @@ tbody tr:hover { background: var(--row-hover); }
   background: var(--modal-footer-bg);
 }
 
-/* ==========================================================
-   TOASTS
-   ========================================================== */
-
+/* TOASTS */
 #toast-container {
   position: fixed;
   bottom: 24px;
@@ -1338,10 +1289,7 @@ tbody tr:hover { background: var(--row-hover); }
 .toast--error { border-left-color: var(--color-danger); }
 .toast--show  { opacity: 1; transform: none; }
 
-/* ==========================================================
-   CONFIGURACIÓN
-   ========================================================== */
-
+/* CONFIGURACIÓN */
 .cfg-layout {
   display: flex;
   gap: 22px;
@@ -1499,10 +1447,7 @@ tbody tr:hover { background: var(--row-hover); }
 }
 .toggle--on .toggle__knob { left: 23px; }
 
-/* ==========================================================
-   MAPA
-   ========================================================== */
-
+/* MAPA */
 .mapa-wrap {
   background: var(--color-surface);
   border: 1px solid var(--color-border);
@@ -1540,10 +1485,7 @@ tbody tr:hover { background: var(--row-hover); }
   display: inline-block;
 }
 
-/* ==========================================================
-   EQUIPOS
-   ========================================================== */
-
+/* EQUIPOS */
 .tech-cell { font-family: Consolas, monospace; font-size: .8rem; }
 
 .locked-cell {
@@ -1574,10 +1516,7 @@ tbody tr:hover { background: var(--row-hover); }
 .remote-log div { padding: 2.5px 0; }
 .remote-log .log-time { color: #54749e; margin-right: 9px; }
 
-/* ==========================================================
-   RESPONSIVE
-   ========================================================== */
-
+/* RESPONSIVE */
 @media (max-width: 860px) {
   .app-layout { flex-direction: column; }
 
@@ -1687,10 +1626,7 @@ tbody tr:hover { background: var(--row-hover); }
   .sidebar__user { padding: 4px 7px; }
 }
 
-/* ==========================================================
-   IMPRESIÓN (reportes)
-   ========================================================== */
-
+/* IMPRESIÓN (reportes) */
 @media print {
   .sidebar,
   .page-header button,
@@ -1706,10 +1642,7 @@ tbody tr:hover { background: var(--row-hover); }
   td { border-color: #ddd; }
 }
 
-/* ======================================================
-   ICONOS LUCIDE (tamaños por contexto)
-   ====================================================== */
-
+/* ICONOS LUCIDE (tamaños por contexto) */
 svg.lucide {
   width: 20px;
   height: 20px;
@@ -1767,10 +1700,7 @@ svg.lucide {
   color: var(--color-text-muted);
 }
 .access-notice > span svg.lucide { width: 22px; height: 22px; }
-/* ==========================================================
-   v1.7 · REPORTES RESUMIDOS + ADJUNTOS
-   ========================================================== */
-
+/* v1.7 · REPORTES RESUMIDOS + ADJUNTOS */
 .rep-grid {
   display: flex;
   flex-direction: column;
@@ -1927,10 +1857,7 @@ a.adj-file:hover { border-color: var(--color-primary); color: var(--color-primar
 
 textarea.form-input { resize: vertical; min-height: 90px; }
 
-/* ==========================================================
-   v1.7 · NOTIFICACIONES (campana en la barra lateral)
-   ========================================================== */
-
+/* v1.7 · NOTIFICACIONES (campana en la barra lateral) */
 .sidebar { overflow: visible; }
 
 .notif-wrap {
@@ -2104,10 +2031,7 @@ textarea.form-input { resize: vertical; min-height: 90px; }
   }
 }
 
-/* ==========================================================
-   ACCESIBILIDAD
-   ========================================================== */
-
+/* ACCESIBILIDAD */
 /* Skip-nav: enlace para saltar al contenido */
 .skip-nav {
   position: absolute;
@@ -2150,7 +2074,7 @@ textarea.form-input { resize: vertical; min-height: 90px; }
   color: #7dd3fc;
 }
 
-/* ---- prefers-reduced-motion: usuario pide menos movimiento ---- */
+/* prefers-reduced-motion: usuario pide menos movimiento */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

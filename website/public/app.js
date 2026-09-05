@@ -1,13 +1,6 @@
-/**
- * app.js
- * Funciones compartidas por todas las páginas de LabControl Liceo.
- * Incluye: sidebar dinámico por rol, tarjetas resumen, renders de
- * laboratorios y utilidades de render.
- */
+/* app.js — funciones compartidas por todas las páginas. */
 
-/* ======================================================
-   NAVEGACIÓN (filtrada por rol)
-   ====================================================== */
+/* Navegación (según rol) */
 
 const NAV_ITEMS_ALL = [
   { href: "index.html",          label: "Inicio",         icon: "layout-dashboard", roles: ["admin","programacion","otro_area"] },
@@ -25,9 +18,7 @@ let __sidebarListenersAdded = false;
 function actualizarIconosLucide() {
   if (!window.lucide || typeof window.lucide.createIcons !== "function") return;
   try {
-    // Evita volver a reemplazar iconos ya convertidos (evita bucle con el observer):
-    // lucide reemplaza <i data-lucide> por <svg data-lucide>; si se deja el atributo,
-    // cada pasada vuelve a reemplazarlos y el DOM cambia constantemente.
+    // quito el atributo para que lucide no reconvierta los mismos iconos en cada pasada
     document.querySelectorAll("svg[data-lucide]").forEach((svg) =>
       svg.removeAttribute("data-lucide")
     );
@@ -44,10 +35,7 @@ function actualizarIconosLucide() {
   } catch (e) {}
 }
 
-/**
- * Construye el sidebar. Si se llama desde una página que requiere login,
- * redirige automáticamente si no hay sesión.
- */
+// Arma el sidebar; si la página exige login y no hay sesión, redirige.
 function renderSidebar(activeHref, requireAuth = true) {
   const sesion = AUTH.getSesion();
 
@@ -139,9 +127,7 @@ function renderSidebar(activeHref, requireAuth = true) {
   return sesion;
 }
 
-/* ======================================================
-   NOTIFICACIONES
-   ====================================================== */
+/* Notificaciones */
 
 let __notifsCache = [];
 let __notifsTimer = null;
@@ -221,7 +207,7 @@ function inicializarNotificaciones() {
   __notifsTimer = setInterval(refrescarNotificaciones, 30000);
 }
 
-/* ---------- Notificaciones nativas ---------- */
+/* Notificaciones del sistema */
 
 const NOTIF_ICONO = "img/logo-insuco.png";
 
@@ -390,9 +376,7 @@ function renderListaNotificaciones() {
   });
 }
 
-/* ======================================================
-   STAT CARDS
-   ====================================================== */
+/* Tarjetas de resumen */
 
 function renderStatCards(labs, containerId) {
   const el = document.getElementById(containerId);
@@ -446,9 +430,7 @@ function renderStatCards(labs, containerId) {
   `;
 }
 
-/* ======================================================
-   LISTA ESTADO EN TIEMPO REAL
-   ====================================================== */
+/* Estado en tiempo real */
 
 function renderStatusList(labs, containerId) {
   const el = document.getElementById(containerId);
@@ -474,9 +456,7 @@ function renderStatusList(labs, containerId) {
   }).join("");
 }
 
-/* ======================================================
-   DONUT DISTRIBUCIÓN DE EQUIPOS
-   ====================================================== */
+/* Donut de distribución de equipos */
 
 function renderDonut(labs, containerId) {
   const el = document.getElementById(containerId);
@@ -515,9 +495,7 @@ function renderDonut(labs, containerId) {
   `;
 }
 
-/* ======================================================
-   GRID DE LABORATORIOS
-   ====================================================== */
+/* Cuadrícula de laboratorios */
 
 function renderLabGrid(labs, containerId, { linkTo = "laboratorios.html" } = {}) {
   const el = document.getElementById(containerId);
@@ -541,9 +519,7 @@ function renderLabGrid(labs, containerId, { linkTo = "laboratorios.html" } = {})
   }).join("");
 }
 
-/* ======================================================
-   UTILIDADES GENERALES
-   ====================================================== */
+/* Utilidades */
 
 function getQueryParam(name) {
   return new URLSearchParams(window.location.search).get(name);
@@ -661,9 +637,7 @@ function initTabs(container = document) {
   });
 }
 
-/* ======================================================
-   ACCESIBILIDAD: modales con focus trap y toggles por teclado
-   ====================================================== */
+/* Accesibilidad: modales y toggles por teclado */
 
 function obtenerFocusables(overlay) {
   const selector = [
@@ -682,11 +656,7 @@ function cerrarModal(overlay, ultimoFoco) {
   if (ultimoFoco && typeof ultimoFoco.focus === "function") ultimoFoco.focus();
 }
 
-/**
- * Abre un modal aplicando focus trap: al abrir enfoca el primer elemento
- * interactivo, atrapa Tab/Shift+Tab dentro del modal y cierra con Escape
- * (restaurando el foco al elemento que lo abrió).
- */
+// Abre el modal, enfoca el primer control, atrapa Tab y cierra con Escape.
 function abrirModal(overlayId, closeSelector = ".modal__close") {
   const overlay = document.getElementById(overlayId);
   if (!overlay) return;

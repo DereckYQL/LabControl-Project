@@ -1,21 +1,4 @@
-/**
- * db.js
- * Conexión a la base de datos SQLite de LabControl Liceo.
- *
- * Usa el módulo "node:sqlite", incluido en Node.js (>= 22.5) — por eso no
- * hace falta instalar ningún paquete de base de datos ni tener un
- * compilador instalado. Solo se necesita `npm install` para Express.
- *
- * ES Modules (P4): este archivo usa `import`/`export` en lugar de require().
- *
- * Migraciones versionadas (P4): los cambios de esquema ya no se aplican con
- * `try/catch` sueltos; cada cambio vive en la lista MIGRACIONES y se registra
- * en la tabla `schema_migrations`. Así la base queda siempre versionada.
- *
- * La primera vez que se ejecuta el servidor (cuando database/labcontrol.db
- * todavía no existe) se crean las tablas y se cargan los mismos datos de
- * ejemplo que antes vivían "hardcodeados" en el data.js del frontend.
- */
+/* db.js — conexión SQLite (node:sqlite), esquema, migraciones y datos de ejemplo. */
 
 import path from "node:path";
 import fs from "node:fs";
@@ -38,9 +21,7 @@ const db = new DatabaseSync(DB_PATH);
 db.exec("PRAGMA journal_mode = WAL");
 db.exec("PRAGMA foreign_keys = ON");
 
-/* ==========================================================================
-   ESQUEMA
-   ========================================================================== */
+/* Esquema */
 
 db.exec(`
 CREATE TABLE IF NOT EXISTS laboratorios (
@@ -139,12 +120,7 @@ CREATE TABLE IF NOT EXISTS config (
 );
 `);
 
-/* ==========================================================================
-   MIGRACIONES VERSIONADAS
-   Cada entrada es un cambio numerado y autónomo. Se aplican en orden y solo
-   una vez (quedan registradas en la tabla `schema_migrations`). Las que ya
-   existían se guardan como "ya aplicadas"; las futuras se agregan aquí.
-   ========================================================================== */
+/* Migraciones (cada una se aplica una sola vez) */
 
 const MIGRACIONES = [
   {
@@ -201,9 +177,7 @@ function aplicarMigraciones() {
 
 aplicarMigraciones();
 
-/* ==========================================================================
-   SEED — datos de ejemplo (solo se insertan la primera vez)
-   ========================================================================== */
+/* Seed: datos de ejemplo (solo la primera vez) */
 
 if (esNueva) {
   console.log("Base de datos nueva: cargando datos de ejemplo…");

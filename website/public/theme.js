@@ -1,8 +1,4 @@
-/* theme.js — detección de tema compartida por todas las páginas (P4).
-   Se carga de forma síncrona en el <head> antes que el CSS, igual que el
-   script inline que reemplaza: aplica el tema guardado en localStorage sin
-   destellos. Las páginas pueden declarar un conjunto distinto de temas con
-   `window.LC_TEMAS` (configuracion.html declara claro/azul/verde/oscuro). */
+/* theme.js — aplica el tema guardado antes de pintar para evitar destellos. */
 try {
   var t = localStorage.getItem("lc_tema");
   if (t === "dark-sidebar") t = "oscuro";

@@ -1,14 +1,4 @@
-/**
- * service-worker.js
- * Service worker de LabControl con caching offline.
- *
- * Estrategia:
- *   - Precarga de assets estáticos en install (cache-first).
- *   - Las peticiones a la API (/api/*) nunca se cachean (siempre red).
- *   - Navegaciones (HTML) usan network-first con fallback a cache.
- *   - Assets estáticos (CSS, JS, imágenes) usan cache-first.
- *   - Las notificaciones del sistema se mantienen igual.
- */
+/* service-worker.js — caché offline: red para la API, caché para estáticos. */
 
 const CACHE_NAME = "labcontrol-v2.8.4";
 const PRECACHE_URLS = [
@@ -34,7 +24,7 @@ const PRECACHE_URLS = [
   "img/bg-tech-light.svg"
 ];
 
-/* ---------- Install: precache ---------- */
+// Precarga de estáticos
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -44,7 +34,7 @@ self.addEventListener("install", (event) => {
   );
 });
 
-/* ---------- Activate: limpiar caches viejos ---------- */
+// Limpia caches viejos
 
 self.addEventListener("activate", (event) => {
   event.waitUntil(
@@ -56,7 +46,7 @@ self.addEventListener("activate", (event) => {
   );
 });
 
-/* ---------- Fetch: cache-first para estáticos, network-first para navegación ---------- */
+// Intercepta peticiones
 
 self.addEventListener("fetch", (event) => {
   const { request } = event;
@@ -93,7 +83,7 @@ self.addEventListener("fetch", (event) => {
   );
 });
 
-/* ---------- Notificaciones ---------- */
+// Notificaciones
 
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();

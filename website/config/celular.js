@@ -6,9 +6,7 @@ const net = require("net");
 const PUERTO = process.env.PORT || 3000;
 const RUTA_INICIO = "/login.html";
 
-/* ------------------------------------------------------------------ */
-/* Detección de la IP local (LAN)                                      */
-/* ------------------------------------------------------------------ */
+// IP local para la LAN
 
 function prioridadIp(ip) {
   if (/^192\.168\./.test(ip)) return 3;
@@ -35,10 +33,7 @@ function ipsLocales() {
   return resultado;
 }
 
-/* ------------------------------------------------------------------ */
-/* Codificador de códigos QR (ISO/IEC 18004), sin dependencias.        */
-/* Modo byte, niveles L/M, versiones 1 a 10 — de sobra para una URL.   */
-/* ------------------------------------------------------------------ */
+// Código QR sin dependencias (modo byte, niveles L/M, versiones 1–10)
 
 // Palabras de corrección de errores por bloque (nivel L y M).
 const ECC_L = [-1, 7, 10, 15, 20, 26, 18, 20, 24, 30, 18];
@@ -391,9 +386,7 @@ function renderConsola(matriz) {
   return lineas.join("\n");
 }
 
-/* ------------------------------------------------------------------ */
-/* Verificación rápida de que el servidor está arriba                  */
-/* ------------------------------------------------------------------ */
+// Verifica que el servidor esté arriba
 
 function puertoAbierto(puerto) {
   return new Promise((resuelve) => {
@@ -409,9 +402,7 @@ function puertoAbierto(puerto) {
   });
 }
 
-/* ------------------------------------------------------------------ */
-/* Programa principal                                                  */
-/* ------------------------------------------------------------------ */
+// Principal
 
 async function principal() {
   console.log("======================================================");

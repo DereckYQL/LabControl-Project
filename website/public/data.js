@@ -1,19 +1,8 @@
-/**
- * data.js
- * Cliente de la API de LabControl Liceo.
- *
- * v2.2 — Autenticación JWT:
- *   - El token se almacena en localStorage con la sesión
- *   - Todas las peticiones envían Authorization: Bearer <token>
- *   - Si el backend responde 401, se redirige a login
- *   - En modo demo se mantiene la funcionalidad sin backend
- */
+/* data.js — cliente de la API; si no hay servidor usa los datos locales (demo). */
 
 const API_BASE = "/api";
 
-/* ======================================================
-   MODO DEMO (respaldo sin servidor)
-   ====================================================== */
+/* Modo demo (respaldo sin servidor) */
 
 let MODO_DEMO = false;
 
@@ -287,9 +276,7 @@ function demoRequest(metodo, ruta, cuerpo) {
   }
 }
 
-/* ======================================================
-   PETICIONES A LA API (con JWT)
-   ====================================================== */
+/* Peticiones a la API (con JWT) */
 
 async function pedir(ruta, opciones = {}) {
   const metodo = opciones.method ?? "GET";
@@ -348,9 +335,7 @@ async function apiSend(method, path, body) {
   });
 }
 
-/* ======================================================
-   ESTADOS
-   ====================================================== */
+/* Estados */
 
 const ESTADOS = {
   disponible: { label: "Disponible", color: "#48bb78" },
@@ -365,9 +350,7 @@ const ESTADOS_EQUIPO = {
   apagado:    { label: "Apagado",    clase: "badge--muted" }
 };
 
-/* ======================================================
-   LABORATORIOS
-   ====================================================== */
+/* Laboratorios */
 
 function cargarLaboratorios() {
   return apiGet("/laboratorios");
@@ -381,17 +364,13 @@ function actualizarEstadoLaboratorio(id, estado) {
   return apiSend("PATCH", `/laboratorios/${id}`, { estado });
 }
 
-/* ======================================================
-   EQUIPOS
-   ====================================================== */
+/* Equipos */
 
 function cargarEquipos(labId = null) {
   return apiGet(labId ? `/equipos?labId=${labId}` : "/equipos");
 }
 
-/* ======================================================
-   USUARIOS
-   ====================================================== */
+/* Usuarios */
 
 function cargarUsuarios() {
   return apiGet("/usuarios");
@@ -414,9 +393,7 @@ function actualizarUsuario(id, cambios) {
   return apiSend("PATCH", `/usuarios/${id}`, cambios);
 }
 
-/* ======================================================
-   AGENDA / RESERVAS
-   ====================================================== */
+/* Agenda / reservas */
 
 function cargarAgenda() {
   return apiGet("/agenda");
@@ -430,9 +407,7 @@ function eliminarReserva(id) {
   return pedir(`/agenda/${id}`, { method: "DELETE", headers: authHeaders() });
 }
 
-/* ======================================================
-   REPORTES
-   ====================================================== */
+/* Reportes */
 
 function cargarReportes() {
   return apiGet("/reportes");
@@ -450,9 +425,7 @@ function eliminarReporte(id) {
   return pedir(`/reportes/${id}`, { method: "DELETE", headers: authHeaders() });
 }
 
-/* ======================================================
-   NOTIFICACIONES
-   ====================================================== */
+/* Notificaciones */
 
 function cargarNotificaciones(usuarioId) {
   return apiGet("/notificaciones");
@@ -466,9 +439,7 @@ function marcarTodasNotificaciones() {
   return apiSend("POST", "/notificaciones/leer-todas", {});
 }
 
-/* ======================================================
-   CONFIGURACIÓN
-   ====================================================== */
+/* Configuración */
 
 function cargarConfig() {
   return apiGet("/config");
@@ -478,12 +449,10 @@ function actualizarConfig(cambios) {
   return apiSend("PATCH", "/config", cambios);
 }
 
-/* ======================================================
-   SESIÓN (AUTH) — JWT
-   ====================================================== */
+/* Sesión (AUTH) */
 
 const AUTH = {
-  /** Intenta iniciar sesión contra la API. Devuelve el usuario o null. */
+  // Inicia sesión en la API. Devuelve el usuario o null.
   async login(username, password) {
     try {
       const data = await apiSend("POST", "/login", { usuario: username, password });

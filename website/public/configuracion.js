@@ -1,15 +1,9 @@
-/**
- * configuracion.js
- * Lógica de la página de Configuración (extraída del <script> inline de
- * configuracion.html en v2.6 — P4). Carga data.js + lucide + app.js.
- */
+/* configuracion.js — lógica de la página Configuración. */
 renderSidebar("configuracion.html");
 const esAdmin = AUTH.esAdmin();
 const sesion  = AUTH.getSesion();
 
-// Estos tres se llenan una vez que llega la respuesta de la API;
-// las funciones de abajo (buildPanel, guardar, etc.) los usan luego,
-// cuando el usuario ya interactuó con la pantalla.
+// Se llenan cuando responde la API; las funciones de abajo los usan al interactuar.
 let config = null;
 let usuario = null;
 let usuariosTotal = [];
@@ -29,12 +23,12 @@ function iniciarPantalla() {
       "Configuración completa del sistema — modo Administrador";
   }
 
-  /* -------- Sincronizar tema activo -------- */
+  /* Tema activo */
   const activo = temaActivo();
   document.documentElement.dataset.theme = activo;
   if (config?.sitio) config.sitio.tema = activo;
 
-  /* -------- Definición de secciones -------- */
+  /* Secciones */
   const SECCIONES_BASE = [
     { id: "perfil",           icon: "user",     label: "Mi perfil" },
     { id: "apariencia",       icon: "palette",  label: "Apariencia" },
@@ -53,7 +47,7 @@ function iniciarPantalla() {
 
   secciones = esAdmin ? [...SECCIONES_BASE, ...SECCIONES_ADMIN] : SECCIONES_BASE;
 
-  /* -------- Construir nav lateral -------- */
+  /* Menú lateral */
   const sidenav = document.getElementById("cfg-sidenav");
   sidenav.innerHTML = secciones.map((s, i) => `
     <button class="cfg-nav-btn ${i === 0 ? "is-active" : ""}"
@@ -62,7 +56,7 @@ function iniciarPantalla() {
     </button>
   `).join("");
 
-  /* -------- Construir paneles -------- */
+  /* Paneles */
   const panels = document.getElementById("cfg-panels");
   panels.innerHTML = secciones.map((s, i) => `
     <div class="cfg-panel ${i === 0 ? "is-active" : ""}" id="panel-${s.id}">
@@ -85,7 +79,7 @@ function cambiarSeccion(id) {
 
 function buildPanel(id) {
   switch (id) {
-    /* ===== PERFIL ===== */
+    /* Perfil */
     case "perfil": return `
       <h2 class="cfg-panel__title">Mi perfil</h2>
       <div class="cfg-section">
@@ -122,7 +116,7 @@ function buildPanel(id) {
       </div>
     `;
 
-    /* ===== APARIENCIA ===== */
+    /* Apariencia */
     case "apariencia": return `
       <h2 class="cfg-panel__title">Apariencia</h2>
       <div class="cfg-section">
@@ -152,7 +146,7 @@ function buildPanel(id) {
       </div>
     `;
 
-    /* ===== NOTIFICACIONES ===== */
+    /* Notificaciones */
     case "notificaciones": return `
       <h2 class="cfg-panel__title">Notificaciones</h2>
       <div class="cfg-section">
@@ -186,7 +180,7 @@ function buildPanel(id) {
       </div>
     `;
 
-    /* ===== SEGURIDAD ===== */
+    /* Seguridad */
     case "seguridad": return `
       <h2 class="cfg-panel__title">Seguridad de la cuenta</h2>
       <div class="cfg-section">
@@ -210,7 +204,7 @@ function buildPanel(id) {
       </div>
     `;
 
-    /* ===== SITIO (solo admin) ===== */
+    /* Sitio (admin) */
     case "sitio": return `
       <h2 class="cfg-panel__title">Configuración del sitio web</h2>
       <div class="cfg-admin-badge"><i data-lucide="key-round"></i> Solo administradores</div>
@@ -233,7 +227,7 @@ function buildPanel(id) {
       </div>
     `;
 
-    /* ===== LABORATORIOS CFG (solo admin) ===== */
+    /* Laboratorios (admin) */
     case "laboratorios-cfg": return `
       <h2 class="cfg-panel__title">Configuración de laboratorios</h2>
       <div class="cfg-admin-badge"><i data-lucide="key-round"></i> Solo administradores</div>
@@ -262,7 +256,7 @@ function buildPanel(id) {
       </div>
     `;
 
-    /* ===== EQUIPOS CFG (solo admin) ===== */
+    /* Equipos (admin) */
     case "equipos-cfg": return `
       <h2 class="cfg-panel__title">Configuración de equipos</h2>
       <div class="cfg-admin-badge"><i data-lucide="key-round"></i> Solo administradores</div>
@@ -292,7 +286,7 @@ function buildPanel(id) {
       </div>
     `;
 
-    /* ===== RED (solo admin) ===== */
+    /* Red (admin) */
     case "red": return `
       <h2 class="cfg-panel__title">Configuración de red</h2>
       <div class="cfg-admin-badge"><i data-lucide="key-round"></i> Solo administradores</div>
@@ -319,7 +313,7 @@ function buildPanel(id) {
       </div>
     `;
 
-    /* ===== USUARIOS CFG (solo admin) ===== */
+    /* Usuarios (admin) */
     case "usuarios-cfg": return `
       <h2 class="cfg-panel__title">Configuración de usuarios</h2>
       <div class="cfg-admin-badge"><i data-lucide="key-round"></i> Solo administradores</div>
@@ -346,7 +340,7 @@ function buildPanel(id) {
       </div>
     `;
 
-    /* ===== SISTEMA (solo admin) ===== */
+    /* Sistema (admin) */
     case "sistema": return `
       <h2 class="cfg-panel__title">Sistema</h2>
       <div class="cfg-admin-badge"><i data-lucide="key-round"></i> Solo administradores</div>
@@ -381,7 +375,7 @@ function buildPanel(id) {
   }
 }
 
-/* -------- Helpers de UI -------- */
+// Helpers de UI
 
 function toggleSwitch(id) {
   const el = document.getElementById(id);
@@ -390,7 +384,7 @@ function toggleSwitch(id) {
   el.setAttribute("aria-checked", String(activo));
 }
 
-/* -------- Notificaciones del sistema (PC y celular) -------- */
+// Notificaciones del sistema
 function actualizarEstadoNotifUI() {
   const btn   = document.getElementById("btn-activar-notif");
   const estado = document.getElementById("estado-notif");
@@ -460,7 +454,7 @@ async function cambiarContrasena() {
   }
 }
 
-/* -------- Guardar cambios -------- */
+// Guardar cambios
 document.getElementById("btn-guardar-cfg").addEventListener("click", () => {
   const tareas = [];
 
@@ -513,7 +507,7 @@ document.getElementById("btn-guardar-cfg").addEventListener("click", () => {
     .catch(() => showToast("No se pudo guardar la configuración.", "error"));
 });
 
-/* -------- Botón de ayuda (?) y su menú -------- */
+// Menú de ayuda (?)
 (function iniciarMenuAyuda() {
   const btn  = document.getElementById("btn-ayuda");
   const menu = document.getElementById("cfg-ayuda-menu");

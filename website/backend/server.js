@@ -1,33 +1,5 @@
-/**
- * server.js
- * API REST de LabControl Liceo, sobre SQLite (ver db.js), y sirve además
- * el sitio estático (../) para no tener que levantar dos servidores.
- *
- * v2.2 — Seguridad P1:
- *   - Autenticación JWT (tokens de acceso)
- *   - Contraseñas hasheadas con bcrypt
- *   - Autorización server-side en todos los endpoints
- *   - Rate limiting en login y endpoints de escritura
- *   - Headers de seguridad (helmet)
- *   - CORS configurado
- *   - Validación de entradas con express-validator
- *   - Passwords nunca se exponen en respuestas GET
- *
- * v2.6 — Deuda técnica P4:
- *   - ES Modules (import/export)
- *   - Express 5
- *   - Express 5
- *   - Paginación opcional en endpoints de listado (sin parámetros se
- *     devuelve el arreglo plano de siempre, 100 % compatible con el frontend)
- *   - La app se exporta para poder testearla (Jest) sin abrir un puerto;
- *     solo `node server.js` inicia el servidor.
- *
- * Arranque:
- *   cd backend
- *   npm install
- *   npm start
- * Luego abrir: http://localhost:3000/login.html
- */
+/* server.js — API REST (Express + SQLite) y sirve el sitio de public/.
+   Arranque: cd backend && npm install && npm start  (http://localhost:3000) */
 
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -49,9 +21,7 @@ const PORT = process.env.PORT || 3000;
 const JWT_SECRET = process.env.JWT_SECRET || "labcontrol_jwt_secret_v2.2_change_in_production";
 const JWT_EXPIRES = "2h";
 
-/* ==========================================================================
-   MIDDLEWARES DE SEGURIDAD
-   ========================================================================== */
+/* Seguridad */
 
 // Headers de seguridad (CSP, X-Frame-Options, HSTS, etc.)
 app.use(helmet({
@@ -89,11 +59,8 @@ const loginLimiter = rateLimit({
   message: { error: "Demasiados intentos de inicio de sesión. Espera 15 minutos." }
 });
 
-/* ==========================================================================
-   MIDDLEWARES DE AUTENTICACIÓN Y AUTORIZACIÓN
-   ========================================================================== */
-
-/** Verifica el JWT del header Authorization. Adjunta el payload en req.user */
+/* Autenticación y autorización */
+// Verifica el JWT del header y deja el payload en req.user.
 function authenticateToken(req, res, next) {
   const authHeader = req.headers["authorization"];
   const token = authHeader && authHeader.split(" ")[1];
@@ -111,7 +78,7 @@ function authenticateToken(req, res, next) {
   }
 }
 
-/** Requiere que el usuario sea admin */
+// Solo admin
 function requireAdmin(req, res, next) {
   if (req.user?.rol !== "admin") {
     return res.status(403).json({ error: "Se requieren permisos de administrador" });
@@ -119,7 +86,7 @@ function requireAdmin(req, res, next) {
   next();
 }
 
-/** Requiere que el usuario sea admin o programación */
+// Admin o programación
 function requireTecnico(req, res, next) {
   if (req.user?.rol !== "admin" && req.user?.rol !== "programacion") {
     return res.status(403).json({ error: "Se requieren permisos técnicos" });
@@ -127,12 +94,7 @@ function requireTecnico(req, res, next) {
   next();
 }
 
-/* ==========================================================================
-   PAGINACIÓN OPCIONAL EN LISTADOS
-   Parámetros (opcionales): ?pagina=1&limite=20
-   - Con parámetros → sobre paginado: { data, total, pagina, totalPaginas, limite }
-   - Sin parámetros  → arreglo plano (comportamiento original, no rompe el frontend)
-   ========================================================================== */
+/* Paginación opcional: ?pagina=1&limite=20 */
 
 const LIMITE_MAX = 100;
 
@@ -165,9 +127,7 @@ function responderLista(req, res, elementos) {
   });
 }
 
-/* ==========================================================================
-   HELPERS
-   ========================================================================== */
+/* Helpers */
 
 function labFromRow(row) {
   return {
@@ -192,7 +152,7 @@ function eqFromRow(row) {
   };
 }
 
-/** Convierte fila de usuario a objeto — NUNCA incluye password */
+// Usuario sin el campo password
 function usrFromRow(row) {
   return {
     id: row.id, nombre: row.nombre, apellido: row.apellido, iniciales: row.iniciales,
@@ -332,7 +292,7 @@ function notificarReservaCancelada(reserva, actorId) {
   });
 }
 
-/** Verifica si el usuario autenticado puede modificar un reporte */
+// Solo admin o el creador pueden editar el reporte
 function puedeModificarReporte(rep, req) {
   const uid = req.user?.id;
   if (!uid) return false;
@@ -350,9 +310,7 @@ function sanitizarAdjuntos(adjuntos) {
   })).filter((a) => a.data);
 }
 
-/* ==========================================================================
-   LOGIN (rate limit estricto, sin auth)
-   ========================================================================== */
+/* Login (con rate limit estricto) */
 
 app.post("/api/login", loginLimiter, (req, res) => {
   const { usuario, password } = req.body || {};
@@ -375,7 +333,7 @@ app.post("/api/login", loginLimiter, (req, res) => {
   res.json({ token, usuario: usrFromRow(row) });
 });
 
-/** Cambio de contraseña (requiere auth + password actual) */
+// Cambio de contraseña (verifica la contraseña actual)
 app.post("/api/change-password", authenticateToken, (req, res) => {
   const { currentPassword, newPassword } = req.body || {};
   if (!currentPassword || !newPassword) {
@@ -397,9 +355,7 @@ app.post("/api/change-password", authenticateToken, (req, res) => {
   res.json({ ok: true, message: "Contraseña actualizada correctamente" });
 });
 
-/* ==========================================================================
-   LABORATORIOS (lectura: auth requerida; escritura: auth + técnico/admin)
-   ========================================================================== */
+/* Laboratorios */
 
 app.get("/api/laboratorios", authenticateToken, (req, res) => {
   const rows = db.prepare("SELECT * FROM laboratorios ORDER BY id").all();
@@ -428,9 +384,7 @@ app.patch("/api/laboratorios/:id", authenticateToken, requireTecnico, (req, res)
   res.json(lab);
 });
 
-/* ==========================================================================
-   EQUIPOS (lectura: auth requerida; info técnica: admin/programación)
-   ========================================================================== */
+/* Equipos */
 
 app.get("/api/equipos", authenticateToken, (req, res) => {
   const { labId } = req.query;
@@ -440,9 +394,7 @@ app.get("/api/equipos", authenticateToken, (req, res) => {
   responderLista(req, res, rows.map(eqFromRow));
 });
 
-/* ==========================================================================
-   USUARIOS (auth requerida en todos; admin para crear/editar/eliminar)
-   ========================================================================== */
+/* Usuarios */
 
 app.get("/api/usuarios", authenticateToken, (req, res) => {
   const rows = db.prepare("SELECT * FROM usuarios ORDER BY nombre").all();
@@ -529,9 +481,7 @@ app.patch("/api/usuarios/:id", authenticateToken, requireAdmin, [
   res.json(usrFromRow(db.prepare("SELECT * FROM usuarios WHERE id = ?").get(req.params.id)));
 });
 
-/* ==========================================================================
-   AGENDA / RESERVAS
-   ========================================================================== */
+/* Agenda / reservas */
 
 app.get("/api/agenda", authenticateToken, (req, res) => {
   const rows = db.prepare("SELECT * FROM agenda ORDER BY fecha, hora_inicio").all();
@@ -575,9 +525,7 @@ app.delete("/api/agenda/:id", authenticateToken, (req, res) => {
   res.status(204).end();
 });
 
-/* ==========================================================================
-   REPORTES
-   ========================================================================== */
+/* Reportes */
 
 app.get("/api/reportes", authenticateToken, (req, res) => {
   const rows = db.prepare("SELECT * FROM reportes ORDER BY fecha DESC").all();
@@ -659,9 +607,7 @@ app.delete("/api/reportes/:id", authenticateToken, (req, res) => {
   res.status(204).end();
 });
 
-/* ==========================================================================
-   NOTIFICACIONES
-   ========================================================================== */
+/* Notificaciones */
 
 app.get("/api/notificaciones", authenticateToken, (req, res) => {
   const usuarioId = req.user.id;
@@ -694,9 +640,7 @@ app.delete("/api/notificaciones/:id", authenticateToken, (req, res) => {
   res.status(204).end();
 });
 
-/* ==========================================================================
-   CONFIGURACIÓN (una fila con un JSON)
-   ========================================================================== */
+/* Configuración */
 
 app.get("/api/config", authenticateToken, (req, res) => {
   const row = db.prepare("SELECT data FROM config WHERE id = 1").get();
@@ -720,16 +664,11 @@ app.patch("/api/config", authenticateToken, requireAdmin, (req, res) => {
   res.json(nuevo);
 });
 
-/* ==========================================================================
-   Frontend estático (la carpeta public/ que contiene login.html, index.html,
-   etc. — raíz pública de la web)
-   ========================================================================== */
+/* Sitio estático (public/) */
 
 app.use(express.static(path.join(__dirname, "..", "public")));
 
-/* ==========================================================================
-   Manejo de errores (los errores con .status se responden como JSON)
-   ========================================================================== */
+/* Manejo de errores */
 
 // eslint-disable-next-line no-unused-vars
 app.use((err, req, res, next) => {
@@ -739,14 +678,11 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: "Error interno del servidor" });
 });
 
-/* ==========================================================================
-   Arranque — solo si este archivo es el punto de entrada (`node server.js`);
-   al importarlo (tests) la app se exporta sin abrir un puerto.
-   ========================================================================== */
+/* Arranque: solo si este archivo es el punto de entrada (node server.js) */
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   app.listen(PORT, () => {
-    console.log(`\n  LabControl Liceo v2.6`);
+    console.log(`\n  LabControl Liceo v2.8`);
     console.log(`  API + sitio corriendo en: http://localhost:${PORT}/login.html`);
     console.log(`  Seguridad: JWT + bcrypt + rate limiting + helmet\n`);
   });
