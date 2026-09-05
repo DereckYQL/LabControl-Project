@@ -18,8 +18,9 @@ const archivos = [
   "website/public/service-worker.js",
   "website/public/lucide.min.js",
   "website/config/celular.js",
-  "eslint.config.mjs",
-  "playwright.config.mjs"
+  "website/config/eslint.config.mjs",
+  "website/config/playwright.config.mjs",
+  "website/config/e2e/smoke.spec.mjs"
 ];
 
 let fallos = 0;

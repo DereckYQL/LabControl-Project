@@ -119,6 +119,7 @@ Solo el **Administrador** puede gestionar usuarios y acceder a la configuración
 labcontrol/
 ├── Abrir LabControl.bat              Acceso directo: inicia el servidor y abre la web
 ├── Abrir LabControl en el celular.bat Inicia el servidor y muestra el QR para el celular
+├── .github/workflows/                CI y despliegue automático a GitHub Pages
 └── website/
     ├── public/                        Sitio servido (local y GitHub Pages)
     │   ├── login.html                 Inicio de sesión
@@ -135,7 +136,12 @@ labcontrol/
     │   ├── data.js                    Cliente de la API (fetch) — reemplaza al antiguo array hardcodeado
     │   ├── theme.js · configuracion.js · datos-demo.js · lucide.min.js · service-worker.js
     │   └── img/                       Logo e imágenes del sitio
-    ├── config/                        Scripts auxiliares del proyecto
+    ├── config/                        Tooling y scripts auxiliares (package.json, eslint, playwright)
+    │   ├── package.json               Scripts de calidad y e2e (npm test/lint/typecheck/check)
+    │   ├── package-lock.json
+    │   ├── eslint.config.mjs          Reglas ESLint del repositorio
+    │   ├── playwright.config.mjs      Configuración de los tests e2e
+    │   ├── e2e/                       Tests e2e de Playwright (smoke)
     │   └── celular.js                 Muestra el código QR para abrir la web desde el celular
     └── backend/                       Servidor + base de datos
         ├── server.js                  API REST (Express) — también sirve el sitio de public/

@@ -6,14 +6,16 @@
   "scripts": {
     "test": "cross-env NODE_OPTIONS=--experimental-vm-modules jest --runInBand",
     "test:e2e": "playwright test",
-    "lint": "eslint --config eslint.config.mjs website/backend website/public/*.js e2e website/config/celular.js",
-    "check": "node website/backend/scripts/syntax-check.mjs",
-    "typecheck": "tsc -p website/backend/tsconfig.json"
+    "lint": "cd ../.. && eslint --config website/config/eslint.config.mjs website/backend website/public/*.js website/config/celular.js website/config/e2e",
+    "check": "node ../backend/scripts/syntax-check.mjs",
+    "typecheck": "tsc -p ../backend/tsconfig.json --typeRoots ./node_modules/@types"
   },
   "jest": {
+    "rootDir": "..",
     "testEnvironment": "node",
+    "moduleDirectories": ["node_modules", "config/node_modules", "backend/node_modules"],
     "testMatch": [
-      "<rootDir>/website/backend/tests/**/*.test.js"
+      "<rootDir>/backend/tests/**/*.test.js"
     ]
   },
   "devDependencies": {

@@ -28,7 +28,7 @@ export default [
     }
   },
   {
-    files: ["e2e/**/*.mjs"],
+    files: ["website/config/e2e/**/*.mjs"],
     languageOptions: {
       sourceType: "module",
       globals: globals.node

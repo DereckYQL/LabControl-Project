@@ -15,18 +15,24 @@ jobs:
         with:
           node-version: 24
           cache: npm
-      - name: Instalar dependencias de calidad (raíz)
+          cache-dependency-path: website/config/package-lock.json
+      - name: Instalar dependencias de calidad (config)
+        working-directory: website/config
         run: npm ci
       - name: Instalar dependencias de runtime (backend)
         working-directory: website/backend
         run: npm ci
       - name: Tests de backend (Jest + Supertest)
+        working-directory: website/config
         run: npm test
       - name: Lint (ESLint)
+        working-directory: website/config
         run: npm run lint
       - name: Typecheck (TypeScript)
+        working-directory: website/config
         run: npm run typecheck
       - name: Sintaxis (node --check)
+        working-directory: website/config
         run: npm run check
 
   e2e:
@@ -38,12 +44,16 @@ jobs:
         with:
           node-version: 24
           cache: npm
-      - name: Instalar dependencias de calidad (raíz)
+          cache-dependency-path: website/config/package-lock.json
+      - name: Instalar dependencias de calidad (config)
+        working-directory: website/config
         run: npm ci
       - name: Instalar dependencias de runtime (backend)
         working-directory: website/backend
         run: npm ci
       - name: Instalar navegador Chromium
+        working-directory: website/config
         run: npx playwright install --with-deps chromium
       - name: Tests e2e
+        working-directory: website/config
         run: npm run test:e2e

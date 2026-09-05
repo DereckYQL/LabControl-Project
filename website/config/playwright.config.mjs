@@ -14,7 +14,7 @@ export default defineConfig({
     viewport: { width: 1280, height: 800 }
   },
   webServer: {
-    command: "node website/backend/server.js",
+    command: "node ../backend/server.js",
     url: "http://localhost:3100/login.html",
     reuseExistingServer: !process.env.CI,
     env: {
