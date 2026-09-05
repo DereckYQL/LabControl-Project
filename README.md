@@ -16,6 +16,13 @@ Solo el **Administrador** puede gestionar usuarios y acceder a la configuración
 
 ## Cambios
 
+> **v2.7** — **Ventana de notificaciones y ayuda en Configuración**:
+> > - **Ventana de notificaciones corregida**: el panel ya no sale recortado. En escritorio se abre hacia la derecha de la campana (antes se anclaba a la izquierda y quedaba cortado por el borde de la pantalla) y en celular se ajusta su ancho para que siempre quede completa, tirándola hacia la derecha.
+> > - **Botón de ayuda (?) en Configuración**: un botón de interrogación junto a "Guardar cambios" despliega un menú con tres opciones: **Ayuda / FAQ** (preguntas frecuentes), **Términos y condiciones** y **Acerca de**.
+> > - **Ayuda / FAQ y Términos y condiciones completos**: el modal muestra las preguntas frecuentes (reservas, estados, reportes, notificaciones, contraseñas) y las condiciones de uso del sistema.
+> > - **Acerca de (base)**: por ahora muestra el logo, el nombre del sistema, la institución y la versión; se completará más adelante.
+> > - Cache busting `?v=2.7` y caché del service worker (`labcontrol-v2.7`) para que la nueva versión cargue sin problemas en PC y celular.
+
 > **v2.6** — **Deuda técnica (P4)**:
 > > - **Backend 100% ES Modules** (`import`/`export` en `server.js` y `db.js`) y **Express 5**. La app se exporta para testing sin abrir puerto.
 > > - **Migraciones de base de datos versionadas**: tabla `schema_migrations` y sistema de migraciones en `db.js` (v2: columna `adjuntos`; v3: hash bcrypt de contraseñas en texto plano). Idempotentes sobre bases existentes. Soporte `LC_DB_DIR` para tests.

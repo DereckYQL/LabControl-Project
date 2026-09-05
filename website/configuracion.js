@@ -354,7 +354,7 @@ function buildPanel(id) {
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:20px">
           <div class="cfg-sys-card">
             <div class="cfg-sys-card__label">Versión del sistema</div>
-            <div class="cfg-sys-card__value">LabControl v2.6</div>
+            <div class="cfg-sys-card__value">LabControl v2.7</div>
           </div>
           <div class="cfg-sys-card">
             <div class="cfg-sys-card__label">Total laboratorios</div>
@@ -512,3 +512,114 @@ document.getElementById("btn-guardar-cfg").addEventListener("click", () => {
     .then(() => showToast("Configuración guardada correctamente."))
     .catch(() => showToast("No se pudo guardar la configuración.", "error"));
 });
+
+/* -------- Botón de ayuda (?) y su menú -------- */
+(function iniciarMenuAyuda() {
+  const btn  = document.getElementById("btn-ayuda");
+  const menu = document.getElementById("cfg-ayuda-menu");
+  if (!btn || !menu) return;
+
+  const alternar = (abierto) => {
+    menu.classList.toggle("is-open", abierto);
+    btn.setAttribute("aria-expanded", String(abierto));
+  };
+
+  btn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    alternar(!menu.classList.contains("is-open"));
+  });
+
+  document.addEventListener("click", (e) => {
+    if (menu.classList.contains("is-open") && !menu.contains(e.target) && !btn.contains(e.target)) {
+      alternar(false);
+    }
+  });
+
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && menu.classList.contains("is-open")) {
+      alternar(false);
+      btn.focus();
+    }
+  });
+
+  menu.addEventListener("click", (e) => {
+    const opcion = e.target.closest("button")?.dataset.opcion;
+    if (!opcion) return;
+    alternar(false);
+    abrirAyuda(opcion);
+  });
+})();
+
+function abrirAyuda(opcion) {
+  const titulo = document.getElementById("modal-ayuda-titulo");
+  const cuerpo = document.getElementById("modal-ayuda-cuerpo");
+  if (!titulo || !cuerpo) return;
+
+  if (opcion === "faq") {
+    titulo.textContent = "Ayuda / FAQ";
+    cuerpo.innerHTML = contenidoFaq();
+  } else if (opcion === "terminos") {
+    titulo.textContent = "Términos y condiciones";
+    cuerpo.innerHTML = contenidoTerminos();
+  } else if (opcion === "acerca") {
+    titulo.textContent = "Acerca de";
+    cuerpo.innerHTML = contenidoAcerca();
+  }
+
+  actualizarIconosLucide();
+  abrirModal("modal-ayuda");
+}
+
+function contenidoFaq() {
+  const items = [
+    { p: "¿Cómo reservo un laboratorio?", r: "Anda a la página Disponibilidad, elige la fecha y el bloque horario disponible y confirma la reserva. Te llegará una notificación cuando se confirme." },
+    { p: "¿Cómo cambio el estado de un laboratorio?", r: "En Disponibilidad o Laboratorios usa el selector de estado (Disponible / Ocupado / Mantención). El cambio se refleja al instante y avisa a los demás usuarios." },
+    { p: "¿Por qué no veo la sección de Reportes?", r: "Los reportes están disponibles para el administrador y los profesores de Programación. Si tu cuenta es de otra área, esa sección no se muestra." },
+    { p: "¿Cómo activo las notificaciones en mi celular?", r: "Anda a Configuración → Notificaciones, pulsa “Activar notificaciones” y acepta el permiso del navegador. Funciona tanto en el PC como en el celular." },
+    { p: "¿Cómo recupero o cambio mi contraseña?", r: "Desde tu cuenta usa Configuración → Seguridad para cambiarla. Si la olvidaste, solicita el restablecimiento al administrador del sistema (INSUCO)." },
+    { p: "¿Qué hago si un equipo falla?", r: "Crea un reporte desde la página Reportes indicando el equipo y la falla. Los demás usuarios recibirán una notificación automática." },
+  ];
+  return `<div class="ayuda-faq">` + items.map((i) => `
+    <details>
+      <summary>${esc(i.p)}</summary>
+      <p>${esc(i.r)}</p>
+    </details>
+  `).join("") + `</div>`;
+}
+
+function contenidoTerminos() {
+  return `
+    <div class="ayuda-texto">
+      <p>Al usar el sistema <strong>Insuco LabControl</strong> aceptas las siguientes condiciones:</p>
+      <h3>1. Uso del sistema</h3>
+      <p>La plataforma es de uso exclusivo de los profesores y el personal autorizado del liceo. Las cuentas son personales e intransferibles.</p>
+      <h3>2. Reservas y disponibilidad</h3>
+      <p>Las reservas de laboratorios deben corresponder a actividades reales de clases o talleres. El administrador puede cancelar o modificar una reserva cuando sea necesario.</p>
+      <h3>3. Reportes de fallas</h3>
+      <p>Los reportes de equipos deben describir de forma clara y precisa la falla detectada para facilitar su reparación.</p>
+      <h3>4. Responsabilidad</h3>
+      <p>El liceo no se hace responsable por el mal uso de la información o por el incumplimiento de las normas de convivencia escolar al usar los laboratorios.</p>
+      <h3>5. Datos y privacidad</h3>
+      <p>Los datos personales se usan únicamente dentro del sistema para identificar a los usuarios y gestionar las operaciones del establecimiento.</p>
+    </div>`;
+}
+
+function contenidoAcerca() {
+  const usuario  = config?.sitio?.nombreInstitucion ?? "Insuco";
+  const sistema  = config?.sitio?.nombreSistema  ?? "LabControl";
+  return `
+    <div class="ayuda-acerca">
+      <img src="img/logo-insuco.png" alt="Logo del liceo">
+      <div style="font-weight:800;font-size:1.1rem">${esc(sistema)}</div>
+      <div style="font-size:.85rem;color:var(--color-text-muted)">Sistema de control y supervisión de los laboratorios de computación del liceo.</div>
+      <div class="cfg-sys-card" style="margin:18px auto 0;max-width:260px">
+        <div class="cfg-sys-card__label">Versión del sistema</div>
+        <div class="cfg-sys-card__value">LabControl v2.7</div>
+      </div>
+      <div class="cfg-sys-card" style="margin:10px auto 0;max-width:260px">
+        <div class="cfg-sys-card__label">Institución</div>
+        <div class="cfg-sys-card__value">${esc(usuario)}</div>
+      </div>
+      <p style="font-size:.78rem;color:var(--color-text-muted);margin-top:16px">Más información disponible próximamente.</p>
+    </div>`;
+}

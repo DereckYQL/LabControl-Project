@@ -11,9 +11,9 @@
 <meta property="og:url" content="https://dereckyql.github.io/LabControl-Project/configuracion.html" />
 <title>Configuración · Insuco LabControl</title>
 <link rel="icon" type="image/png" href="img/logo-insuco.png" />
-<link rel="stylesheet" href="style.css?v=2.6" />
+<link rel="stylesheet" href="style.css?v=2.7" />
 <script>window.LC_TEMAS=["claro","azul","verde","oscuro"];</script>
-<script src="theme.js?v=2.6"></script>
+<script src="theme.js?v=2.7"></script>
 </head>
 <body>
   <a class="skip-nav" href="#main-content">Saltar al contenido</a>
@@ -40,7 +40,17 @@
         <h1>Configuración</h1>
         <p id="cfg-subtitulo">Ajustes de tu cuenta y preferencias personales</p>
       </div>
-      <button class="btn btn--primary" id="btn-guardar-cfg">Guardar cambios</button>
+      <div class="cfg-acciones">
+        <button class="btn cfg-ayuda-btn" id="btn-ayuda" type="button" title="Ayuda y soporte" aria-label="Ayuda y soporte" aria-haspopup="true" aria-expanded="false">
+          <i data-lucide="help-circle"></i>
+        </button>
+        <button class="btn btn--primary" id="btn-guardar-cfg">Guardar cambios</button>
+        <div class="cfg-ayuda-menu" id="cfg-ayuda-menu">
+          <button type="button" data-opcion="faq"><i data-lucide="messages-square"></i> Ayuda / FAQ</button>
+          <button type="button" data-opcion="terminos"><i data-lucide="scroll-text"></i> Términos y condiciones</button>
+          <button type="button" data-opcion="acerca"><i data-lucide="info"></i> Acerca de</button>
+        </div>
+      </div>
     </header>
 
     <div class="cfg-layout">
@@ -53,9 +63,20 @@
   </main>
 </div>
 
-<script src="data.js?v=2.6"></script>
-<script src="lucide.min.js?v=2.6"></script>
-<script src="app.js?v=2.6"></script>
-<script src="configuracion.js?v=2.6"></script>
+<!-- Modal de ayuda / preguntas frecuentes -->
+<div class="modal-overlay" id="modal-ayuda" style="display:none">
+  <div class="modal modal--lg" role="dialog" aria-modal="true" aria-labelledby="modal-ayuda-titulo">
+    <div class="modal__header">
+      <div class="modal__title" id="modal-ayuda-titulo">Ayuda</div>
+      <button class="modal__close" type="button" aria-label="Cerrar"><i data-lucide="x"></i></button>
+    </div>
+    <div class="modal__body" id="modal-ayuda-cuerpo"></div>
+  </div>
+</div>
+
+<script src="data.js?v=2.7"></script>
+<script src="lucide.min.js?v=2.7"></script>
+<script src="app.js?v=2.7"></script>
+<script src="configuracion.js?v=2.7"></script>
 </body>
 </html>

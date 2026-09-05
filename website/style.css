@@ -637,6 +637,82 @@ h1 + p { margin: 4px 0 0; color: var(--color-text-muted); font-size: .9rem; }
 
 .btn--sm { padding: 6px 12px; font-size: .78rem; border-radius: 9px; }
 
+/* ---------- Botón de ayuda (?) de Configuración ---------- */
+
+.cfg-acciones {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.cfg-ayuda-btn {
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.cfg-ayuda-btn svg.lucide { width: 19px; height: 19px; }
+
+.cfg-ayuda-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 60;
+  display: none;
+  flex-direction: column;
+  min-width: 220px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 13px;
+  box-shadow: var(--shadow-lg);
+  padding: 6px;
+}
+.cfg-ayuda-menu.is-open { display: flex; animation: fade-in .15s ease; }
+
+.cfg-ayuda-menu button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  color: var(--color-text);
+  font-family: inherit;
+  font-size: .87rem;
+  font-weight: 600;
+  padding: 10px 12px;
+  border-radius: 9px;
+  cursor: pointer;
+  transition: background .15s, color .15s;
+}
+.cfg-ayuda-menu button:hover { background: var(--surface-deep); }
+.cfg-ayuda-menu button svg.lucide { width: 16px; height: 16px; opacity: .85; }
+
+/* ---------- Contenido del modal de ayuda ---------- */
+
+#modal-ayuda .modal__body { max-height: 62vh; overflow-y: auto; }
+
+.ayuda-faq { display: flex; flex-direction: column; gap: 12px; }
+.ayuda-faq details {
+  border: 1px solid var(--color-border);
+  border-radius: 11px;
+  padding: 12px 15px;
+  background: var(--surface-deep);
+}
+.ayuda-faq summary { font-weight: 700; font-size: .88rem; cursor: pointer; }
+.ayuda-faq summary::marker { color: var(--color-primary); }
+.ayuda-faq p { font-size: .84rem; color: var(--color-text-muted); line-height: 1.55; margin: 8px 0 0; }
+
+.ayuda-texto { font-size: .86rem; line-height: 1.65; }
+.ayuda-texto h3 { font-size: .93rem; margin: 15px 0 6px; }
+.ayuda-texto p { margin: 0 0 9px; }
+
+.ayuda-acerca { text-align: center; }
+.ayuda-acerca img { margin-bottom: 12px; }
+
 /* ---------- Formularios ---------- */
 
 .form-group { margin-bottom: 15px; flex: 1; min-width: 0; }
@@ -1891,7 +1967,8 @@ textarea.form-input { resize: vertical; min-height: 90px; }
 .notif-panel {
   position: absolute;
   top: 46px;
-  right: 0;
+  left: 0;
+  right: auto;
   width: min(330px, calc(100vw - 32px));
   max-height: 420px;
   display: flex;
@@ -1999,6 +2076,16 @@ textarea.form-input { resize: vertical; min-height: 90px; }
 /* En móvil la campana acompaña al botón hamburguesa */
 @media (max-width: 900px) {
   .notif-wrap { top: 10px; right: 58px; }
+}
+
+/* En la barra superior móvil (ancho real) la ventana de notificaciones
+   se abre hacia la izquierda y se ajusta para no quedar recortada */
+@media (max-width: 860px) {
+  .notif-panel {
+    left: auto;
+    right: 0;
+    width: min(330px, calc(100vw - 70px));
+  }
 }
 
 /* ==========================================================
