@@ -25,6 +25,12 @@ let __sidebarListenersAdded = false;
 function actualizarIconosLucide() {
   if (!window.lucide || typeof window.lucide.createIcons !== "function") return;
   try {
+    // Evita volver a reemplazar iconos ya convertidos (evita bucle con el observer):
+    // lucide reemplaza <i data-lucide> por <svg data-lucide>; si se deja el atributo,
+    // cada pasada vuelve a reemplazarlos y el DOM cambia constantemente.
+    document.querySelectorAll("svg[data-lucide]").forEach((svg) =>
+      svg.removeAttribute("data-lucide")
+    );
     window.lucide.createIcons();
     initKeyboardToggles(document.body);
     if (!__iconsObserver) {

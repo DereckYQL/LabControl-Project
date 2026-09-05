@@ -287,7 +287,7 @@ h1 + p { margin: 4px 0 0; color: var(--color-text-muted); font-size: .9rem; }
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 2px;
+  gap: 0;
   padding: 20px 14px;
   border-bottom: 1px solid rgba(148, 197, 255, .1);
 }
@@ -310,6 +310,7 @@ h1 + p { margin: 4px 0 0; color: var(--color-text-muted); font-size: .9rem; }
   line-height: 1.3;
   white-space: nowrap;
   color: #fff;
+  margin-top: -6px;
   text-shadow:
     0 0 12px rgba(255, 213, 74, .55),
     0 0 32px rgba(255, 143, 0, .45);
@@ -652,8 +653,13 @@ h1 + p { margin: 4px 0 0; color: var(--color-text-muted); font-size: .9rem; }
   padding: 0;
   border-radius: 50%;
   flex-shrink: 0;
+  pointer-events: auto;
 }
-.cfg-ayuda-btn svg.lucide { width: 19px; height: 19px; }
+.cfg-ayuda-btn svg.lucide {
+  width: 26px;
+  height: 26px;
+  stroke-width: 1.8;
+}
 
 .cfg-ayuda-menu {
   position: absolute;
@@ -1589,7 +1595,7 @@ tbody tr:hover { background: var(--row-hover); }
     gap: 5px;
   }
   .sidebar__brand img { width: 48px; height: 48px; }
-  .sidebar__brand-name { font-size: .84rem; letter-spacing: .07em; }
+  .sidebar__brand-name { font-size: .84rem; letter-spacing: .07em; margin-top: 0; }
 
   /* Usuario al lado del logo */
   .sidebar__user {
@@ -1703,6 +1709,9 @@ svg.lucide {
   stroke-width: 2;
   flex-shrink: 0;
   vertical-align: middle;
+  /* Los iconos son decorativos: nunca interceptan clics,
+     así el botón completo responde en toda su superficie */
+  pointer-events: none;
 }
 
 .sidebar__toggle svg.lucide { width: 22px; height: 22px; }
@@ -1927,7 +1936,7 @@ textarea.form-input { resize: vertical; min-height: 90px; }
   position: absolute;
   top: 14px;
   right: 14px;
-  z-index: 80;
+  z-index: 110;
 }
 
 .notif-btn {
@@ -1943,6 +1952,7 @@ textarea.form-input { resize: vertical; min-height: 90px; }
   align-items: center;
   justify-content: center;
   transition: background .2s, transform .15s;
+  pointer-events: auto;
 }
 .notif-btn:hover { background: rgba(148, 197, 255, .2); transform: scale(1.06); }
 .notif-btn svg.lucide { width: 19px; height: 19px; }
@@ -1962,6 +1972,7 @@ textarea.form-input { resize: vertical; min-height: 90px; }
   align-items: center;
   justify-content: center;
   box-shadow: 0 2px 8px rgba(239, 68, 68, .5);
+  pointer-events: none;
 }
 
 .notif-panel {
@@ -1974,11 +1985,15 @@ textarea.form-input { resize: vertical; min-height: 90px; }
   display: flex;
   flex-direction: column;
   background: var(--color-surface);
+  background: color-mix(in srgb, var(--color-surface) 86%, transparent);
   color: var(--color-text);
   border: 1px solid var(--color-border);
   border-radius: 14px;
   box-shadow: var(--shadow-lg);
   overflow: hidden;
+  z-index: 110;
+  backdrop-filter: blur(14px) saturate(1.1);
+  -webkit-backdrop-filter: blur(14px) saturate(1.1);
 }
 
 .notif-panel__head {
