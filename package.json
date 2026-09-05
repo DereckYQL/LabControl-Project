@@ -6,7 +6,7 @@
   "scripts": {
     "test": "cross-env NODE_OPTIONS=--experimental-vm-modules jest --runInBand",
     "test:e2e": "playwright test",
-    "lint": "eslint --config eslint.config.mjs website/backend website/*.js e2e celular.js",
+    "lint": "eslint --config eslint.config.mjs website/backend website/public/*.js e2e website/config/celular.js",
     "check": "node website/backend/scripts/syntax-check.mjs",
     "typecheck": "tsc -p website/backend/tsconfig.json"
   },

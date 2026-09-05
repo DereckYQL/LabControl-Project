@@ -39,7 +39,7 @@ export default [
     // (app.js usa variables definidas en data.js, etc.). Por eso no
     // activamos no-undef: las referencias cruzadas no son errores aquí,
     // solo se controlan reglas que no dependen del orden de carga.
-    files: ["website/*.js"],
+    files: ["website/public/*.js"],
     languageOptions: {
       sourceType: "script",
       globals: { ...globals.browser, ...globals.serviceworker }
@@ -52,7 +52,7 @@ export default [
     }
   },
   {
-    files: ["celular.js"],
+    files: ["website/config/celular.js"],
     languageOptions: {
       sourceType: "commonjs",
       globals: globals.node
