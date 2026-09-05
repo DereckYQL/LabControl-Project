@@ -72,7 +72,7 @@ function iniciarPantalla() {
   const sidenav = document.getElementById("cfg-sidenav");
   sidenav.innerHTML = secciones.map((s, i) => `
     <button class="cfg-nav-btn ${i === 0 ? "is-active" : ""}"
-      data-section="${s.id}" onclick="cambiarSeccion('${s.id}')">
+      data-section="${s.id}">
       <i data-lucide="${s.icon}"></i> ${s.label}
     </button>
   `).join("");
@@ -185,8 +185,7 @@ function buildPanel(id) {
               { id:"oscuro", label:"Oscuro",              bg:"#141414" },
             ].map((t) => `
               <div class="tema-item ${temaActivo() === t.id ? "is-active" : ""}"
-                onclick="seleccionarTema('${t.id}', this)"
-                style="--tema-bg:${t.bg}">
+                data-tema="${t.id}" style="--tema-bg:${t.bg}">
                 <div class="tema-preview"></div>
                 <span>${t.label}</span>
               </div>
@@ -195,7 +194,7 @@ function buildPanel(id) {
         </div>
         <div class="form-group">
           <label class="form-label">Tamaño de texto</label>
-          <select class="form-input" id="p-texto" style="max-width:200px" onchange="aplicarTamanoTexto(this.value)">
+          <select class="form-input" id="p-texto" style="max-width:200px">
             <option value="normal">Normal</option>
             <option value="grande">Grande</option>
           </select>
@@ -218,8 +217,7 @@ function buildPanel(id) {
         ].map((n) => `
           <div class="toggle-row">
             <span>${n.label}</span>
-            <button type="button" role="switch" aria-checked="${n.checked}" class="toggle ${n.checked ? "toggle--on" : ""}" id="${n.id}"
-              onclick="toggleSwitch('${n.id}')">
+<button type="button" role="switch" aria-checked="${n.checked}" class="toggle ${n.checked ? "toggle--on" : ""}" id="${n.id}">
               <div class="toggle__knob"></div>
             </button>
           </div>
@@ -231,7 +229,7 @@ function buildPanel(id) {
           Recibe los mismos avisos como notificaciones del sistema operativo,
           tanto en tu PC como en tu celular, aunque la pestaña esté en segundo plano.
         </p>
-        <button class="btn btn--primary" id="btn-activar-notif" onclick="activarNotificacionesDesdeConfig()">
+        <button class="btn btn--primary" id="btn-activar-notif">
           <i data-lucide="bell-ring"></i> Activar notificaciones
         </button>
         <p id="estado-notif" style="font-size:.82rem;margin-top:10px;color:var(--color-text-muted)"></p>
@@ -254,11 +252,11 @@ function buildPanel(id) {
           <label class="form-label">Confirmar contraseña</label>
           <input class="form-input" id="s-pass-confirm" type="password" placeholder="Repite la nueva contraseña" style="max-width:280px" required minlength="6" />
         </div>
-        <button class="btn btn--primary" onclick="cambiarContrasena()" style="margin-top:4px">Cambiar contraseña</button>
+        <button class="btn btn--primary" id="btn-cambiar-contrasena" style="margin-top:4px">Cambiar contraseña</button>
         <hr style="margin:24px 0;border-color:var(--color-border)">
         <div style="font-weight:600;margin-bottom:10px">Sesión activa</div>
         <p style="color:var(--color-text-muted);font-size:.88rem;margin-bottom:12px">Usuario: <strong>${sesion?.id}</strong> — Rol: ${rolLabel(sesion?.rol)}</p>
-        <button class="btn btn--danger" onclick="AUTH.logout()">Cerrar sesión</button>
+        <button class="btn btn--danger" id="btn-cerrar-sesion">Cerrar sesión</button>
       </div>
     `;
 
@@ -307,7 +305,7 @@ function buildPanel(id) {
         <div class="toggle-row">
           <span>Permitir reservas de otras áreas</span>
           <button type="button" role="switch" aria-checked="${config.laboratorios.permitirReservaExterna}" class="toggle ${config.laboratorios.permitirReservaExterna ? "toggle--on" : ""}"
-            id="tog-reserva-ext" onclick="toggleSwitch('tog-reserva-ext')">
+            id="tog-reserva-ext">
             <div class="toggle__knob"></div>
           </button>
         </div>
@@ -321,19 +319,19 @@ function buildPanel(id) {
       <div class="cfg-section">
         <div class="toggle-row">
           <span>Habilitar control remoto global</span>
-          <button type="button" role="switch" aria-checked="${config.equipos?.habilitarControlRemoto ?? true}" class="toggle ${(config.equipos?.habilitarControlRemoto ?? true) ? "toggle--on" : ""}" id="tog-remoto" onclick="toggleSwitch('tog-remoto')">
+          <button type="button" role="switch" aria-checked="${config.equipos?.habilitarControlRemoto ?? true}" class="toggle ${(config.equipos?.habilitarControlRemoto ?? true) ? "toggle--on" : ""}" id="tog-remoto">
             <div class="toggle__knob"></div>
           </button>
         </div>
         <div class="toggle-row">
           <span>Apagado automático al cierre</span>
-          <button type="button" role="switch" aria-checked="${config.equipos?.apagadoAutomatico ?? false}" class="toggle ${(config.equipos?.apagadoAutomatico ?? false) ? "toggle--on" : ""}" id="tog-apagado" onclick="toggleSwitch('tog-apagado')">
+          <button type="button" role="switch" aria-checked="${config.equipos?.apagadoAutomatico ?? false}" class="toggle ${(config.equipos?.apagadoAutomatico ?? false) ? "toggle--on" : ""}" id="tog-apagado">
             <div class="toggle__knob"></div>
           </button>
         </div>
         <div class="toggle-row">
           <span>Monitoreo de estado en tiempo real</span>
-          <button type="button" role="switch" aria-checked="${config.equipos?.monitoreoTiempoReal ?? true}" class="toggle ${(config.equipos?.monitoreoTiempoReal ?? true) ? "toggle--on" : ""}" id="tog-monitor" onclick="toggleSwitch('tog-monitor')">
+          <button type="button" role="switch" aria-checked="${config.equipos?.monitoreoTiempoReal ?? true}" class="toggle ${(config.equipos?.monitoreoTiempoReal ?? true) ? "toggle--on" : ""}" id="tog-monitor">
             <div class="toggle__knob"></div>
           </button>
         </div>
@@ -364,7 +362,7 @@ function buildPanel(id) {
         <div class="toggle-row">
           <span>Red WiFi habilitada en laboratorios</span>
           <button type="button" role="switch" aria-checked="${config.red.wifiHabilitado}" class="toggle ${config.red.wifiHabilitado ? "toggle--on" : ""}"
-            id="tog-wifi" onclick="toggleSwitch('tog-wifi')">
+            id="tog-wifi">
             <div class="toggle__knob"></div>
           </button>
         </div>
@@ -391,7 +389,7 @@ function buildPanel(id) {
         <div class="toggle-row">
           <span>Registro de actividad de usuarios</span>
           <button type="button" role="switch" aria-checked="${config.seguridad.registroActividad}" class="toggle ${config.seguridad.registroActividad ? "toggle--on" : ""}"
-            id="tog-registro" onclick="toggleSwitch('tog-registro')">
+            id="tog-registro">
             <div class="toggle__knob"></div>
           </button>
         </div>
@@ -406,7 +404,7 @@ function buildPanel(id) {
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:20px">
           <div class="cfg-sys-card">
             <div class="cfg-sys-card__label">Versión del sistema</div>
-            <div class="cfg-sys-card__value">LabControl v3.0</div>
+            <div class="cfg-sys-card__value">LabControl v3.1</div>
           </div>
           <div class="cfg-sys-card">
             <div class="cfg-sys-card__label">Total laboratorios</div>
@@ -423,7 +421,7 @@ function buildPanel(id) {
         </div>
         <hr style="border-color:var(--color-border);margin-bottom:16px">
         <div style="font-weight:600;margin-bottom:10px;color:var(--color-danger)">Zona peligrosa</div>
-        <button class="btn btn--danger" onclick="if(confirm('¿Restablecer la configuración a valores de fábrica?'))restablecerConfiguracion()">
+        <button class="btn btn--danger" id="btn-restablecer-cfg">
           <i data-lucide="triangle-alert"></i> Restablecer configuración de fábrica
         </button>
       </div>
@@ -808,7 +806,7 @@ function contenidoAcerca() {
       <div style="font-size:.85rem;color:var(--color-text-muted)">Sistema de control y supervisión de los laboratorios de computación del liceo.</div>
       <div class="cfg-sys-card" style="margin:18px auto 0;max-width:260px">
         <div class="cfg-sys-card__label">Versión del sistema</div>
-        <div class="cfg-sys-card__value">LabControl v3.0</div>
+        <div class="cfg-sys-card__value">LabControl v3.1</div>
       </div>
       <div class="cfg-sys-card" style="margin:10px auto 0;max-width:260px">
         <div class="cfg-sys-card__label">Institución</div>
@@ -817,3 +815,29 @@ function contenidoAcerca() {
       <p style="font-size:.78rem;color:var(--color-text-muted);margin-top:16px">Más información disponible próximamente.</p>
     </div>`;
 }
+
+/* Delegación de eventos: el CSP estricto bloquea atributos onclick/onchange
+   inline, incluso los generados por innerHTML, así que los manejadores se
+   registran aquí una sola vez sobre el documento. */
+document.addEventListener("click", (e) => {
+  const nav = e.target.closest("[data-section]");
+  if (nav) { cambiarSeccion(nav.dataset.section); return; }
+
+  const tema = e.target.closest(".tema-item[data-tema]");
+  if (tema) { seleccionarTema(tema.dataset.tema, tema); return; }
+
+  const sw = e.target.closest("[role='switch']");
+  if (sw) { toggleSwitch(sw.id); return; }
+
+  if (e.target.closest("#btn-activar-notif")) { activarNotificacionesDesdeConfig(); return; }
+  if (e.target.closest("#btn-cambiar-contrasena")) { cambiarContrasena(); return; }
+  if (e.target.closest("#btn-cerrar-sesion")) { AUTH.logout(); return; }
+  if (e.target.closest("#btn-restablecer-cfg")) {
+    if (confirm("¿Restablecer la configuración a valores de fábrica?")) restablecerConfiguracion();
+    return;
+  }
+});
+
+document.addEventListener("change", (e) => {
+  if (e.target.id === "p-texto") aplicarTamanoTexto(e.target.value);
+});

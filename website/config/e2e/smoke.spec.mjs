@@ -16,17 +16,17 @@ test("login como INSUCO y el dashboard carga los datos", async ({ page }) => {
   await expect(page.locator(".sidebar__user .name")).not.toBeEmpty();
 });
 
-test("configuracion.html muestra la versión v3.0", async ({ page }) => {
+test("configuracion.html muestra la versión v3.1", async ({ page }) => {
   await login(page, "INSUCO", "Insuco1336");
 
   await page.goto("/configuracion.html");
-  await expect(page.locator("body")).toContainText("LabControl v3.0", { timeout: 8000 });
+  await expect(page.locator("body")).toContainText("LabControl v3.1", { timeout: 8000 });
 
   // El panel visible muestra la versión y el conteo en vivo de laboratorios/equipos.
   await page.click('#cfg-sidenav button[data-section="sistema"]');
   const panel = page.locator("#panel-sistema");
   await expect(panel).toBeVisible();
-  await expect(panel).toContainText("LabControl v3.0");
+  await expect(panel).toContainText("LabControl v3.1");
   await expect(panel).toContainText("Total laboratorios");
   await expect(panel).toContainText("Total equipos");
 });
@@ -108,4 +108,33 @@ test("admin edita un usuario existente desde su detalle", async ({ page }) => {
   await page.click("#btn-guardar-usr");
 
   await expect(page.locator("#det-nombre")).toContainText("Nombre Editado", { timeout: 8000 });
+});
+
+test("cabeceras de seguridad: CSP estricto, sin caché en API y dotfiles negados", async ({ request }) => {
+  const html = await request.get("/index.html");
+  const csp = html.headers()["content-security-policy"] || "";
+  const scriptSrc = (csp.match(/(?:^|;)\s*script-src\s+([^;]+)/) || [])[1] || "";
+  const scriptSrcAttr = (csp.match(/(?:^|;)\s*script-src-attr\s+([^;]+)/) || [])[1] || "";
+  expect(scriptSrc).toContain("'self'");
+  expect(scriptSrc).not.toContain("'unsafe-inline'");
+  expect(scriptSrcAttr).toBe("'none'");
+  expect(html.headers()["x-content-type-options"]).toBe("nosniff");
+  expect(html.headers()["referrer-policy"]).toBe("same-origin");
+
+  const api = await request.post("/api/login", { data: { usuario: "nadie", password: "incorrecta" } });
+  expect(api.status()).toBe(401);
+  expect(api.headers()["cache-control"]).toBe("no-store");
+
+  const oculto = await request.get("/.env");
+  expect(oculto.status()).toBe(404);
+});
+
+test("CSP estricto bloquea la ejecución de scripts inline", async ({ page }) => {
+  await page.goto("/login.html");
+  await page.evaluate(() => {
+    const s = document.createElement("script");
+    s.textContent = 'document.body.setAttribute("data-csp-trap", "1")';
+    document.head.appendChild(s);
+  });
+  await expect(page.locator("body")).not.toHaveAttribute("data-csp-trap", "1");
 });

@@ -33,8 +33,8 @@ app.use(helmet({
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
-      scriptSrc: ["'self'", "'unsafe-inline'"],
-      scriptSrcAttr: ["'unsafe-inline'"],
+      scriptSrc: ["'self'"],
+      scriptSrcAttr: ["'none'"],
       styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
       fontSrc: ["'self'", "https://fonts.gstatic.com"],
       imgSrc: ["'self'", "data:"],
@@ -45,8 +45,24 @@ app.use(helmet({
       formAction: ["'self'"]
     }
   },
-  crossOriginEmbedderPolicy: false
+  crossOriginEmbedderPolicy: false,
+  referrerPolicy: { policy: "same-origin" },
+  permissionsPolicy: {
+    permissionsPolicy: {
+      camera: [],
+      microphone: [],
+      geolocation: [],
+      payment: [],
+      usb: []
+    }
+  }
 }));
+
+// Respuestas de la API: no almacenables en caché (datos sensibles de sesión).
+app.use("/api", (req, res, next) => {
+  res.set("Cache-Control", "no-store");
+  next();
+});
 
 // CORS — permitir mismo origen (frontend servido por el mismo server)
 app.use(cors({
@@ -79,12 +95,15 @@ const escrituraLimiter = rateLimit({
 });
 app.use(["/api/usuarios", "/api/agenda", "/api/reportes", "/api/config", "/api/notificaciones", "/api/laboratorios", "/api/solicitudes-especialidad"], escrituraLimiter);
 
-// Rate limiting estricto en login
+// Rate limiting estricto en login (por IP y por cuenta: bloquea fuerza bruta
+// por usuario aunque las IP roten).
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 10,
   standardHeaders: true,
   legacyHeaders: false,
+  keyGenerator: (req) => `${req.ip}|${String(req.body?.usuario ?? "").toLowerCase().trim()}`,
+  validate: false,
   message: { error: "Demasiados intentos de inicio de sesión. Espera 15 minutos." }
 });
 
@@ -951,7 +970,10 @@ app.patch("/api/config", authenticateToken, requireAdmin, (req, res) => {
   const actual = JSON.parse(row.data);
   const nuevo = { ...actual };
 
+  // Merge de un nivel: se ignoran claves peligrosas (protección contra
+  // prototype pollution vía JSON con `__proto__`, `constructor`, etc.).
   for (const [key, valor] of Object.entries(req.body)) {
+    if (["__proto__", "constructor", "prototype"].includes(key)) continue;
     nuevo[key] = (typeof valor === "object" && valor !== null && actual[key])
       ? { ...actual[key], ...valor }
       : valor;
@@ -961,9 +983,12 @@ app.patch("/api/config", authenticateToken, requireAdmin, (req, res) => {
   res.json(nuevo);
 });
 
-/* Sitio estático (public/) */
+/* Sitio estático (public/) — sin servir archivos ocultos (dotfiles) */
 
-app.use(express.static(path.join(__dirname, "..", "public")));
+app.use(express.static(path.join(__dirname, "..", "public"), {
+  dotfiles: "deny",
+  index: ["index.html"]
+}));
 
 /* Manejo de errores */
 
@@ -979,7 +1004,7 @@ app.use((err, req, res, next) => {
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   app.listen(PORT, () => {
-    console.log(`\n  LabControl Liceo v3.0`);
+    console.log(`\n  LabControl Liceo v3.1`);
     console.log(`  API + sitio corriendo en: http://localhost:${PORT}/login.html`);
     console.log(`  Seguridad: JWT + bcrypt + rate limiting + helmet\n`);
   });

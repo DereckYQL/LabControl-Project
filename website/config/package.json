@@ -1,8 +1,8 @@
 {
   "name": "labcontrol",
-  "version": "3.0.0",
+  "version": "3.1.0",
   "private": true,
-  "description": "LabControl 3.0 - Monorepo de calidad (tests, lint, typecheck). El sitio vive en website/ y su backend en website/backend.",
+  "description": "LabControl 3.1 - Monorepo de calidad (tests, lint, typecheck). El sitio vive en website/ y su backend en website/backend.",
   "scripts": {
     "test": "cross-env NODE_OPTIONS=--experimental-vm-modules jest --runInBand",
     "test:e2e": "playwright test",

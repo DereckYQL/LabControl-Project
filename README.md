@@ -16,6 +16,15 @@ Solo el **Administrador** puede gestionar usuarios y acceder a la configuración
 
 ## Cambios
 
+> **v3.1** — **Corrección de vulnerabilidades**:
+> > - **CSP estricto (sin `unsafe-inline`)**: los scripts inline y los manejadores `onclick` de todas las páginas se migraron a archivos `.js` externos con eventos delegados, y ahora la política `script-src 'self'` bloquea cualquier ejecución de JavaScript inyectado. Verificado con una prueba e2e que inyecta un script malicioso y confirma que no se ejecuta.
+> > - **Respuestas de la API sin caché**: `Cache-Control: no-store` en todas las rutas `/api` para que el navegador no almacene datos sensibles (usuario, correo, configuraciones).
+> > - **Protección contra prototype pollution**: el guardado de configuración ignora claves peligrosas (`__proto__`, `constructor`, `prototype`) al fusionar el JSON recibido.
+> > - **Fuerza bruta por cuenta**: el límite de intentos de inicio de sesión ahora se aplica por IP **y por usuario**, bloqueando el ataque aunque las IP roten.
+> > - **Más cabeceras de seguridad**: `Referrer-Policy: same-origin` y `Permissions-Policy` (sin cámara, micrófono, geolocalización, pagos ni USB).
+> > - **Servidor estático endurecido**: se deniegan los archivos ocultos (`dotfiles: deny`) y se explicita el index; el manejo de errores nunca revela trazas internas.
+> > - **Auditoría `npm audit` limpia** (0 vulnerabilidades) en `website/config` y `website/backend` re-verificada en esta versión.
+
 > **v3.0** — **Solicitudes administrativas y correcciones**:
 > > - **Botón "Editar" y "Desactivar" de usuarios arreglado**: antes no respondían al clic; ahora abren el modal precargado (edición con ID bloqueado y contraseña opcional) y la desactivación pide confirmación y evita que un administrador se dé de baja a sí mismo.
 > > - **Cambio de especialidad mediante solicitud administrativa**: los profesores ya no modifican su especialidad directamente; envían una solicitud que el administrador aprueba o rechaza desde el panel de notificaciones ("Revisar solicitud"), con alerta activada por defecto.

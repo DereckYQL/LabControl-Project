@@ -1,6 +1,6 @@
 /* service-worker.js — caché offline: red para la API, caché para estáticos. */
 
-const CACHE_NAME = "labcontrol-v3.0";
+const CACHE_NAME = "labcontrol-v3.1";
 const PRECACHE_URLS = [
   "./",
   "index.html",
@@ -12,13 +12,21 @@ const PRECACHE_URLS = [
   "usuarios.html",
   "reportes.html",
   "configuracion.html",
-  "style.css?v=3.0",
-  "theme.js?v=3.0",
-  "app.js?v=3.0",
-  "data.js?v=3.0",
-  "configuracion.js?v=3.0",
+  "style.css?v=3.1",
+  "theme.js?v=3.1",
+  "app.js?v=3.1",
+  "data.js?v=3.1",
+  "index.js?v=3.1",
+  "login.js?v=3.1",
+  "laboratorios.js?v=3.1",
+  "equipos.js?v=3.1",
+  "disponibilidad.js?v=3.1",
+  "mapa.js?v=3.1",
+  "reportes.js?v=3.1",
+  "usuarios.js?v=3.1",
+  "configuracion.js?v=3.1",
   "datos-demo.js",
-  "lucide.min.js?v=3.0",
+  "lucide.min.js?v=3.1",
   "img/logo-insuco.png",
   "img/bg-tech.svg",
   "img/bg-tech-light.svg"

@@ -11,8 +11,8 @@
 <meta property="og:url" content="https://dereckyql.github.io/LabControl-Project/index.html" />
 <title>Inicio · Insuco LabControl</title>
 <link rel="icon" type="image/png" href="img/logo-insuco.png" />
-<link rel="stylesheet" href="style.css?v=3.0" />
-<script src="theme.js?v=3.0"></script>
+<link rel="stylesheet" href="style.css?v=3.1" />
+<script src="theme.js?v=3.1"></script>
 </head>
 <body>
   <a class="skip-nav" href="#main-content">Saltar al contenido</a>
@@ -63,25 +63,9 @@
   </main>
 </div>
 
-<script src="data.js?v=3.0"></script>
-<script src="lucide.min.js?v=3.0"></script>
-<script src="app.js?v=3.0"></script>
-<script>
-  const sesion = renderSidebar("index.html");
-
-  if (sesion) {
-    const hora = new Date().getHours();
-    const saludo = hora < 13 ? "Buenos días" : hora < 20 ? "Buenas tardes" : "Buenas noches";
-    document.getElementById("saludo-titulo").textContent =
-      `${saludo}, ${sesion.nombre}`;
-  }
-
-  cargarLaboratorios().then((labs) => {
-    renderStatCards(labs, "stat-cards");
-    renderStatusList(labs, "status-list");
-    renderDonut(labs, "donut");
-    renderLabGrid(labs, "labs-home", { linkTo: "laboratorios.html" });
-  }).catch(() => showToast("No se pudieron cargar los laboratorios.", "error"));
-</script>
+<script src="data.js?v=3.1"></script>
+<script src="lucide.min.js?v=3.1"></script>
+<script src="app.js?v=3.1"></script>
+<script src="index.js?v=3.1"></script>
 </body>
 </html>
