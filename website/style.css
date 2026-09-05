@@ -648,7 +648,7 @@ h1 + p { margin: 4px 0 0; color: var(--color-text-muted); font-size: .9rem; }
   position: relative;
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 20px;
 }
 
 .cfg-ayuda-btn {
@@ -665,6 +665,7 @@ h1 + p { margin: 4px 0 0; color: var(--color-text-muted); font-size: .9rem; }
   width: 26px;
   height: 26px;
   stroke-width: 1.8;
+  color: #d1d5db;
 }
 
 .cfg-ayuda-menu {
