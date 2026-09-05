@@ -117,24 +117,32 @@ Solo el **Administrador** puede gestionar usuarios y acceder a la configuración
 
 ```
 labcontrol/
-├── login.html            Inicio de sesión
-├── index.html             Dashboard: resumen, estado en tiempo real, distribución de equipos
-├── laboratorios.html      Listado + detalle de laboratorio (tabs: general/hardware/servicios/agenda)
-├── disponibilidad.html    Estado actual + agenda de reservas (cambiar estado, agendar uso)
-├── mapa.html               Mapa 2D interactivo del establecimiento (SVG)
-├── equipos.html            Inventario de equipos, con control remoto para Programación/Admin
-├── reportes.html           Reportes de uso, disponibilidad, fallas e inventario
-├── usuarios.html           Profesores, área, especialidad y nivel de acceso
-├── configuracion.html      Configuración personal + configuración avanzada (solo Admin)
-├── style.css               Estilos compartidos
-├── app.js                   Sidebar dinámico por rol + funciones de render reutilizadas
-├── data.js                  Cliente de la API (fetch) — reemplaza al antiguo array hardcodeado
-└── backend/                 Servidor + base de datos
-    ├── server.js             API REST (Express) — también sirve el sitio estático
-    ├── db.js                  Conexión SQLite + creación de tablas + datos de ejemplo
-    ├── package.json
-    └── database/
-        └── labcontrol.db      (se crea solo la primera vez que se ejecuta el servidor)
+├── Abrir LabControl.bat              Acceso directo: inicia el servidor y abre la web
+├── Abrir LabControl en el celular.bat Inicia el servidor y muestra el QR para el celular
+└── website/
+    ├── public/                        Sitio servido (local y GitHub Pages)
+    │   ├── login.html                 Inicio de sesión
+    │   ├── index.html                 Dashboard: resumen, estado en tiempo real, distribución de equipos
+    │   ├── laboratorios.html          Listado + detalle de laboratorio (tabs: general/hardware/servicios/agenda)
+    │   ├── disponibilidad.html        Estado actual + agenda de reservas (cambiar estado, agendar uso)
+    │   ├── mapa.html                  Mapa 2D interactivo del establecimiento (SVG)
+    │   ├── equipos.html               Inventario de equipos, con control remoto para Programación/Admin
+    │   ├── reportes.html              Reportes de uso, disponibilidad, fallas e inventario
+    │   ├── usuarios.html              Profesores, área, especialidad y nivel de acceso
+    │   ├── configuracion.html         Configuración personal + configuración avanzada (solo Admin)
+    │   ├── style.css                  Estilos compartidos
+    │   ├── app.js                     Sidebar dinámico por rol + funciones de render reutilizadas
+    │   ├── data.js                    Cliente de la API (fetch) — reemplaza al antiguo array hardcodeado
+    │   ├── theme.js · configuracion.js · datos-demo.js · lucide.min.js · service-worker.js
+    │   └── img/                       Logo e imágenes del sitio
+    ├── config/                        Scripts auxiliares del proyecto
+    │   └── celular.js                 Muestra el código QR para abrir la web desde el celular
+    └── backend/                       Servidor + base de datos
+        ├── server.js                  API REST (Express) — también sirve el sitio de public/
+        ├── db.js                      Conexión SQLite + creación de tablas + datos de ejemplo
+        ├── package.json
+        └── database/
+            └── labcontrol.db          (se crea solo la primera vez que se ejecuta el servidor)
 ```
 
 ## Próximos pasos sugeridos
