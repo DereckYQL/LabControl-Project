@@ -10,16 +10,16 @@ const archivos = [
   "website/backend/server.js",
   "website/backend/db.js",
   "website/backend/scripts/syntax-check.mjs",
-  "website/theme.js",
-  "website/configuracion.js",
-  "website/data.js",
-  "website/app.js",
-  "website/datos-demo.js",
-  "website/service-worker.js",
-  "website/lucide.min.js",
-  "celular.js",
-  "eslint.config.mjs",
-  "playwright.config.mjs"
+  "website/public/theme.js",
+  "website/public/configuracion.js",
+  "website/public/data.js",
+  "website/public/app.js",
+  "website/public/datos-demo.js",
+  "website/public/service-worker.js",
+  "website/public/lucide.min.js",
+  "website/config/celular.js",
+  "website/config/eslint.config.mjs",
+  "website/config/playwright.config.mjs"
 ];
 
 let fallos = 0;

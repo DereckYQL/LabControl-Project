@@ -721,10 +721,11 @@ app.patch("/api/config", authenticateToken, requireAdmin, (req, res) => {
 });
 
 /* ==========================================================================
-   Frontend estático (la carpeta que contiene login.html, index.html, etc.)
+   Frontend estático (la carpeta public/ que contiene login.html, index.html,
+   etc. — raíz pública de la web)
    ========================================================================== */
 
-app.use(express.static(path.join(__dirname, "..")));
+app.use(express.static(path.join(__dirname, "..", "public")));
 
 /* ==========================================================================
    Manejo de errores (los errores con .status se responden como JSON)
