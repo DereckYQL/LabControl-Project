@@ -648,16 +648,16 @@ h1 + p { margin: 4px 0 0; color: var(--color-text-muted); font-size: .9rem; }
   position: relative;
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 14px;
 }
 
 .cfg-ayuda-btn {
   width: 26px;
   height: 26px;
   padding: 0;
-  border: 1px solid rgba(148, 197, 255, .25);
+  border: 1px solid rgba(255, 255, 255, .12);
   border-radius: 50%;
-  background: rgba(148, 197, 255, .08);
+  background: rgba(255, 255, 255, .06);
   flex-shrink: 0;
   pointer-events: auto;
 }

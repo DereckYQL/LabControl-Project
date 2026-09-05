@@ -22,7 +22,8 @@ Solo el **Administrador** puede gestionar usuarios y acceder a la configuración
 > > - **Iconos de botones corregidos en todos los botones**: se eliminó la regla genérica `.btn svg.lucide { width:15px }` que encogía cada símbolo dentro de un `.btn` (Encender/Apagar/Reiniciar en equipos, Imprimir/Editar/Eliminar en reportes, etc.); ahora cada icono usa su tamaño real (base 20px).
 > > - **Botones 100% clicables**: se corrigió que los iconos de lucide interceptaran el clic y se re-renderizaran en bucle; ahora toda la superficie de los botones de ayuda, notificaciones y cerrar sesión responde al clic.
 > > - **Título más pegado al logo**: el nombre de LabControl en el sidebar sube más hacia el logo.
-> > - *Hotfix*: la versión visible sigue siendo `v2.8`; el cache busting pasa por `?v=2.8.1` y `?v=2.8.2` (y la caché del service worker a `labcontrol-v2.8.1`/`labcontrol-v2.8.2`) para que los arreglos lleguen a PC y celular.
+> > - *Hotfix*: la versión visible sigue siendo `v2.8`; el cache busting pasa por `?v=2.8.1`, `?v=2.8.2` y `?v=2.8.3` (y la caché del service worker a `labcontrol-v2.8.1`/`...2`/`...3`) para que los arreglos lleguen a PC y celular.
+> > - **Espaciado y color del botón de ayuda**: en Configuración el botón de ayuda queda un poco más separado de "Guardar cambios" y usa el mismo color de fondo/borde que el recuadro del usuario de la barra lateral.
 
 > **v2.7** — **Ventana de notificaciones y ayuda en Configuración**:
 > > - **Ventana de notificaciones corregida**: el panel ya no sale recortado. En escritorio se abre hacia la derecha de la campana (antes se anclaba a la izquierda y quedaba cortado por el borde de la pantalla) y en celular se ajusta su ancho para que siempre quede completa, tirándola hacia la derecha.
