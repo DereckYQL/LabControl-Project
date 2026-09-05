@@ -355,25 +355,122 @@ function renderListaNotificaciones() {
     return;
   }
 
-  lista.innerHTML = __notifsCache.map((n) => `
-    <button class="notif-item ${n.leida ? "" : "notif-item--nueva"}" type="button" data-id="${n.id}" data-destino="${destinoNotificacion(n)}">
+  const esAdminSesion = AUTH.getSesion()?.rol === "admin";
+
+  lista.innerHTML = __notifsCache.map((n) => {
+    const abrirSolicitud = esAdminSesion && n.tipo === "solicitud_especialidad" && n.solicitudId;
+    return `
+    <button class="notif-item ${n.leida ? "" : "notif-item--nueva"}" type="button"
+      data-id="${n.id}" data-destino="${destinoNotificacion(n)}"
+      ${abrirSolicitud ? `data-sol="${esc(String(n.solicitudId))}"` : ""}>
       <span class="notif-item__punto"></span>
       <span class="notif-item__cuerpo">
         <span class="notif-item__titulo">${esc(n.titulo)}</span>
         <span class="notif-item__msj">${esc(n.mensaje ?? "")}</span>
+        ${abrirSolicitud ? `<span class="notif-item__accion"><i data-lucide="file-search"></i> Revisar solicitud</span>` : ""}
         <span class="notif-item__fecha"><i data-lucide="calendar-days"></i> ${formatFecha(n.fecha)}</span>
       </span>
     </button>
-  `).join("");
+  `;
+  }).join("");
 
   lista.querySelectorAll(".notif-item").forEach((item) => {
     item.addEventListener("click", async () => {
+      const solicitudId = item.dataset.sol;
+      if (solicitudId) {
+        try { await marcarNotificacionLeida(item.dataset.id); } catch {}
+        mostrarModalSolicitud(solicitudId);
+        return;
+      }
       const destino = item.dataset.destino;
       try { await marcarNotificacionLeida(item.dataset.id); } catch {}
       if (destino) window.location.href = destino;
       else await refrescarNotificaciones();
     });
   });
+}
+
+/* Modal de revisión de una solicitud de cambio de especialidad (admin) */
+
+async function mostrarModalSolicitud(id) {
+  let sol = null;
+  try {
+    sol = await cargarSolicitudEspecialidad(id);
+  } catch {}
+  if (!sol) {
+    showToast("No se pudo cargar la solicitud.", "error");
+    return;
+  }
+
+  const previo = document.getElementById("modal-solicitud");
+  if (previo) previo.remove();
+
+  const s = sol.solicitante ?? {};
+  const pendiente = sol.estado === "pendiente";
+  const estadoEtiqueta = sol.estado === "pendiente" ? "Pendiente" : sol.estado === "aceptada" ? "Aceptada" : "Rechazada";
+
+  const overlay = document.createElement("div");
+  overlay.className = "modal-overlay";
+  overlay.id = "modal-solicitud";
+  overlay.setAttribute("role", "dialog");
+  overlay.setAttribute("aria-modal", "true");
+  overlay.setAttribute("aria-labelledby", "sol-titulo");
+  overlay.innerHTML = `
+    <div class="modal" style="max-width:560px">
+      <div class="modal__header">
+        <span class="modal__title" id="sol-titulo">Revisar solicitud de especialidad</span>
+        <button class="modal__close" type="button" aria-label="Cerrar"><i data-lucide="x"></i></button>
+      </div>
+      <div class="modal__body">
+        <dl class="info-grid">
+          <div><dt>Solicitante</dt><dd>${esc(s.nombre ?? "")} ${esc(s.apellido ?? "")}</dd></div>
+          <div><dt>Usuario</dt><dd>${esc(s.id ?? "")}</dd></div>
+          <div><dt>Correo</dt><dd>${esc(s.email ?? "—")}</dd></div>
+          <div><dt>Área / Departamento</dt><dd>${esc(s.area ?? "—")}</dd></div>
+          <div><dt>Especialidad actual</dt><dd>${esc(sol.especialidadActual ?? "—")}</dd></div>
+          <div><dt>Especialidad solicitada</dt><dd>${esc(sol.especialidadSolicitada ?? "—")}</dd></div>
+          <div><dt>Solicitado el</dt><dd>${formatFecha(String(sol.creadaEn ?? "").slice(0, 10))}</dd></div>
+          <div><dt>Estado</dt><dd><span class="badge ${pendiente ? "badge--mantencion" : sol.estado === "aceptada" ? "badge--disponible" : "badge--ocupado"}">${estadoEtiqueta}</span></dd></div>
+        </dl>
+      </div>
+      <div class="modal__footer">
+        <button class="btn" id="sol-cerrar" type="button">Cerrar</button>
+        ${pendiente ? `
+          <button class="btn btn--danger" id="sol-rechazar" type="button">Rechazar</button>
+          <button class="btn btn--primary" id="sol-aceptar" type="button">Aprobar cambio</button>
+        ` : ""}
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+
+  const cerrar = () => {
+    const el = document.getElementById("modal-solicitud");
+    if (el) el.remove();
+  };
+  overlay.querySelector(".modal__close").addEventListener("click", cerrar);
+  overlay.querySelector("#sol-cerrar").addEventListener("click", cerrar);
+  overlay.addEventListener("click", (e) => { if (e.target === overlay) cerrar(); });
+
+  if (pendiente) {
+    const resolver = async (accion) => {
+      try {
+        await resolverSolicitudEspecialidad(sol.id, accion);
+        cerrar();
+        showToast(accion === "aceptar"
+          ? "Solicitud aprobada. El usuario ya tiene la nueva especialidad."
+          : "Solicitud rechazada. La especialidad del usuario no cambió.");
+        refrescarNotificaciones();
+      } catch (e) {
+        showToast(e.message || "No se pudo resolver la solicitud.", "error");
+      }
+    };
+    overlay.querySelector("#sol-aceptar").addEventListener("click", () => resolver("aceptar"));
+    overlay.querySelector("#sol-rechazar").addEventListener("click", () => resolver("rechazar"));
+  }
+
+  abrirModal("modal-solicitud");
+  actualizarIconosLucide();
 }
 
 /* Tarjetas de resumen */

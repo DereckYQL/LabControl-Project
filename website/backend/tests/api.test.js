@@ -125,15 +125,33 @@ test("reportes: crea con cuerpo mínimo", async () => {
   expect([200, 201]).toContain(res.status);
 });
 
-test("usuarios: un usuario edita su propio perfil y recibe token renovado", async () => {
+test("usuarios: un usuario edita su nombre/apellido y recibe token renovado", async () => {
   const token = await loginCamila();
   const res = await request(app)
     .patch("/api/usuarios/prof_camila")
     .set("Authorization", `Bearer ${token}`)
-    .send({ nombre: "Camila Editada", apellido: "Pérez", area: "Otra área" });
+    .send({ nombre: "Camila Editada", apellido: "Pérez" });
   expect(res.status).toBe(200);
   expect(res.body.token).toBeTruthy();
   expect(res.body.nombre).toBe("Camila Editada");
+});
+
+test("usuarios: un no-admin no puede cambiarse su área (403)", async () => {
+  const token = await loginCamila();
+  const res = await request(app)
+    .patch("/api/usuarios/prof_camila")
+    .set("Authorization", `Bearer ${token}`)
+    .send({ area: "Ciencias" });
+  expect(res.status).toBe(403);
+});
+
+test("usuarios: un no-admin no puede cambiarse su especialidad directamente (403)", async () => {
+  const token = await loginCamila();
+  const res = await request(app)
+    .patch("/api/usuarios/prof_camila")
+    .set("Authorization", `Bearer ${token}`)
+    .send({ especialidad: "Métodos numéricos" });
+  expect(res.status).toBe(403);
 });
 
 test("usuarios: un no-admin no puede promover su rol (403)", async () => {
@@ -204,4 +222,116 @@ test("agenda: rechaza fecha pasada y solapamientos", async () => {
     .set("Authorization", `Bearer ${token}`)
     .send({ labId: 2, fecha, horaInicio: "15:00", horaFin: "16:00", motivo: "Horario libre" });
   expect(compat.status).toBe(201);
+});
+
+test("solicitudes: un no-admin crea una solicitud de especialidad y el admin recibe la notificación", async () => {
+  const token = await loginCamila();
+  const crear = await request(app)
+    .post("/api/solicitudes-especialidad")
+    .set("Authorization", `Bearer ${token}`)
+    .send({ especialidad: "Cálculo Numérico" });
+  expect(crear.status).toBe(201);
+  expect(crear.body.estado).toBe("pendiente");
+  expect(crear.body.especialidadSolicitada).toBe("Cálculo Numérico");
+
+  // La solicitud queda a la vista del admin
+  const tokenAdmin = await login();
+  const lista = await request(app)
+    .get("/api/solicitudes-especialidad")
+    .set("Authorization", `Bearer ${tokenAdmin}`);
+  expect(lista.status).toBe(200);
+  expect(lista.body.some((s) => s.id === crear.body.id && s.estado === "pendiente")).toBe(true);
+
+  // El admin recibe una notificación ligada a la solicitud
+  const notifs = await request(app)
+    .get("/api/notificaciones")
+    .set("Authorization", `Bearer ${tokenAdmin}`);
+  expect(notifs.status).toBe(200);
+  const notif = notifs.body.find((n) => n.tipo === "solicitud_especialidad" && n.solicitudId === crear.body.id);
+  expect(notif).toBeTruthy();
+  expect(String(notif.usuarioId)).toBe("INSUCO");
+});
+
+test("solicitudes: no se puede tener más de una solicitud pendiente (409)", async () => {
+  const token = await loginCamila();
+  const res = await request(app)
+    .post("/api/solicitudes-especialidad")
+    .set("Authorization", `Bearer ${token}`)
+    .send({ especialidad: "Otra propuesta" });
+  expect(res.status).toBe(409);
+});
+
+test("solicitudes: el admin aprueba y se actualiza la especialidad del usuario", async () => {
+  const tokenAdmin = await login();
+  const camila = (await request(app).get("/api/usuarios/prof_camila").set("Authorization", `Bearer ${tokenAdmin}`)).body;
+  const sol = (await request(app).get("/api/solicitudes-especialidad").set("Authorization", `Bearer ${tokenAdmin}`)).body
+    .find((s) => s.usuarioId === "prof_camila" && s.estado === "pendiente");
+  expect(sol).toBeTruthy();
+
+  const aprobar = await request(app)
+    .post(`/api/solicitudes-especialidad/${sol.id}/aceptar`)
+    .set("Authorization", `Bearer ${tokenAdmin}`);
+  expect(aprobar.status).toBe(200);
+  expect(aprobar.body.estado).toBe("aceptada");
+
+  const actualizado = (await request(app).get("/api/usuarios/prof_camila").set("Authorization", `Bearer ${tokenAdmin}`)).body;
+  expect(actualizado.especialidad).toBe(sol.especialidadSolicitada);
+
+  // El solicitante recibe la notificación de resolución
+  const tokenCamila = await loginCamila();
+  const notifs = (await request(app).get("/api/notificaciones").set("Authorization", `Bearer ${tokenCamila}`)).body;
+  expect(notifs.some((n) => n.tipo === "solicitud_especialidad_resolucion")).toBe(true);
+
+  // Dato previo para el siguiente test
+  expect(camila.especialidad).not.toBe(sol.especialidadSolicitada);
+});
+
+test("solicitudes: no se puede solicitar la especialidad que ya se tiene (400)", async () => {
+  const token = await loginCamila();
+  const res = await request(app)
+    .post("/api/solicitudes-especialidad")
+    .set("Authorization", `Bearer ${token}`)
+    .send({ especialidad: "Cálculo Numérico" });
+  expect(res.status).toBe(400);
+});
+
+test("solicitudes: un no-admin no puede resolver solicitudes y el admin puede rechazar", async () => {
+  const tokenCamila = await loginCamila();
+  const crear = await request(app)
+    .post("/api/solicitudes-especialidad")
+    .set("Authorization", `Bearer ${tokenCamila}`)
+    .send({ especialidad: "Inteligencia Artificial aplicada" });
+  expect(crear.status).toBe(201);
+
+  // Un no-admin no puede aprobar/rechazar
+  const denegado = await request(app)
+    .post(`/api/solicitudes-especialidad/${crear.body.id}/rechazar`)
+    .set("Authorization", `Bearer ${tokenCamila}`);
+  expect(denegado.status).toBe(403);
+
+  // El admin sí puede rechazarla
+  const tokenAdmin = await login();
+  const rechazar = await request(app)
+    .post(`/api/solicitudes-especialidad/${crear.body.id}/rechazar`)
+    .set("Authorization", `Bearer ${tokenAdmin}`);
+  expect(rechazar.status).toBe(200);
+  expect(rechazar.body.estado).toBe("rechazada");
+
+  const camila = (await request(app).get("/api/usuarios/prof_camila").set("Authorization", `Bearer ${tokenAdmin}`)).body;
+  expect(camila.especialidad).not.toBe("Inteligencia Artificial aplicada");
+
+  // Resolver dos veces no se permite
+  const repetido = await request(app)
+    .post(`/api/solicitudes-especialidad/${crear.body.id}/rechazar`)
+    .set("Authorization", `Bearer ${tokenAdmin}`);
+  expect(repetido.status).toBe(409);
+});
+
+test("solicitudes: un admin no puede crear solicitudes (edita directamente)", async () => {
+  const tokenAdmin = await login();
+  const res = await request(app)
+    .post("/api/solicitudes-especialidad")
+    .set("Authorization", `Bearer ${tokenAdmin}`)
+    .send({ especialidad: "Dirección" });
+  expect(res.status).toBe(403);
 });

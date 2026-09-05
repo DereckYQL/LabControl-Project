@@ -77,7 +77,7 @@ const escrituraLimiter = rateLimit({
   legacyHeaders: false,
   message: { error: "Demasiadas solicitudes. Intenta de nuevo en 1 minuto." }
 });
-app.use(["/api/usuarios", "/api/agenda", "/api/reportes", "/api/config", "/api/notificaciones", "/api/laboratorios"], escrituraLimiter);
+app.use(["/api/usuarios", "/api/agenda", "/api/reportes", "/api/config", "/api/notificaciones", "/api/laboratorios", "/api/solicitudes-especialidad"], escrituraLimiter);
 
 // Rate limiting estricto en login
 const loginLimiter = rateLimit({
@@ -221,7 +221,21 @@ function repFromRow(row) {
 function notifFromRow(row) {
   return {
     id: row.id, usuarioId: row.usuario_id, tipo: row.tipo, titulo: row.titulo,
-    mensaje: row.mensaje, reporteId: row.reporte_id, fecha: row.fecha, leida: !!row.leida
+    mensaje: row.mensaje, reporteId: row.reporte_id, solicitudId: row.solicitud_id ?? null,
+    fecha: row.fecha, leida: !!row.leida
+  };
+}
+
+function solicitudFromRow(row) {
+  if (!row) return null;
+  return {
+    id: row.id, usuarioId: row.usuario_id,
+    especialidadActual: row.especialidad_actual,
+    especialidadSolicitada: row.especialidad_solicitada,
+    estado: row.estado,
+    creadaEn: row.creada_en,
+    resueltaPor: row.resuelta_por,
+    resueltaEn: row.resuelta_en
   };
 }
 
@@ -229,7 +243,7 @@ function nombreLab(labId) {
   return db.prepare("SELECT nombre FROM laboratorios WHERE id = ?").get(labId)?.nombre ?? "laboratorio";
 }
 
-function crearNotificacion({ toggle, tipo, titulo, mensaje, actorId = null, destinatario, referencia = null }) {
+function crearNotificacion({ toggle, tipo, titulo, mensaje, actorId = null, destinatario, referencia = null, solicitudId = null }) {
   try {
     const cfg = JSON.parse(db.prepare("SELECT data FROM config WHERE id = 1").get()?.data || "{}");
     if (cfg.notificaciones?.[toggle] === false) return;
@@ -243,14 +257,15 @@ function crearNotificacion({ toggle, tipo, titulo, mensaje, actorId = null, dest
 
     const fecha = new Date().toISOString().slice(0, 10);
     db.prepare(`
-      INSERT INTO notificaciones (usuario_id, tipo, titulo, mensaje, reporte_id, fecha, leida)
-      VALUES (?,?,?,?,?,?,0)
+      INSERT INTO notificaciones (usuario_id, tipo, titulo, mensaje, reporte_id, solicitud_id, fecha, leida)
+      VALUES (?,?,?,?,?,?,?,0)
     `).run(
       destinatario,
       tipo ?? toggle,
       String(titulo),
       String(mensaje ?? "").replace(/\{quien\}/g, quien),
       referencia,
+      solicitudId ?? null,
       fecha
     );
   } catch (e) {
@@ -535,8 +550,9 @@ app.post("/api/usuarios", authenticateToken, requireAdmin, [
   res.status(201).json(usrFromRow(row));
 });
 
-// Un usuario puede editar su propio perfil (nombre, apellido, email, área, especialidad);
-// el admin puede editar cualquier campo de cualquier usuario.
+// Un usuario puede editar su propio perfil (nombre, apellido y email);
+// el área y la especialidad las gestiona el admin (la especialidad de un
+// no-admin se cambia mediante una solicitud que el admin debe aprobar).
 app.patch("/api/usuarios/:id", authenticateToken, [
   body("nombre").optional().trim().notEmpty(),
   body("apellido").optional().trim().notEmpty(),
@@ -558,6 +574,12 @@ app.patch("/api/usuarios/:id", authenticateToken, [
   const camposAdmin = ["rol", "nivelAcceso", "activo", "password"];
   if (!esAdmin && camposAdmin.some((c) => req.body[c] !== undefined)) {
     return res.status(403).json({ error: "Solo el administrador puede modificar rol, nivel de acceso, usuario activo o contraseña" });
+  }
+  if (!esAdmin && req.body.area !== undefined) {
+    return res.status(403).json({ error: "El área/departamento no se puede modificar desde el perfil; solo el administrador puede cambiarla" });
+  }
+  if (!esAdmin && req.body.especialidad !== undefined) {
+    return res.status(403).json({ error: "La especialidad solo se puede cambiar mediante una solicitud que debe aprobar el administrador" });
   }
 
   const actual = db.prepare("SELECT * FROM usuarios WHERE id = ?").get(req.params.id);
@@ -806,6 +828,115 @@ app.delete("/api/notificaciones/:id", authenticateToken, (req, res) => {
   res.status(204).end();
 });
 
+/* Solicitudes de cambio de especialidad */
+// Los no-admins ya no cambian su área ni su especialidad directamente: la
+// especialidad se solicita y el administrador la aprueba o rechaza desde
+// la notificación que recibe.
+
+app.get("/api/solicitudes-especialidad", authenticateToken, (req, res) => {
+  const rows = req.user.rol === "admin"
+    ? db.prepare("SELECT * FROM solicitudes_especialidad ORDER BY id DESC").all()
+    : db.prepare("SELECT * FROM solicitudes_especialidad WHERE usuario_id = ? ORDER BY id DESC").all(req.user.id);
+  res.json(rows.map(solicitudFromRow));
+});
+
+app.get("/api/solicitudes-especialidad/:id", authenticateToken, (req, res) => {
+  const row = db.prepare("SELECT * FROM solicitudes_especialidad WHERE id = ?").get(req.params.id);
+  if (!row) return res.status(404).json({ error: "Solicitud no encontrada" });
+  if (req.user.rol !== "admin" && row.usuario_id !== req.user.id) {
+    return res.status(403).json({ error: "No tienes permiso para ver esta solicitud" });
+  }
+  const usr = db.prepare("SELECT id, nombre, apellido, email, area, especialidad, rol FROM usuarios WHERE id = ?").get(row.usuario_id);
+  res.json({ ...solicitudFromRow(row), solicitante: usr ?? null });
+});
+
+app.post("/api/solicitudes-especialidad", authenticateToken, [
+  body("especialidad").trim().notEmpty().withMessage("La especialidad solicitada es obligatoria"),
+  body("especialidad").isLength({ max: 200 }).withMessage("La especialidad no puede superar 200 caracteres")
+], (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ error: "Datos inválidos", details: errors.array() });
+  }
+  if (req.user.rol === "admin") {
+    return res.status(403).json({ error: "Los administradores editan su especialidad directamente desde el perfil" });
+  }
+
+  const pendiente = db.prepare(
+    "SELECT id FROM solicitudes_especialidad WHERE usuario_id = ? AND estado = 'pendiente'"
+  ).get(req.user.id);
+  if (pendiente) {
+    return res.status(409).json({ error: "Ya tienes una solicitud de especialidad pendiente de aprobación" });
+  }
+
+  const actual = db.prepare("SELECT nombre, apellido, especialidad FROM usuarios WHERE id = ?").get(req.user.id);
+  const solicitada = sanitizarTexto(req.body.especialidad, 200);
+  if (actual && solicitada === actual.especialidad) {
+    return res.status(400).json({ error: "La especialidad solicitada es la misma que ya tienes asignada" });
+  }
+
+  const info = db.prepare(`
+    INSERT INTO solicitudes_especialidad (usuario_id, especialidad_actual, especialidad_solicitada, estado, creada_en)
+    VALUES (?,?,?,?,?)
+  `).run(req.user.id, actual?.especialidad ?? null, solicitada, "pendiente", new Date().toISOString());
+  const solicitudId = Number(info.lastInsertRowid);
+
+  const admins = db.prepare("SELECT id FROM usuarios WHERE rol = 'admin' AND activo = 1").all();
+  for (const a of admins) {
+    crearNotificacion({
+      toggle: "alertaSolicitudes",
+      tipo: "solicitud_especialidad",
+      titulo: "Solicitud de cambio de especialidad",
+      mensaje: `{quien} solicita cambiar su especialidad de "${actual?.especialidad ?? "—"}" a "${solicitada}". Abre la notificación para revisarla en detalle y aprobarla o rechazarla.`,
+      actorId: req.user.id,
+      destinatario: a.id,
+      solicitudId
+    });
+  }
+
+  res.status(201).json(solicitudFromRow(db.prepare("SELECT * FROM solicitudes_especialidad WHERE id = ?").get(solicitudId)));
+});
+
+app.post("/api/solicitudes-especialidad/:id/aceptar", authenticateToken, requireAdmin, (req, res) => {
+  const solicitud = db.prepare("SELECT * FROM solicitudes_especialidad WHERE id = ?").get(req.params.id);
+  if (!solicitud) return res.status(404).json({ error: "Solicitud no encontrada" });
+  if (solicitud.estado !== "pendiente") {
+    return res.status(409).json({ error: "La solicitud ya fue resuelta" });
+  }
+  db.prepare(`
+    UPDATE solicitudes_especialidad SET estado = 'aceptada', resuelta_por = ?, resuelta_en = ? WHERE id = ?
+  `).run(req.user.id, new Date().toISOString(), solicitud.id);
+  db.prepare("UPDATE usuarios SET especialidad = ? WHERE id = ?")
+    .run(solicitud.especialidad_solicitada, solicitud.usuario_id);
+  crearNotificacion({
+    toggle: "alertaSolicitudes",
+    tipo: "solicitud_especialidad_resolucion",
+    titulo: "Especialidad actualizada",
+    mensaje: `El administrador aprobó tu solicitud de cambio de especialidad: ahora tu especialidad es "${solicitud.especialidad_solicitada}".`,
+    destinatario: solicitud.usuario_id
+  });
+  res.json(solicitudFromRow(db.prepare("SELECT * FROM solicitudes_especialidad WHERE id = ?").get(solicitud.id)));
+});
+
+app.post("/api/solicitudes-especialidad/:id/rechazar", authenticateToken, requireAdmin, (req, res) => {
+  const solicitud = db.prepare("SELECT * FROM solicitudes_especialidad WHERE id = ?").get(req.params.id);
+  if (!solicitud) return res.status(404).json({ error: "Solicitud no encontrada" });
+  if (solicitud.estado !== "pendiente") {
+    return res.status(409).json({ error: "La solicitud ya fue resuelta" });
+  }
+  db.prepare(`
+    UPDATE solicitudes_especialidad SET estado = 'rechazada', resuelta_por = ?, resuelta_en = ? WHERE id = ?
+  `).run(req.user.id, new Date().toISOString(), solicitud.id);
+  crearNotificacion({
+    toggle: "alertaSolicitudes",
+    tipo: "solicitud_especialidad_resolucion",
+    titulo: "Solicitud de especialidad rechazada",
+    mensaje: `El administrador rechazó tu solicitud para cambiar la especialidad a "${solicitud.especialidad_solicitada}". Tu especialidad no cambió.`,
+    destinatario: solicitud.usuario_id
+  });
+  res.json(solicitudFromRow(db.prepare("SELECT * FROM solicitudes_especialidad WHERE id = ?").get(solicitud.id)));
+});
+
 /* Configuración */
 
 app.get("/api/config", authenticateToken, (req, res) => {
@@ -848,7 +979,7 @@ app.use((err, req, res, next) => {
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   app.listen(PORT, () => {
-    console.log(`\n  LabControl Liceo v2.9`);
+    console.log(`\n  LabControl Liceo v3.0`);
     console.log(`  API + sitio corriendo en: http://localhost:${PORT}/login.html`);
     console.log(`  Seguridad: JWT + bcrypt + rate limiting + helmet\n`);
   });

@@ -19,7 +19,7 @@ export default defineConfig({
     reuseExistingServer: !process.env.CI,
     env: {
       PORT: "3100",
-      LC_DB_DIR: path.join(os.tmpdir(), "lc-e2e-db")
+      LC_DB_DIR: path.join(os.tmpdir(), `lc-e2e-db-${Date.now()}`)
     }
   }
 });

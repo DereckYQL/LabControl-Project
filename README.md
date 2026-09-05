@@ -16,6 +16,13 @@ Solo el **Administrador** puede gestionar usuarios y acceder a la configuración
 
 ## Cambios
 
+> **v3.0** — **Solicitudes administrativas y correcciones**:
+> > - **Botón "Editar" y "Desactivar" de usuarios arreglado**: antes no respondían al clic; ahora abren el modal precargado (edición con ID bloqueado y contraseña opcional) y la desactivación pide confirmación y evita que un administrador se dé de baja a sí mismo.
+> > - **Cambio de especialidad mediante solicitud administrativa**: los profesores ya no modifican su especialidad directamente; envían una solicitud que el administrador aprueba o rechaza desde el panel de notificaciones ("Revisar solicitud"), con alerta activada por defecto.
+> > - **Área solo administrable por el Administrador**: el campo "Área / Departamento" dejó de ser editable por el propio profesor; la API rechaza el intento (403) y la interfaz lo muestra deshabilitado con sugerencias.
+> > - **Revisión de seguridad**: auditoría `npm audit` limpia (0 vulnerabilidades) en el frontend y el backend, validación de todos los datos renders con escapes HTML, prepared statements en SQLite y el endurecimiento previo (helmet/CSP, rate limiting, bcrypt, JWT con clave aleatoria) verificado e intacto. El perfil de los profesores no expone hash de contraseña en ninguna respuesta.
+> > - **Pruebas ampliadas**: se agregaron tests del flujo completo de solicitudes (crear → notificar → aprobar/rechazar → aplicar) y de la edición de un usuario existente; e2e con base de datos temporal por corrida.
+
 > **v2.9** — **Corrección de errores y endurecimiento de seguridad**:
 > > - **XSS almacenado eliminado**: todos los datos de usuario se escapan al renderizar (notificaciones, reportes, laboratorios, equipos, usuarios y agenda). Los títulos de reportes, motivos de reserva y nombres ya no pueden inyectar HTML ni JavaScript.
 > > - **Adjuntos validados de verdad**: allowlist de tipos MIME (PNG/JPEG/GIF/WebP/PDF/DOC/DOCX/TXT/CSV/ZIP/RAR), máximo 6 MB por archivo y 10 archivos, con contenido verificado como data-URL base64 válido.

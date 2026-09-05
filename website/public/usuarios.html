@@ -11,8 +11,8 @@
 <meta property="og:url" content="https://dereckyql.github.io/LabControl-Project/usuarios.html" />
 <title>Usuarios · Insuco LabControl</title>
 <link rel="icon" type="image/png" href="img/logo-insuco.png" />
-<link rel="stylesheet" href="style.css?v=2.9" />
-<script src="theme.js?v=2.9"></script>
+<link rel="stylesheet" href="style.css?v=3.0" />
+<script src="theme.js?v=3.0"></script>
 </head>
 <body>
   <a class="skip-nav" href="#main-content">Saltar al contenido</a>
@@ -172,9 +172,9 @@
   </div>
 </div>
 
-<script src="data.js?v=2.9"></script>
-<script src="lucide.min.js?v=2.9"></script>
-<script src="app.js?v=2.9"></script>
+<script src="data.js?v=3.0"></script>
+<script src="lucide.min.js?v=3.0"></script>
+<script src="app.js?v=3.0"></script>
 <script>
   renderSidebar("usuarios.html");
   initTabs();
@@ -197,12 +197,21 @@
   }
 
   let usuariosCache = [];
+  let detalleActualId = null;
 
   cargarUsuarios().then((usuarios) => {
     usuariosCache = usuarios;
     renderStats(usuarios);
     renderGrid(usuarios);
   }).catch(() => showToast("No se pudieron cargar los usuarios.", "error"));
+
+  function volverAlListado() {
+    document.getElementById("vista-usr-detalle").style.display = "none";
+    document.getElementById("usr-grid").style.display          = "grid";
+    document.getElementById("usr-stats").style.display         = "grid";
+    document.querySelector(".page-header").style.display       = "flex";
+    detalleActualId = null;
+  }
 
   ["filtro-rol","filtro-busq-usr"].forEach((id) =>
     document.getElementById(id).addEventListener("input", filtrar)
@@ -282,6 +291,7 @@
   function abrirDetalle(id) {
     const u = usuariosCache.find((x) => x.id === id);
     if (!u) return;
+    detalleActualId = id;
 
     document.getElementById("usr-grid").style.display        = "none";
     document.getElementById("usr-stats").style.display       = "none";
@@ -395,18 +405,79 @@
     return base;
   }
 
-  document.getElementById("btn-volver-usr").addEventListener("click", () => {
-    document.getElementById("vista-usr-detalle").style.display = "none";
-    document.getElementById("usr-grid").style.display          = "grid";
-    document.getElementById("usr-stats").style.display         = "grid";
-    document.querySelector(".page-header").style.display       = "flex";
-  });
+  document.getElementById("btn-volver-usr").addEventListener("click", volverAlListado);
 
-  // Modal nuevo usuario
+  // Modal nuevo / editar usuario
+  let usuarioEditandoId = null;
+
+  function resetearModalUsuario(opciones = {}) {
+    const editar = !!opciones.editar;
+    ["usr-nombre", "usr-apellido", "usr-email", "usr-id", "usr-pass", "usr-area", "usr-especialidad"].forEach((id) => {
+      const el = document.getElementById(id);
+      if (el) el.value = "";
+    });
+    const inputId  = document.getElementById("usr-id");
+    const inputPass = document.getElementById("usr-pass");
+    inputId.disabled = editar;
+    inputId.readOnly  = editar;
+    inputPass.required = !editar;
+    inputPass.placeholder = editar ? "Dejar en blanco para no cambiar" : "Mínimo 6 caracteres";
+    document.getElementById("usr-rol").value = editar ? "" : "programacion";
+    document.getElementById("usr-nivel").value = editar ? "" : "basico";
+    usuarioEditandoId = null;
+  }
+
   document.getElementById("btn-nuevo-usuario").addEventListener("click", () => {
+    resetearModalUsuario();
     document.getElementById("modal-usr-titulo").textContent = "Nuevo usuario";
     abrirModal("modal-usuario");
   });
+
+  function abrirEdicionUsuario(u) {
+    resetearModalUsuario({ editar: true });
+    usuarioEditandoId = u.id;
+    document.getElementById("modal-usr-titulo").textContent = "Editar usuario";
+    document.getElementById("usr-nombre").value = u.nombre || "";
+    document.getElementById("usr-apellido").value = u.apellido || "";
+    document.getElementById("usr-email").value = u.email || "";
+    document.getElementById("usr-id").value = u.id;
+    document.getElementById("usr-pass").value = "";
+    document.getElementById("usr-area").value = u.area || "";
+    document.getElementById("usr-especialidad").value = u.especialidad || "";
+    document.getElementById("usr-rol").value = u.rol;
+    document.getElementById("usr-nivel").value = u.nivelAcceso;
+    abrirModal("modal-usuario");
+  }
+
+  document.getElementById("btn-editar-usr").addEventListener("click", () => {
+    const u = usuariosCache.find((x) => x.id === detalleActualId);
+    if (!u) { showToast("No se encontró el usuario.", "error"); return; }
+    abrirEdicionUsuario(u);
+  });
+
+  document.getElementById("btn-desactivar-usr").addEventListener("click", () => {
+    const u = usuariosCache.find((x) => x.id === detalleActualId);
+    if (!u) return;
+    if (u.id === AUTH.getSesion()?.id) {
+      showToast("No puedes desactivar tu propio usuario.", "error");
+      return;
+    }
+    const texto = u.activo
+      ? { futuro: "Desactivar", pasado: "desactivado" }
+      : { futuro: "Reactivar", pasado: "reactivado" };
+    if (!window.confirm(`${texto.futuro} al usuario ${u.nombre} ${u.apellido}? Ya no podrá iniciar sesión.`)) return;
+    actualizarUsuario(u.id, { activo: !u.activo })
+      .then(() => cargarUsuarios())
+      .then((usuarios) => {
+        usuariosCache = usuarios;
+        renderStats(usuarios);
+        renderGrid(usuarios);
+        volverAlListado();
+        showToast(`Usuario ${u.nombre} ${u.apellido} ${texto.pasado} correctamente.`);
+      })
+      .catch((err) => showToast(err.message || "No se pudo actualizar el usuario.", "error"));
+  });
+
   document.getElementById("btn-cerrar-usr-modal").addEventListener("click", () =>
     cerrarModal(document.getElementById("modal-usuario"))
   );
@@ -423,6 +494,34 @@
     const espec  = document.getElementById("usr-especialidad").value.trim();
     const rol    = document.getElementById("usr-rol").value;
     const nivel  = document.getElementById("usr-nivel").value;
+
+    if (usuarioEditandoId) {
+      const cambios = {};
+      if (nombre) cambios.nombre = nombre;
+      if (apellido) cambios.apellido = apellido;
+      if (email) cambios.email = email;
+      if (pass) {
+        if (pass.length < 6) { showToast("La contraseña debe tener al menos 6 caracteres.", "error"); return; }
+        cambios.password = pass;
+      }
+      cambios.area = area;
+      cambios.especialidad = espec;
+      cambios.rol = rol;
+      cambios.nivelAcceso = nivel;
+
+      actualizarUsuario(usuarioEditandoId, cambios)
+        .then(() => cargarUsuarios())
+        .then((usuarios) => {
+          usuariosCache = usuarios;
+          renderStats(usuarios);
+          renderGrid(usuarios);
+          cerrarModal(document.getElementById("modal-usuario"));
+          abrirDetalle(usuarioEditandoId);
+          showToast("Usuario actualizado correctamente.");
+        })
+        .catch((err) => showToast(err.message || "No se pudo actualizar el usuario.", "error"));
+      return;
+    }
 
     if (!nombre || !apellido || !email || !id || !pass) {
       showToast("Completa todos los campos obligatorios.", "error");

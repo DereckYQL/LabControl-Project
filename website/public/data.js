@@ -32,7 +32,7 @@ function activarModoDemo() {
 
 const copia = (x) => (x === undefined ? undefined : JSON.parse(JSON.stringify(x)));
 
-function notificarDemo({ toggle, tipo, titulo, mensaje, actorId, destinatario, referencia = null }) {
+function notificarDemo({ toggle, tipo, titulo, mensaje, actorId, destinatario, referencia = null, solicitudId = null }) {
   const D = window.DEMO;
   if (!D || !titulo || !destinatario) return;
   if (D.config?.notificaciones?.[toggle] === false) return;
@@ -47,6 +47,7 @@ function notificarDemo({ toggle, tipo, titulo, mensaje, actorId, destinatario, r
     titulo,
     mensaje: String(mensaje ?? "").replace(/\{quien\}/g, quien),
     reporteId: referencia,
+    solicitudId,
     fecha: new Date().toISOString().slice(0, 10),
     leida: false
   });
@@ -55,6 +56,13 @@ function notificarDemo({ toggle, tipo, titulo, mensaje, actorId, destinatario, r
 function notificarDemoATodos(opciones) {
   for (const u of window.DEMO.usuarios) {
     if (u.activo === false || u.id === opciones.actorId) continue;
+    notificarDemo({ ...opciones, destinatario: u.id });
+  }
+}
+
+function notificarDemoAAdmins(opciones) {
+  for (const u of window.DEMO.usuarios) {
+    if (u.activo === false || u.rol !== "admin") continue;
     notificarDemo({ ...opciones, destinatario: u.id });
   }
 }
@@ -256,6 +264,99 @@ function demoRequest(metodo, ruta, cuerpo) {
       return copia(notif);
     }
 
+    case "GET solicitudes-especialidad": {
+      const s = AUTH.getSesion();
+      if (!s) return [];
+      const lista = s.rol === "admin"
+        ? D.solicitudes
+        : D.solicitudes.filter((x) => x.usuarioId === s.id);
+      return copia([...lista].reverse());
+    }
+
+    case "GET solicitudes-especialidad_x": {
+      const sol = D.solicitudes.find((x) => String(x.id) === String(id));
+      if (!sol) throw new Error("Solicitud no encontrada");
+      const s = AUTH.getSesion();
+      if (s?.rol !== "admin" && sol.usuarioId !== s?.id) {
+        throw new Error("No tienes permiso para ver esta solicitud");
+      }
+      const usr = D.usuarios.find((u) => u.id === sol.usuarioId);
+      if (!usr) throw new Error("Solicitante no encontrado");
+      const { password, ...solicitante } = usr;
+      return copia({
+        id: sol.id, usuarioId: sol.usuarioId,
+        especialidadActual: sol.especialidadActual,
+        especialidadSolicitada: sol.especialidadSolicitada,
+        estado: sol.estado, creadaEn: sol.creadaEn, solicitante
+      });
+    }
+
+    case "POST solicitudes-especialidad": {
+      const s = AUTH.getSesion();
+      if (!s) throw new Error("Debes iniciar sesión");
+      if (s.rol === "admin") {
+        throw new Error("Los administradores editan su especialidad directamente desde el perfil");
+      }
+      const actual = D.usuarios.find((u) => u.id === s.id);
+      if (!actual) throw new Error("Usuario no encontrado");
+      const solicitada = String(cuerpo?.especialidad ?? "").trim();
+      if (!solicitada) throw new Error("La especialidad solicitada es obligatoria");
+      if (solicitada === actual.especialidad) {
+        throw new Error("La especialidad solicitada es la misma que ya tienes asignada");
+      }
+      const pendiente = D.solicitudes.find((x) => x.usuarioId === s.id && x.estado === "pendiente");
+      if (pendiente) throw new Error("Ya tienes una solicitud de especialidad pendiente de aprobación");
+      const sol = {
+        id: ++D.contadores.solicitudes,
+        usuarioId: s.id,
+        especialidadActual: actual.especialidad,
+        especialidadSolicitada: solicitada,
+        estado: "pendiente",
+        creadaEn: new Date().toISOString()
+      };
+      D.solicitudes.push(sol);
+      notificarDemoAAdmins({
+        toggle: "alertaSolicitudes",
+        tipo: "solicitud_especialidad",
+        titulo: "Solicitud de cambio de especialidad",
+        mensaje: `{quien} solicita cambiar su especialidad de "${actual.especialidad ?? "—"}" a "${solicitada}". Abre la notificación para revisarla en detalle y aprobarla o rechazarla.`,
+        actorId: s.id,
+        solicitudId: sol.id
+      });
+      return copia(sol);
+    }
+
+    case "POST solicitudes-especialidad_x": {
+      const sol = D.solicitudes.find((x) => String(x.id) === String(id));
+      if (!sol) throw new Error("Solicitud no encontrada");
+      const s = AUTH.getSesion();
+      if (s?.rol !== "admin") throw new Error("Solo el administrador puede resolver solicitudes");
+      if (sol.estado !== "pendiente") throw new Error("La solicitud ya fue resuelta");
+      const accion = seg[2];
+      if (accion !== "aceptar" && accion !== "rechazar") throw new Error("Acción inválida");
+      sol.estado = accion === "aceptar" ? "aceptada" : "rechazada";
+      if (accion === "aceptar") {
+        const usr = D.usuarios.find((u) => u.id === sol.usuarioId);
+        if (usr) usr.especialidad = sol.especialidadSolicitada;
+        notificarDemo({
+          toggle: "alertaSolicitudes",
+          tipo: "solicitud_especialidad_resolucion",
+          titulo: "Especialidad actualizada",
+          mensaje: `El administrador aprobó tu solicitud de cambio de especialidad: ahora tu especialidad es "${sol.especialidadSolicitada}".`,
+          destinatario: sol.usuarioId
+        });
+      } else {
+        notificarDemo({
+          toggle: "alertaSolicitudes",
+          tipo: "solicitud_especialidad_resolucion",
+          titulo: "Solicitud de especialidad rechazada",
+          mensaje: `El administrador rechazó tu solicitud para cambiar la especialidad a "${sol.especialidadSolicitada}". Tu especialidad no cambió.`,
+          destinatario: sol.usuarioId
+        });
+      }
+      return copia(sol);
+    }
+
     case "GET config":
       return copia(D.config);
 
@@ -450,6 +551,24 @@ function marcarNotificacionLeida(id) {
 
 function marcarTodasNotificaciones() {
   return apiSend("POST", "/notificaciones/leer-todas", {});
+}
+
+/* Solicitudes de cambio de especialidad */
+
+function cargarSolicitudesEspecialidad() {
+  return apiGet("/solicitudes-especialidad");
+}
+
+function cargarSolicitudEspecialidad(id) {
+  return apiGet(`/solicitudes-especialidad/${id}`);
+}
+
+function solicitarCambioEspecialidad(especialidad) {
+  return apiSend("POST", "/solicitudes-especialidad", { especialidad });
+}
+
+function resolverSolicitudEspecialidad(id, accion) {
+  return apiSend("POST", `/solicitudes-especialidad/${id}/${accion}`, {});
 }
 
 /* Configuración */

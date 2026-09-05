@@ -9,6 +9,7 @@ let usuario = null;
 let usuariosTotal = [];
 let totalLaboratorios = 0;
 let totalEquipos = 0;
+let misSolicitudes = [];
 
 let secciones = [];
 
@@ -21,10 +22,16 @@ async function cargarConteos() {
   totalEquipos = eqs.length;
 }
 
-Promise.all([cargarConfig(), cargarUsuarios(), cargarConteos()]).then(([cfg, usuarios]) => {
+Promise.all([
+  cargarConfig(),
+  cargarUsuarios(),
+  cargarConteos(),
+  cargarSolicitudesEspecialidad().catch(() => [])
+]).then(([cfg, usuarios, , solicitudes]) => {
   config = cfg;
   usuariosTotal = usuarios;
   usuario = usuarios.find((u) => u.id === sesion?.id) || null;
+  misSolicitudes = solicitudes || [];
   iniciarPantalla();
 });
 
@@ -81,7 +88,25 @@ function iniciarPantalla() {
   actualizarEstadoNotifUI();
   const selTexto = document.getElementById("p-texto");
   if (selTexto) selTexto.value = tamanoTextoGuardado();
+  refrescarHintsPerfil();
   actualizarIconosLucide();
+}
+
+function refrescarHintsPerfil() {
+  if (esAdmin) return;
+  const areaHint = document.getElementById("p-area-hint");
+  if (areaHint) areaHint.textContent = "El área/departamento solo la puede cambiar el administrador.";
+  const especHint = document.getElementById("p-especialidad-hint");
+  const campoEspec = document.getElementById("p-especialidad");
+  if (!especHint || !campoEspec) return;
+  const pendiente = (misSolicitudes || []).find((s) => s.estado === "pendiente");
+  if (pendiente) {
+    especHint.textContent = `Tienes una solicitud pendiente: "${pendiente.especialidadSolicitada}". Espera la respuesta del administrador.`;
+    campoEspec.disabled = true;
+  } else {
+    especHint.textContent = "Los cambios de especialidad requieren aprobación del administrador.";
+    campoEspec.disabled = false;
+  }
 }
 
 function cambiarSeccion(id) {
@@ -91,6 +116,7 @@ function cambiarSeccion(id) {
   document.querySelectorAll(".cfg-panel").forEach((p) =>
     p.classList.toggle("is-active", p.id === `panel-${id}`)
   );
+  if (id === "perfil") refrescarHintsPerfil();
 }
 
 function buildPanel(id) {
@@ -121,13 +147,28 @@ function buildPanel(id) {
           <label class="form-label">Correo institucional</label>
           <input class="form-input" id="p-email" type="email" value="${usuario?.email ?? ""}" />
         </div>
-        <div class="form-group">
-          <label class="form-label">Área / Departamento</label>
-          <input class="form-input" id="p-area" value="${usuario?.area ?? ""}" />
-        </div>
-        <div class="form-group">
-          <label class="form-label">Especialidad</label>
-          <input class="form-input" id="p-especialidad" value="${usuario?.especialidad ?? ""}" />
+        <div class="form-row area-especialidad">
+          ${esAdmin ? `
+            <div class="form-group">
+              <label class="form-label">Área / Departamento</label>
+              <input class="form-input" id="p-area" value="${usuario?.area ?? ""}" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Especialidad</label>
+              <input class="form-input" id="p-especialidad" value="${usuario?.especialidad ?? ""}" />
+            </div>
+          ` : `
+            <div class="form-group">
+              <label class="form-label">Área / Departamento</label>
+              <input class="form-input" id="p-area" value="${usuario?.area ?? ""}" disabled />
+              <span class="form-hint" id="p-area-hint"></span>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Especialidad</label>
+              <input class="form-input" id="p-especialidad" value="${usuario?.especialidad ?? ""}" />
+              <span class="form-hint" id="p-especialidad-hint"></span>
+            </div>
+          `}
         </div>
       </div>
     `;
@@ -172,6 +213,7 @@ function buildPanel(id) {
           { id:"n-cambios",    label:"Cambios de estado de laboratorio",       checked: config.notificaciones?.alertaDisponibilidad ?? true },
           { id:"n-fallas",     label:"Alertas de fallas de equipos",           checked: config.notificaciones?.alertaFallas ?? true },
           { id:"n-reportes",   label:"Nuevos reportes y cambios en reportes",  checked: config.notificaciones?.alertaReportes ?? true },
+          { id:"n-solicitudes", label:"Solicitudes de cambio de especialidad",  checked: config.notificaciones?.alertaSolicitudes ?? true },
           { id:"n-recordator", label:"Recordatorio 30 min antes de reserva",   checked: config.notificaciones?.recordatorioReserva ?? false },
         ].map((n) => `
           <div class="toggle-row">
@@ -364,7 +406,7 @@ function buildPanel(id) {
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:20px">
           <div class="cfg-sys-card">
             <div class="cfg-sys-card__label">Versión del sistema</div>
-            <div class="cfg-sys-card__value">LabControl v2.9</div>
+            <div class="cfg-sys-card__value">LabControl v3.0</div>
           </div>
           <div class="cfg-sys-card">
             <div class="cfg-sys-card__label">Total laboratorios</div>
@@ -486,7 +528,7 @@ document.getElementById("btn-guardar-cfg").addEventListener("click", () => {
   const errs = [];
   const cambiosCfg = {};
 
-  // Perfil (nombre, apellido, correo, área y especialidad)
+  // Perfil (nombre, apellido, correo y, solo para admin, área y especialidad)
   const nombre   = document.getElementById("p-nombre")?.value.trim();
   const apellido = document.getElementById("p-apellido")?.value.trim();
   const correo   = document.getElementById("p-email")?.value.trim();
@@ -499,8 +541,8 @@ document.getElementById("btn-guardar-cfg").addEventListener("click", () => {
     if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(correo)) cambioUsr.email = correo;
     else errs.push("El correo del perfil no es válido.");
   }
-  if (usuario && area !== undefined)   cambioUsr.area = area;
-  if (usuario && espec !== undefined)  cambioUsr.especialidad = espec;
+  if (usuario && esAdmin && area !== undefined) cambioUsr.area = area;
+  if (usuario && esAdmin && espec !== undefined) cambioUsr.especialidad = espec;
   if (usuario && Object.keys(cambioUsr).length) {
     tareas.push(actualizarUsuario(usuario.id, cambioUsr).then((res) => {
       if (res && res.token) {
@@ -513,6 +555,17 @@ document.getElementById("btn-guardar-cfg").addEventListener("click", () => {
         }
       }
       return res;
+    }));
+  }
+
+  // Los no-admins cambian la especialidad mediante una solicitud que el
+  // administrador aprueba o rechaza; el área no la pueden modificar.
+  if (usuario && !esAdmin && espec !== undefined && espec && espec !== usuario.especialidad) {
+    tareas.push(solicitarCambioEspecialidad(espec).then((sol) => {
+      misSolicitudes = (misSolicitudes || []).filter((s) => s.usuarioId === usuario.id);
+      misSolicitudes.unshift(sol);
+      refrescarHintsPerfil();
+      return sol;
     }));
   }
 
@@ -583,11 +636,12 @@ document.getElementById("btn-guardar-cfg").addEventListener("click", () => {
   // Notificaciones
   const notif = {};
   const togglesNotif = {
-    "n-reservas":   "alertaReservas",
-    "n-cambios":    "alertaDisponibilidad",
-    "n-fallas":     "alertaFallas",
-    "n-reportes":   "alertaReportes",
-    "n-recordator": "recordatorioReserva"
+    "n-reservas":    "alertaReservas",
+    "n-cambios":     "alertaDisponibilidad",
+    "n-fallas":      "alertaFallas",
+    "n-reportes":    "alertaReportes",
+    "n-solicitudes": "alertaSolicitudes",
+    "n-recordator":  "recordatorioReserva"
   };
   for (const [idToggle, clave] of Object.entries(togglesNotif)) {
     const v = toggles(idToggle);
@@ -754,7 +808,7 @@ function contenidoAcerca() {
       <div style="font-size:.85rem;color:var(--color-text-muted)">Sistema de control y supervisión de los laboratorios de computación del liceo.</div>
       <div class="cfg-sys-card" style="margin:18px auto 0;max-width:260px">
         <div class="cfg-sys-card__label">Versión del sistema</div>
-        <div class="cfg-sys-card__value">LabControl v2.9</div>
+        <div class="cfg-sys-card__value">LabControl v3.0</div>
       </div>
       <div class="cfg-sys-card" style="margin:10px auto 0;max-width:260px">
         <div class="cfg-sys-card__label">Institución</div>

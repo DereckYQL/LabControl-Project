@@ -26,13 +26,24 @@ test("BD nueva: crea esquema, aplica migraciones y hace seed", async () => {
     .prepare("SELECT version FROM schema_migrations ORDER BY version")
     .all()
     .map((r) => r.version);
-  expect(versiones).toEqual([2, 3, 4]);
+  expect(versiones).toEqual([2, 3, 4, 5]);
 
   const columnas = db
     .prepare("PRAGMA table_info(reportes)")
     .all()
     .map((c) => c.name);
   expect(columnas).toContain("adjuntos");
+
+  const notifCols = db
+    .prepare("PRAGMA table_info(notificaciones)")
+    .all()
+    .map((c) => c.name);
+  expect(notifCols).toContain("solicitud_id");
+
+  const tablaSolicitudes = db
+    .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'solicitudes_especialidad'")
+    .get();
+  expect(tablaSolicitudes).toBeTruthy();
 
   const admin = db.prepare("SELECT password, rol FROM usuarios WHERE id = 'INSUCO'").get();
   expect(admin.rol).toBe("admin");
@@ -58,7 +69,7 @@ test("es idempotente: reabrir la misma BD no re-aplica migraciones", async () =>
     .prepare("SELECT version FROM schema_migrations ORDER BY version")
     .all()
     .map((r) => r.version);
-  expect(versiones).toEqual([2, 3, 4]);
+  expect(versiones).toEqual([2, 3, 4, 5]);
 
   const admin = db.prepare("SELECT password FROM usuarios WHERE id = 'INSUCO'").get();
   expect(String(admin.password)).toMatch(/^\$2[ab]\$/);
