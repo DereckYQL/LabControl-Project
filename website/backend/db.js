@@ -6,19 +6,29 @@
  * hace falta instalar ningún paquete de base de datos ni tener un
  * compilador instalado. Solo se necesita `npm install` para Express.
  *
+ * ES Modules (P4): este archivo usa `import`/`export` en lugar de require().
+ *
+ * Migraciones versionadas (P4): los cambios de esquema ya no se aplican con
+ * `try/catch` sueltos; cada cambio vive en la lista MIGRACIONES y se registra
+ * en la tabla `schema_migrations`. Así la base queda siempre versionada.
+ *
  * La primera vez que se ejecuta el servidor (cuando database/labcontrol.db
  * todavía no existe) se crean las tablas y se cargan los mismos datos de
  * ejemplo que antes vivían "hardcodeados" en el data.js del frontend.
- *
- * v2.2: Las contraseñas se almacenan hasheadas con bcrypt.
  */
 
-const path = require("path");
-const fs = require("fs");
-const { DatabaseSync } = require("node:sqlite");
-const bcrypt = require("bcryptjs");
+import path from "node:path";
+import fs from "node:fs";
+import { fileURLToPath } from "node:url";
+import { DatabaseSync } from "node:sqlite";
+import bcrypt from "bcryptjs";
 
-const DB_DIR = path.join(__dirname, "database");
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+// LC_DB_DIR permite apuntar la base a otra carpeta (lo usan los tests).
+const DB_DIR = process.env.LC_DB_DIR
+  ? path.resolve(process.env.LC_DB_DIR)
+  : path.join(__dirname, "database");
 const DB_PATH = path.join(DB_DIR, "labcontrol.db");
 const esNueva = !fs.existsSync(DB_PATH);
 
@@ -129,19 +139,67 @@ CREATE TABLE IF NOT EXISTS config (
 );
 `);
 
-// Migración amistosa para bases de datos creadas con versiones anteriores
-try { db.exec("ALTER TABLE reportes ADD COLUMN adjuntos TEXT DEFAULT '[]'"); } catch (e) {}
+/* ==========================================================================
+   MIGRACIONES VERSIONADAS
+   Cada entrada es un cambio numerado y autónomo. Se aplican en orden y solo
+   una vez (quedan registradas en la tabla `schema_migrations`). Las que ya
+   existían se guardan como "ya aplicadas"; las futuras se agregan aquí.
+   ========================================================================== */
 
-// v2.2: Hashear contraseñas en texto plano de versiones anteriores
-try {
-  const usuarios = db.prepare("SELECT id, password FROM usuarios").all();
-  for (const u of usuarios) {
-    if (u.password && !u.password.startsWith("$2a$") && !u.password.startsWith("$2b$")) {
-      const hashed = bcrypt.hashSync(u.password, 10);
-      db.prepare("UPDATE usuarios SET password = ? WHERE id = ?").run(hashed, u.id);
+const MIGRACIONES = [
+  {
+    version: 2,
+    nombre: "columna adjuntos en reportes",
+    migrar(d) {
+      const columnas = d.prepare("PRAGMA table_info(reportes)").all();
+      if (!columnas.some((c) => c.name === "adjuntos")) {
+        d.exec("ALTER TABLE reportes ADD COLUMN adjuntos TEXT DEFAULT '[]'");
+      }
+    }
+  },
+  {
+    version: 3,
+    nombre: "hashear contraseñas en texto plano con bcrypt",
+    migrar(d) {
+      const usuarios = d.prepare("SELECT id, password FROM usuarios").all();
+      for (const u of usuarios) {
+        if (u.password && !u.password.startsWith("$2a$") && !u.password.startsWith("$2b$")) {
+          const hashed = bcrypt.hashSync(u.password, 10);
+          d.prepare("UPDATE usuarios SET password = ? WHERE id = ?").run(hashed, u.id);
+        }
+      }
     }
   }
-} catch (e) {}
+];
+
+function aplicarMigraciones() {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS schema_migrations (
+      version     INTEGER PRIMARY KEY,
+      nombre      TEXT NOT NULL,
+      aplicada_en TEXT NOT NULL
+    )
+  `);
+  const fila = db.prepare("SELECT COALESCE(MAX(version), 0) AS v FROM schema_migrations").get();
+  const actual = fila.v || 0;
+
+  for (const m of MIGRACIONES) {
+    if (m.version <= actual) continue;
+    db.exec("BEGIN");
+    try {
+      m.migrar(db);
+      db.prepare("INSERT INTO schema_migrations (version, nombre, aplicada_en) VALUES (?,?,?)")
+        .run(m.version, m.nombre, new Date().toISOString());
+      db.exec("COMMIT");
+      console.log(`  Migración ${m.version} aplicada: ${m.nombre}`);
+    } catch (err) {
+      db.exec("ROLLBACK");
+      throw err;
+    }
+  }
+}
+
+aplicarMigraciones();
 
 /* ==========================================================================
    SEED — datos de ejemplo (solo se insertan la primera vez)
@@ -343,4 +401,4 @@ function seed() {
   console.log("Datos de ejemplo cargados: 5 laboratorios, equipos, 7 usuarios, agenda y reportes.");
 }
 
-module.exports = db;
+export default db;

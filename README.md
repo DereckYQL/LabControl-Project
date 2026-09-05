@@ -16,6 +16,14 @@ Solo el **Administrador** puede gestionar usuarios y acceder a la configuración
 
 ## Cambios
 
+> **v2.6** — **Deuda técnica (P4)**:
+> > - **Backend 100% ES Modules** (`import`/`export` en `server.js` y `db.js`) y **Express 5**. La app se exporta para testing sin abrir puerto.
+> > - **Migraciones de base de datos versionadas**: tabla `schema_migrations` y sistema de migraciones en `db.js` (v2: columna `adjuntos`; v3: hash bcrypt de contraseñas en texto plano). Idempotentes sobre bases existentes. Soporte `LC_DB_DIR` para tests.
+> > - **Paginación en listados**: los GET de listas aceptan `?pagina=` y `?limite=` (1–100) devolviendo un sobre `{ data, total, pagina, totalPaginas, limite }`; sin parámetros siguen devolviendo el arreglo plano (compatible hacia atrás).
+> > - **Scripts extraídos del HTML**: el bloque de `configuracion.html` ahora vive en `configuracion.js` y el selector de tema en `theme.js` (las 9 páginas lo usan). Cache busting unificado `?v=2.6` en toda la web. Los scripts inline restantes por página quedan como deuda documentada.
+> > - **Tests automatizados**: Jest + Supertest para el backend (`npm test`, 12 pruebas: auth, paginación, migraciones, protección de `password`); Playwright e2e para el flujo real de login y configuración (`npm run test:e2e`).
+> > - **Calidad y CI**: ESLint (config plana por archivo), typecheck con TypeScript (`tsc --noEmit`), revisión de sintaxis con `node --check` y workflow nuevo `.github/workflows/ci.yml` en GitHub Actions.
+
 > **v2.5** — **Accesibilidad y UX (P3) completado**:
 > > - **Toggles accesibles por teclado (final)**: la inicialización de los interruptores con `role="switch"` ahora se ejecuta de verdad — antes la función existía pero nunca se llamaba. Se activan con `Espacio`/`Enter` en `Configuración` y en cualquier página.
 > > - **Mapa 2D accesible por teclado**: cada laboratorio del mapa ahora es enfocable (`tabindex="0"`), anuncia su nombre y estado (`aria-label`, `role="button"`) y responde a `Enter`/`Espacio`, con anillo de foco visible.
@@ -118,8 +126,8 @@ labcontrol/
 1. ~~Seguridad: hashear las contraseñas y mover la sesión a JWT~~ **(v2.2 completado)**.
 2. Subir fotos reales de cada laboratorio.
 3. Conectar el control remoto a un agente real instalado en cada equipo (hoy solo registra el comando en un log simulado, no se guarda en la base de datos).
-4. Agregar un `backend/database/schema.sql` versionado en control de código si se quiere llevar historial de migraciones.
+4. ~~Agregar un `backend/database/schema.sql` versionado en control de código~~ **(v2.6: sustituido por el sistema de migraciones sobre `schema_migrations` en `db.js`)**.
 5. Evaluar la app móvil (etapa 2 del proyecto), consumiendo la misma API REST.
-6. Eliminar scripts inline de los HTML y migrar a módulos ES (mejora CSP y mantenibilidad).
-7. Agregar tests automatizados (Jest para backend, Playwright para frontend).
+6. ~~Eliminar scripts inline de los HTML y migrar a módulos ES~~ **(v2.6: backend migrado a ES Modules y extraídos `theme.js` y `configuracion.js`; aún restan scripts inline por página como deuda documentada)**.
+7. ~~Agregar tests automatizados (Jest para backend, Playwright para frontend)~~ **(v2.6 completado)**.
 8. Implementar refresh tokens para sesiones de larga duración.

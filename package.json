@@ -1,0 +1,31 @@
+{
+  "name": "labcontrol",
+  "version": "2.6.0",
+  "private": true,
+  "description": "LabControl 2.6 - Monorepo de calidad (tests, lint, typecheck). El sitio vive en website/ y su backend en website/backend.",
+  "scripts": {
+    "test": "cross-env NODE_OPTIONS=--experimental-vm-modules jest --runInBand",
+    "test:e2e": "playwright test",
+    "lint": "eslint --config eslint.config.mjs website/backend website/*.js e2e celular.js",
+    "check": "node website/backend/scripts/syntax-check.mjs",
+    "typecheck": "tsc -p website/backend/tsconfig.json"
+  },
+  "jest": {
+    "testEnvironment": "node",
+    "testMatch": [
+      "<rootDir>/website/backend/tests/**/*.test.js"
+    ]
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.49.0",
+    "@types/express": "^5.0.0",
+    "@types/jsonwebtoken": "^9.0.7",
+    "@types/node": "^24.0.0",
+    "cross-env": "^7.0.3",
+    "eslint": "^9.17.0",
+    "globals": "^15.14.0",
+    "jest": "^30.0.0",
+    "supertest": "^7.0.0",
+    "typescript": "^5.7.0"
+  }
+}

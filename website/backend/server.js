@@ -13,6 +13,15 @@
  *   - Validación de entradas con express-validator
  *   - Passwords nunca se exponen en respuestas GET
  *
+ * v2.6 — Deuda técnica P4:
+ *   - ES Modules (import/export)
+ *   - Express 5
+ *   - Express 5
+ *   - Paginación opcional en endpoints de listado (sin parámetros se
+ *     devuelve el arreglo plano de siempre, 100 % compatible con el frontend)
+ *   - La app se exporta para poder testearla (Jest) sin abrir un puerto;
+ *     solo `node server.js` inicia el servidor.
+ *
  * Arranque:
  *   cd backend
  *   npm install
@@ -20,15 +29,18 @@
  * Luego abrir: http://localhost:3000/login.html
  */
 
-const path = require("path");
-const express = require("express");
-const helmet = require("helmet");
-const cors = require("cors");
-const rateLimit = require("express-rate-limit");
-const jwt = require("jsonwebtoken");
-const bcrypt = require("bcryptjs");
-const { body, validationResult } = require("express-validator");
-const db = require("./db");
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import express from "express";
+import helmet from "helmet";
+import cors from "cors";
+import rateLimit from "express-rate-limit";
+import jwt from "jsonwebtoken";
+import bcrypt from "bcryptjs";
+import { body, validationResult } from "express-validator";
+import db from "./db.js";
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -43,7 +55,7 @@ const JWT_EXPIRES = "2h";
 
 // Headers de seguridad (CSP, X-Frame-Options, HSTS, etc.)
 app.use(helmet({
-  contentSecurityPolicy: false, // Deshabilitado para permitir inline scripts (migrar a modules en futuro)
+  contentSecurityPolicy: false, // Deshabilitado para permitir inline scripts (scripts inline pendientes de migrar)
   crossOriginEmbedderPolicy: false
 }));
 
@@ -113,6 +125,44 @@ function requireTecnico(req, res, next) {
     return res.status(403).json({ error: "Se requieren permisos técnicos" });
   }
   next();
+}
+
+/* ==========================================================================
+   PAGINACIÓN OPCIONAL EN LISTADOS
+   Parámetros (opcionales): ?pagina=1&limite=20
+   - Con parámetros → sobre paginado: { data, total, pagina, totalPaginas, limite }
+   - Sin parámetros  → arreglo plano (comportamiento original, no rompe el frontend)
+   ========================================================================== */
+
+const LIMITE_MAX = 100;
+
+function paginacionDe(req) {
+  const tienePagina = req.query.pagina !== undefined || req.query.page !== undefined;
+  const tieneLimite = req.query.limite !== undefined || req.query.limit !== undefined;
+  if (!tienePagina && !tieneLimite) return null;
+
+  const limite = Number.parseInt(req.query.limite ?? req.query.limit, 10);
+  if (!Number.isInteger(limite) || limite < 1 || limite > LIMITE_MAX) {
+    const err = new Error(`El parámetro 'limite' debe ser un entero entre 1 y ${LIMITE_MAX}`);
+    err.status = 400;
+    throw err;
+  }
+  const pagina = Number.parseInt(req.query.pagina ?? req.query.page, 10);
+  return { pagina: Number.isInteger(pagina) && pagina > 0 ? pagina : 1, limite };
+}
+
+function responderLista(req, res, elementos) {
+  const pag = paginacionDe(req);
+  if (!pag) return res.json(elementos);
+  const total = elementos.length;
+  const inicio = (pag.pagina - 1) * pag.limite;
+  res.json({
+    data: elementos.slice(inicio, inicio + pag.limite),
+    total,
+    pagina: pag.pagina,
+    totalPaginas: Math.max(1, Math.ceil(total / pag.limite)),
+    limite: pag.limite
+  });
 }
 
 /* ==========================================================================
@@ -353,7 +403,7 @@ app.post("/api/change-password", authenticateToken, (req, res) => {
 
 app.get("/api/laboratorios", authenticateToken, (req, res) => {
   const rows = db.prepare("SELECT * FROM laboratorios ORDER BY id").all();
-  res.json(rows.map(labFromRow));
+  responderLista(req, res, rows.map(labFromRow));
 });
 
 app.get("/api/laboratorios/:id", authenticateToken, (req, res) => {
@@ -387,7 +437,7 @@ app.get("/api/equipos", authenticateToken, (req, res) => {
   const rows = labId
     ? db.prepare("SELECT * FROM equipos WHERE lab_id = ? ORDER BY id").all(labId)
     : db.prepare("SELECT * FROM equipos ORDER BY id").all();
-  res.json(rows.map(eqFromRow));
+  responderLista(req, res, rows.map(eqFromRow));
 });
 
 /* ==========================================================================
@@ -396,7 +446,7 @@ app.get("/api/equipos", authenticateToken, (req, res) => {
 
 app.get("/api/usuarios", authenticateToken, (req, res) => {
   const rows = db.prepare("SELECT * FROM usuarios ORDER BY nombre").all();
-  res.json(rows.map(usrFromRow));
+  responderLista(req, res, rows.map(usrFromRow));
 });
 
 app.get("/api/usuarios/:id", authenticateToken, (req, res) => {
@@ -485,7 +535,7 @@ app.patch("/api/usuarios/:id", authenticateToken, requireAdmin, [
 
 app.get("/api/agenda", authenticateToken, (req, res) => {
   const rows = db.prepare("SELECT * FROM agenda ORDER BY fecha, hora_inicio").all();
-  res.json(rows.map(agFromRow));
+  responderLista(req, res, rows.map(agFromRow));
 });
 
 app.post("/api/agenda", authenticateToken, [
@@ -531,7 +581,7 @@ app.delete("/api/agenda/:id", authenticateToken, (req, res) => {
 
 app.get("/api/reportes", authenticateToken, (req, res) => {
   const rows = db.prepare("SELECT * FROM reportes ORDER BY fecha DESC").all();
-  res.json(rows.map(repFromRow));
+  responderLista(req, res, rows.map(repFromRow));
 });
 
 app.post("/api/reportes", authenticateToken, [
@@ -616,7 +666,7 @@ app.delete("/api/reportes/:id", authenticateToken, (req, res) => {
 app.get("/api/notificaciones", authenticateToken, (req, res) => {
   const usuarioId = req.user.id;
   const rows = db.prepare("SELECT * FROM notificaciones WHERE usuario_id = ? ORDER BY id DESC LIMIT 50").all(usuarioId);
-  res.json(rows.map(notifFromRow));
+  responderLista(req, res, rows.map(notifFromRow));
 });
 
 app.patch("/api/notificaciones/:id", authenticateToken, (req, res) => {
@@ -676,8 +726,29 @@ app.patch("/api/config", authenticateToken, requireAdmin, (req, res) => {
 
 app.use(express.static(path.join(__dirname, "..")));
 
-app.listen(PORT, () => {
-  console.log(`\n  LabControl Liceo v2.2`);
-  console.log(`  API + sitio corriendo en: http://localhost:${PORT}/login.html`);
-  console.log(`  Seguridad: JWT + bcrypt + rate limiting + helmet\n`);
+/* ==========================================================================
+   Manejo de errores (los errores con .status se responden como JSON)
+   ========================================================================== */
+
+// eslint-disable-next-line no-unused-vars
+app.use((err, req, res, next) => {
+  if (err?.status) return res.status(err.status).json({ error: err.message });
+  if (err?.type === "entity.parse.failed") return res.status(400).json({ error: "JSON inválido en el cuerpo de la petición" });
+  console.error(err);
+  res.status(500).json({ error: "Error interno del servidor" });
 });
+
+/* ==========================================================================
+   Arranque — solo si este archivo es el punto de entrada (`node server.js`);
+   al importarlo (tests) la app se exporta sin abrir un puerto.
+   ========================================================================== */
+
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  app.listen(PORT, () => {
+    console.log(`\n  LabControl Liceo v2.6`);
+    console.log(`  API + sitio corriendo en: http://localhost:${PORT}/login.html`);
+    console.log(`  Seguridad: JWT + bcrypt + rate limiting + helmet\n`);
+  });
+}
+
+export { app };

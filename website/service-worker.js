@@ -10,7 +10,7 @@
  *   - Las notificaciones del sistema se mantienen igual.
  */
 
-const CACHE_NAME = "labcontrol-v2.4";
+const CACHE_NAME = "labcontrol-v2.6";
 const PRECACHE_URLS = [
   "./",
   "index.html",
@@ -22,11 +22,13 @@ const PRECACHE_URLS = [
   "usuarios.html",
   "reportes.html",
   "configuracion.html",
-  "style.css",
-  "app.js",
-  "data.js",
+  "style.css?v=2.6",
+  "theme.js?v=2.6",
+  "app.js?v=2.6",
+  "data.js?v=2.6",
+  "configuracion.js?v=2.6",
   "datos-demo.js",
-  "lucide.min.js",
+  "lucide.min.js?v=2.6",
   "img/logo-insuco.png",
   "img/bg-tech.svg",
   "img/bg-tech-light.svg"

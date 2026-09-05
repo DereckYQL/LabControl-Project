@@ -1,0 +1,49 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+jobs:
+  quality:
+    name: Calidad (test · lint · typecheck)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - name: Instalar dependencias de calidad (raíz)
+        run: npm ci
+      - name: Instalar dependencias de runtime (backend)
+        working-directory: website/backend
+        run: npm ci
+      - name: Tests de backend (Jest + Supertest)
+        run: npm test
+      - name: Lint (ESLint)
+        run: npm run lint
+      - name: Typecheck (TypeScript)
+        run: npm run typecheck
+      - name: Sintaxis (node --check)
+        run: npm run check
+
+  e2e:
+    name: E2E (Playwright)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - name: Instalar dependencias de calidad (raíz)
+        run: npm ci
+      - name: Instalar dependencias de runtime (backend)
+        working-directory: website/backend
+        run: npm ci
+      - name: Instalar navegador Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Tests e2e
+        run: npm run test:e2e

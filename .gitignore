@@ -6,6 +6,10 @@ website/backend/database/*.db
 website/backend/database/*.db-shm
 website/backend/database/*.db-wal
 
+# Artefactos de Playwright
+test-results/
+playwright-report/
+
 # Sistema / editor
 *.log
 Thumbs.db
