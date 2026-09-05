@@ -555,6 +555,27 @@ h1 + p { margin: 4px 0 0; color: var(--color-text-muted); font-size: .9rem; }
   background: var(--primary-soft, var(--soft-primary));
   border-color: rgba(72, 187, 120, .4);
 }
+.login-hint__btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: 4px 12px;
+  font-size: .76rem;
+  font-weight: 600;
+  color: var(--color-text);
+  cursor: pointer;
+  transition: border-color .2s, background .2s;
+}
+.login-hint__btn:hover {
+  border-color: var(--color-primary);
+  background: var(--soft-primary);
+}
+
+/* Tamaño de texto accesible (Configuración → Apariencia) */
+html.texto-grande { font-size: 112.5%; }
 
 /* COMPONENTES */
 .card {

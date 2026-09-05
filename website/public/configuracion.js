@@ -7,10 +7,21 @@ const sesion  = AUTH.getSesion();
 let config = null;
 let usuario = null;
 let usuariosTotal = [];
+let totalLaboratorios = 0;
+let totalEquipos = 0;
 
 let secciones = [];
 
-Promise.all([cargarConfig(), cargarUsuarios()]).then(([cfg, usuarios]) => {
+async function cargarConteos() {
+  const [labs, eqs] = await Promise.all([
+    cargarLaboratorios().catch(() => []),
+    cargarEquipos().catch(() => [])
+  ]);
+  totalLaboratorios = labs.length;
+  totalEquipos = eqs.length;
+}
+
+Promise.all([cargarConfig(), cargarUsuarios(), cargarConteos()]).then(([cfg, usuarios]) => {
   config = cfg;
   usuariosTotal = usuarios;
   usuario = usuarios.find((u) => u.id === sesion?.id) || null;
@@ -27,6 +38,9 @@ function iniciarPantalla() {
   const activo = temaActivo();
   document.documentElement.dataset.theme = activo;
   if (config?.sitio) config.sitio.tema = activo;
+
+  /* Tamaño de texto accesible */
+  aplicarTamanoTexto(tamanoTextoGuardado());
 
   /* Secciones */
   const SECCIONES_BASE = [
@@ -65,6 +79,8 @@ function iniciarPantalla() {
   `).join("");
 
   actualizarEstadoNotifUI();
+  const selTexto = document.getElementById("p-texto");
+  if (selTexto) selTexto.value = tamanoTextoGuardado();
   actualizarIconosLucide();
 }
 
@@ -138,7 +154,7 @@ function buildPanel(id) {
         </div>
         <div class="form-group">
           <label class="form-label">Tamaño de texto</label>
-          <select class="form-input" id="p-texto" style="max-width:200px">
+          <select class="form-input" id="p-texto" style="max-width:200px" onchange="aplicarTamanoTexto(this.value)">
             <option value="normal">Normal</option>
             <option value="grande">Grande</option>
           </select>
@@ -263,25 +279,25 @@ function buildPanel(id) {
       <div class="cfg-section">
         <div class="toggle-row">
           <span>Habilitar control remoto global</span>
-          <button type="button" role="switch" aria-checked="true" class="toggle toggle--on" id="tog-remoto" onclick="toggleSwitch('tog-remoto')">
+          <button type="button" role="switch" aria-checked="${config.equipos?.habilitarControlRemoto ?? true}" class="toggle ${(config.equipos?.habilitarControlRemoto ?? true) ? "toggle--on" : ""}" id="tog-remoto" onclick="toggleSwitch('tog-remoto')">
             <div class="toggle__knob"></div>
           </button>
         </div>
         <div class="toggle-row">
           <span>Apagado automático al cierre</span>
-          <button type="button" role="switch" aria-checked="false" class="toggle" id="tog-apagado" onclick="toggleSwitch('tog-apagado')">
+          <button type="button" role="switch" aria-checked="${config.equipos?.apagadoAutomatico ?? false}" class="toggle ${(config.equipos?.apagadoAutomatico ?? false) ? "toggle--on" : ""}" id="tog-apagado" onclick="toggleSwitch('tog-apagado')">
             <div class="toggle__knob"></div>
           </button>
         </div>
         <div class="toggle-row">
           <span>Monitoreo de estado en tiempo real</span>
-          <button type="button" role="switch" aria-checked="true" class="toggle toggle--on" id="tog-monitor" onclick="toggleSwitch('tog-monitor')">
+          <button type="button" role="switch" aria-checked="${config.equipos?.monitoreoTiempoReal ?? true}" class="toggle ${(config.equipos?.monitoreoTiempoReal ?? true) ? "toggle--on" : ""}" id="tog-monitor" onclick="toggleSwitch('tog-monitor')">
             <div class="toggle__knob"></div>
           </button>
         </div>
         <div class="form-group" style="margin-top:14px">
           <label class="form-label">Intervalo de actualización (segundos)</label>
-          <input class="form-input" type="number" id="cfg-intervalo" value="30" min="5" max="300" style="max-width:120px" />
+          <input class="form-input" type="number" id="cfg-intervalo" value="${config.equipos?.intervaloEncendido ?? 30}" min="5" max="300" style="max-width:120px" />
         </div>
       </div>
     `;
@@ -348,15 +364,15 @@ function buildPanel(id) {
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:20px">
           <div class="cfg-sys-card">
             <div class="cfg-sys-card__label">Versión del sistema</div>
-            <div class="cfg-sys-card__value">LabControl v2.8</div>
+            <div class="cfg-sys-card__value">LabControl v2.9</div>
           </div>
           <div class="cfg-sys-card">
             <div class="cfg-sys-card__label">Total laboratorios</div>
-            <div class="cfg-sys-card__value">5</div>
+            <div class="cfg-sys-card__value">${totalLaboratorios}</div>
           </div>
           <div class="cfg-sys-card">
             <div class="cfg-sys-card__label">Total equipos</div>
-            <div class="cfg-sys-card__value">145</div>
+            <div class="cfg-sys-card__value">${totalEquipos}</div>
           </div>
           <div class="cfg-sys-card">
             <div class="cfg-sys-card__label">Usuarios registrados</div>
@@ -365,7 +381,7 @@ function buildPanel(id) {
         </div>
         <hr style="border-color:var(--color-border);margin-bottom:16px">
         <div style="font-weight:600;margin-bottom:10px;color:var(--color-danger)">Zona peligrosa</div>
-        <button class="btn btn--danger" onclick="if(confirm('¿Restablecer configuración de fábrica?'))showToast('Configuración restablecida.','success')">
+        <button class="btn btn--danger" onclick="if(confirm('¿Restablecer la configuración a valores de fábrica?'))restablecerConfiguracion()">
           <i data-lucide="triangle-alert"></i> Restablecer configuración de fábrica
         </button>
       </div>
@@ -436,6 +452,16 @@ function seleccionarTema(temaId, el) {
   config.sitio.tema = temaId;
 }
 
+function tamanoTextoGuardado() {
+  try { return localStorage.getItem("lc_texto") || "normal"; } catch (e) { return "normal"; }
+}
+
+function aplicarTamanoTexto(valor) {
+  const v = valor === "grande" ? "grande" : "normal";
+  document.documentElement.classList.toggle("texto-grande", v === "grande");
+  try { localStorage.setItem("lc_texto", v); } catch (e) {}
+}
+
 async function cambiarContrasena() {
   const actual   = document.getElementById("s-pass-actual").value;
   const nueva    = document.getElementById("s-pass-nueva").value;
@@ -457,30 +483,105 @@ async function cambiarContrasena() {
 // Guardar cambios
 document.getElementById("btn-guardar-cfg").addEventListener("click", () => {
   const tareas = [];
+  const errs = [];
+  const cambiosCfg = {};
 
-  // Perfil (nombre / apellido)
+  // Perfil (nombre, apellido, correo, área y especialidad)
   const nombre   = document.getElementById("p-nombre")?.value.trim();
   const apellido = document.getElementById("p-apellido")?.value.trim();
-  const cambiosUsr = {};
-  if (nombre)   cambiosUsr.nombre = nombre;
-  if (apellido) cambiosUsr.apellido = apellido;
-  if (usuario && Object.keys(cambiosUsr).length) {
-    tareas.push(actualizarUsuario(usuario.id, cambiosUsr));
+  const correo   = document.getElementById("p-email")?.value.trim();
+  const area     = document.getElementById("p-area")?.value.trim();
+  const espec    = document.getElementById("p-especialidad")?.value.trim();
+  const cambioUsr = {};
+  if (nombre) cambioUsr.nombre = nombre;
+  if (apellido) cambioUsr.apellido = apellido;
+  if (correo && usuario && correo !== usuario.email) {
+    if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(correo)) cambioUsr.email = correo;
+    else errs.push("El correo del perfil no es válido.");
+  }
+  if (usuario && area !== undefined)   cambioUsr.area = area;
+  if (usuario && espec !== undefined)  cambioUsr.especialidad = espec;
+  if (usuario && Object.keys(cambioUsr).length) {
+    tareas.push(actualizarUsuario(usuario.id, cambioUsr).then((res) => {
+      if (res && res.token) {
+        const prev = AUTH.getSesion();
+        if (prev) {
+          localStorage.setItem("lc_sesion", JSON.stringify({
+            ...prev, token: res.token,
+            nombre: res.nombre, apellido: res.apellido, iniciales: res.iniciales
+          }));
+        }
+      }
+      return res;
+    }));
   }
 
-  // Configuración (solo aplica si hay algo cargado, y solo lo que exista en la pantalla actual)
-  const cambiosCfg = {};
-  const apertura = document.getElementById("cfg-apertura")?.value;
-  const cierre   = document.getElementById("cfg-cierre")?.value;
-  if (apertura || cierre) {
-    cambiosCfg.laboratorios = { ...config.laboratorios };
-    if (apertura) cambiosCfg.laboratorios.horaApertura = apertura;
-    if (cierre)   cambiosCfg.laboratorios.horaCierre   = cierre;
-  }
-  // El tema elegido en "Apariencia" (seleccionarTema) ya quedó guardado en config.sitio
-  if (config?.sitio) cambiosCfg.sitio = { ...config.sitio };
+  // Tamaño de texto (preferencia local)
+  aplicarTamanoTexto(document.getElementById("p-texto")?.value);
 
-  // Notificaciones: interruptores presentes en la pantalla actual
+  const toggles = (id) => { const el = document.getElementById(id); return el ? el.classList.contains("toggle--on") : undefined; };
+
+  // Sitio
+  const sit = {};
+  if (config?.sitio) {
+    const inst = document.getElementById("cfg-inst")?.value.trim();
+    const sist = document.getElementById("cfg-sistema")?.value.trim();
+    const idioma = document.getElementById("cfg-idioma")?.value;
+    if (inst)  sit.nombreInstitucion = inst;
+    if (sist)  sit.nombreSistema = sist;
+    if (idioma !== undefined) sit.idioma = idioma;
+    sit.tema = config.sitio.tema;
+  }
+  if (Object.keys(sit).length) cambiosCfg.sitio = sit;
+
+  // Red
+  const red = {};
+  if (config?.red) {
+    const subred  = document.getElementById("cfg-subred")?.value.trim();
+    const dns     = document.getElementById("cfg-dns")?.value.trim();
+    const gateway = document.getElementById("cfg-gateway")?.value.trim();
+    if (subred)   red.subredLabs = subred;
+    if (dns)      red.servidorDNS = dns;
+    if (gateway)  red.puertaEnlace = gateway;
+    const wifi = toggles("tog-wifi");
+    if (wifi !== undefined) red.wifiHabilitado = wifi;
+  }
+  if (Object.keys(red).length) cambiosCfg.red = red;
+
+  // Laboratorios
+  const labs = {};
+  if (config?.laboratorios) {
+    const apertura = document.getElementById("cfg-apertura")?.value;
+    const cierre   = document.getElementById("cfg-cierre")?.value;
+    const anticip  = Number(document.getElementById("cfg-anticip")?.value);
+    if (apertura) labs.horaApertura = apertura;
+    if (cierre)   labs.horaCierre = cierre;
+    if (document.getElementById("cfg-anticip") !== null) {
+      if (Number.isInteger(anticip) && anticip >= 1 && anticip <= 30) labs.anticipacionMaxReserva = anticip;
+      else errs.push("La anticipación máxima debe ser un número entre 1 y 30 días.");
+    }
+    const ext = toggles("tog-reserva-ext");
+    if (ext !== undefined) labs.permitirReservaExterna = ext;
+  }
+  if (Object.keys(labs).length) cambiosCfg.laboratorios = labs;
+
+  // Equipos
+  const eqs = {};
+  const remoto    = toggles("tog-remoto");
+  const apagado   = toggles("tog-apagado");
+  const monitor   = toggles("tog-monitor");
+  const intervalo = Number(document.getElementById("cfg-intervalo")?.value);
+  if (remoto !== undefined) eqs.habilitarControlRemoto = remoto;
+  if (apagado !== undefined) eqs.apagadoAutomatico = apagado;
+  if (monitor !== undefined) eqs.monitoreoTiempoReal = monitor;
+  if (document.getElementById("cfg-intervalo") !== null) {
+    if (Number.isInteger(intervalo) && intervalo >= 5 && intervalo <= 300) eqs.intervaloEncendido = intervalo;
+    else errs.push("El intervalo de actualización debe ser un número entre 5 y 300 segundos.");
+  }
+  if (Object.keys(eqs).length) cambiosCfg.equipos = eqs;
+
+  // Notificaciones
+  const notif = {};
   const togglesNotif = {
     "n-reservas":   "alertaReservas",
     "n-cambios":    "alertaDisponibilidad",
@@ -489,13 +590,37 @@ document.getElementById("btn-guardar-cfg").addEventListener("click", () => {
     "n-recordator": "recordatorioReserva"
   };
   for (const [idToggle, clave] of Object.entries(togglesNotif)) {
-    const el = document.getElementById(idToggle);
-    if (el) cambiosCfg.notificaciones = { ...cambiosCfg.notificaciones, [clave]: el.classList.contains("toggle--on") };
+    const v = toggles(idToggle);
+    if (v !== undefined) notif[clave] = v;
   }
+  const emailAdmin = document.getElementById("cfg-email-admin")?.value.trim();
+  if (emailAdmin) {
+    if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailAdmin)) notif.emailAdmin = emailAdmin;
+    else errs.push("El correo del administrador no es válido.");
+  }
+  if (Object.keys(notif).length) cambiosCfg.notificaciones = notif;
 
-  if (Object.keys(cambiosCfg).length) {
-    tareas.push(actualizarConfig(cambiosCfg));
+  // Seguridad
+  const seg = {};
+  const timeout  = Number(document.getElementById("cfg-timeout")?.value);
+  const intentos = Number(document.getElementById("cfg-intentos")?.value);
+  if (document.getElementById("cfg-timeout") !== null) {
+    if (Number.isInteger(timeout) && timeout >= 5 && timeout <= 120) seg.sesionTimeout = timeout;
+    else errs.push("El tiempo de inactividad debe ser entre 5 y 120 minutos.");
   }
+  if (document.getElementById("cfg-intentos") !== null) {
+    if (Number.isInteger(intentos) && intentos >= 3 && intentos <= 10) seg.intentosLoginMax = intentos;
+    else errs.push("Los intentos de login deben ser entre 3 y 10.");
+  }
+  const reg = toggles("tog-registro");
+  if (reg !== undefined) seg.registroActividad = reg;
+  if (Object.keys(seg).length) cambiosCfg.seguridad = seg;
+
+  if (errs.length) { showToast(errs[0], "error"); return; }
+
+  // La configuración avanzada (sitio, red, laboratorios, equipos, notificaciones y
+  // seguridad) es exclusiva del administrador; los demás solo guardan su perfil.
+  if (esAdmin && Object.keys(cambiosCfg).length) tareas.push(actualizarConfig(cambiosCfg));
 
   if (!tareas.length) {
     showToast("No hay cambios para guardar.");
@@ -506,6 +631,27 @@ document.getElementById("btn-guardar-cfg").addEventListener("click", () => {
     .then(() => showToast("Configuración guardada correctamente."))
     .catch(() => showToast("No se pudo guardar la configuración.", "error"));
 });
+
+function restablecerConfiguracion() {
+  if (!config) return;
+  const nuevo = {
+    sitio:           { ...CONFIG_DEFAULT.sitio,           tema: config.sitio?.tema },
+    red:             { ...CONFIG_DEFAULT.red },
+    laboratorios:    { ...CONFIG_DEFAULT.laboratorios },
+    equipos:         { ...CONFIG_DEFAULT.equipos },
+    notificaciones:  { ...CONFIG_DEFAULT.notificaciones },
+    seguridad:       { ...CONFIG_DEFAULT.seguridad }
+  };
+  actualizarConfig(nuevo)
+    .then((cfg) => {
+      config = cfg;
+      document.documentElement.dataset.theme = cfg.sitio?.tema;
+      try { localStorage.setItem("lc_tema", cfg.sitio.tema); } catch (e) {}
+      iniciarPantalla();
+      showToast("Configuración restablecida a valores de fábrica.", "success");
+    })
+    .catch(() => showToast("No se pudo restablecer la configuración.", "error"));
+}
 
 // Menú de ayuda (?)
 (function iniciarMenuAyuda() {
@@ -608,7 +754,7 @@ function contenidoAcerca() {
       <div style="font-size:.85rem;color:var(--color-text-muted)">Sistema de control y supervisión de los laboratorios de computación del liceo.</div>
       <div class="cfg-sys-card" style="margin:18px auto 0;max-width:260px">
         <div class="cfg-sys-card__label">Versión del sistema</div>
-        <div class="cfg-sys-card__value">LabControl v2.8</div>
+        <div class="cfg-sys-card__value">LabControl v2.9</div>
       </div>
       <div class="cfg-sys-card" style="margin:10px auto 0;max-width:260px">
         <div class="cfg-sys-card__label">Institución</div>

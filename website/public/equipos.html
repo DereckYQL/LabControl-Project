@@ -11,8 +11,8 @@
 <meta property="og:url" content="https://dereckyql.github.io/LabControl-Project/equipos.html" />
 <title>Equipos · Insuco LabControl</title>
 <link rel="icon" type="image/png" href="img/logo-insuco.png" />
-<link rel="stylesheet" href="style.css?v=2.8.4" />
-<script src="theme.js?v=2.8.4"></script>
+<link rel="stylesheet" href="style.css?v=2.9" />
+<script src="theme.js?v=2.9"></script>
 </head>
 <body>
   <a class="skip-nav" href="#main-content">Saltar al contenido</a>
@@ -108,9 +108,9 @@
   </main>
 </div>
 
-<script src="data.js?v=2.8.4"></script>
-<script src="lucide.min.js?v=2.8.4"></script>
-<script src="app.js?v=2.8.4"></script>
+<script src="data.js?v=2.9"></script>
+<script src="lucide.min.js?v=2.9"></script>
+<script src="app.js?v=2.9"></script>
 <script>
   renderSidebar("equipos.html");
 
@@ -120,6 +120,12 @@
   let equiposCache = [];
   let labsCache = [];
   let eqSeleccionado = null;
+
+  function e_esc(v) {
+    return String(v ?? "").replace(/[&<>"']/g, (c) => ({
+      "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+    }[c]));
+  }
 
   if (!puedeTecnico) {
     document.getElementById("aviso-sin-permiso").style.display = "flex";
@@ -135,7 +141,7 @@
     const sel = document.getElementById("filtro-lab");
     sel.innerHTML =
       '<option value="">Todos los laboratorios</option>' +
-      labs.map((l) => `<option value="${l.id}">${l.nombre}</option>`).join("");
+      labs.map((l) => `<option value="${e_esc(l.id)}">${e_esc(l.nombre)}</option>`).join("");
     if (labFiltroInicial) sel.value = labFiltroInicial;
 
     renderEqStats();
@@ -182,36 +188,41 @@
       const lab = labsCache.find((l) => l.id === e.labId);
       const estEq = ESTADOS_EQUIPO[e.estado] ?? { label: e.estado, clase: "badge--muted" };
       const tecnico = puedeTecnico
-        ? `<span class="tech-cell">${e.procesador}<br>${e.ram} · ${e.almacenamiento}</span>`
+        ? `<span class="tech-cell">${e_esc(e.procesador)}<br>${e_esc(e.ram)} · ${e_esc(e.almacenamiento)}</span>`
         : `<span class="locked-cell"><i data-lucide="lock"></i> Restringido</span>`;
       const red = puedeTecnico
-        ? `<span class="tech-cell">${e.ip}<br>${e.mac}</span>`
+        ? `<span class="tech-cell">${e_esc(e.ip)}<br>${e_esc(e.mac)}</span>`
         : `<span class="locked-cell"><i data-lucide="lock"></i> Restringido</span>`;
       return `
         <tr>
-          <td><strong>${e.nombre}</strong><br><span style="font-size:.74rem;color:var(--color-text-muted)">${lab ? lab.nombre : "—"}</span></td>
-          <td>${e.tipo ?? "PC"}</td>
-          <td><span class="badge ${estEq.clase}">${estEq.label}</span></td>
+          <td><strong>${e_esc(e.nombre)}</strong><br><span style="font-size:.74rem;color:var(--color-text-muted)">${lab ? e_esc(lab.nombre) : "—"}</span></td>
+          <td>${e_esc(e.tipo ?? "PC")}</td>
+          <td><span class="badge ${estEq.clase}">${e_esc(estEq.label)}</span></td>
           <td>${tecnico}</td>
           <td>${red}</td>
           <td>${puedeTecnico
-            ? `<button class="btn btn--sm" onclick="abrirControl(${e.id})">Control</button>`
+            ? `<button class="btn btn--sm" data-control="${e_esc(e.nombre)}">Control</button>`
             : "—"}</td>
         </tr>
       `;
     }).join("");
+
+    tbody.querySelectorAll("[data-control]").forEach((btn) => {
+      btn.addEventListener("click", () => abrirControl(btn.dataset.control));
+    });
   }
 
   /* ---------- Control remoto simulado ---------- */
 
-  function abrirControl(eqId) {
-    const eq = equiposCache.find((e) => e.id === eqId);
+  function abrirControl(eqNombre) {
+    const eq = equiposCache.find((e) => e.nombre === eqNombre);
     if (!eq) return;
     eqSeleccionado = eq;
 
     const lab = labsCache.find((l) => l.id === eq.labId);
     const estEq = ESTADOS_EQUIPO[eq.estado] ?? { label: eq.estado, clase: "badge--muted" };
 
+    document.getElementById("seccion-remoto").style.display = "block";
     document.getElementById("panel-remoto-vacio").style.display = "none";
     document.getElementById("panel-remoto").style.display = "block";
     document.getElementById("rem-nombre").textContent = eq.nombre;
@@ -228,7 +239,7 @@
     const log = document.getElementById("remote-log");
     const hora = new Date().toLocaleTimeString("es-CL", { hour12: false });
     const line = document.createElement("div");
-    line.innerHTML = `<span class="log-time">[${hora}]</span>${msg}`;
+    line.textContent = `[${hora}]${msg}`;
     log.appendChild(line);
     log.scrollTop = log.scrollHeight;
   }

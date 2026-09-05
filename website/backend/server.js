@@ -2,6 +2,7 @@
    Arranque: cd backend && npm install && npm start  (http://localhost:3000) */
 
 import path from "node:path";
+import { randomBytes } from "node:crypto";
 import { fileURLToPath } from "node:url";
 import express from "express";
 import helmet from "helmet";
@@ -17,21 +18,39 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Clave JWT — en producción usar variable de entorno
-const JWT_SECRET = process.env.JWT_SECRET || "labcontrol_jwt_secret_v2.2_change_in_production";
+// Clave JWT — en producción usar variable de entorno; si no existe, se genera
+// una aleatoria por arranque (las sesiones se invalidan al reiniciar).
+const JWT_SECRET = process.env.JWT_SECRET || randomBytes(48).toString("hex");
 const JWT_EXPIRES = "2h";
+if (!process.env.JWT_SECRET) {
+  console.warn("  AVISO: JWT_SECRET no está definido. Se generó una clave aleatoria; las sesiones expiran al reiniciar el servidor.");
+}
 
 /* Seguridad */
 
 // Headers de seguridad (CSP, X-Frame-Options, HSTS, etc.)
 app.use(helmet({
-  contentSecurityPolicy: false, // Deshabilitado para permitir inline scripts (scripts inline pendientes de migrar)
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", "'unsafe-inline'"],
+      scriptSrcAttr: ["'unsafe-inline'"],
+      styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+      fontSrc: ["'self'", "https://fonts.gstatic.com"],
+      imgSrc: ["'self'", "data:"],
+      connectSrc: ["'self'"],
+      objectSrc: ["'none'"],
+      frameAncestors: ["'self'"],
+      baseUri: ["'self'"],
+      formAction: ["'self'"]
+    }
+  },
   crossOriginEmbedderPolicy: false
 }));
 
 // CORS — permitir mismo origen (frontend servido por el mismo server)
 app.use(cors({
-  origin: true,
+  origin: process.env.ORIGIN ? process.env.ORIGIN.split(",") : false,
   credentials: true,
   methods: ["GET", "POST", "PATCH", "DELETE"],
   allowedHeaders: ["Content-Type", "Authorization"]
@@ -49,6 +68,16 @@ const generalLimiter = rateLimit({
   message: { error: "Demasiadas peticiones. Intenta de nuevo en 15 minutos." }
 });
 app.use("/api/", generalLimiter);
+
+// Rate limiting adicional en rutas de escritura (evita abusos de creación/PATCH/borrado)
+const escrituraLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 60,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Demasiadas solicitudes. Intenta de nuevo en 1 minuto." }
+});
+app.use(["/api/usuarios", "/api/agenda", "/api/reportes", "/api/config", "/api/notificaciones", "/api/laboratorios"], escrituraLimiter);
 
 // Rate limiting estricto en login
 const loginLimiter = rateLimit({
@@ -82,14 +111,6 @@ function authenticateToken(req, res, next) {
 function requireAdmin(req, res, next) {
   if (req.user?.rol !== "admin") {
     return res.status(403).json({ error: "Se requieren permisos de administrador" });
-  }
-  next();
-}
-
-// Admin o programación
-function requireTecnico(req, res, next) {
-  if (req.user?.rol !== "admin" && req.user?.rol !== "programacion") {
-    return res.status(403).json({ error: "Se requieren permisos técnicos" });
   }
   next();
 }
@@ -159,6 +180,27 @@ function usrFromRow(row) {
     email: row.email, rol: row.rol, area: row.area, especialidad: row.especialidad,
     nivelAcceso: row.nivel_acceso, activo: !!row.activo
   };
+}
+
+// Roles con permiso para ver datos técnicos (hardware / red)
+function esTecnico(rol) {
+  return rol === "admin" || rol === "programacion";
+}
+
+function labFromRowVisible(row, req) {
+  const lab = labFromRow(row);
+  if (esTecnico(req.user?.rol)) return lab;
+  const { so, procesador, ram, almacenamiento, red, ...visible } = lab;
+  void so; void procesador; void ram; void almacenamiento; void red;
+  return visible;
+}
+
+function eqFromRowVisible(row, req) {
+  const eq = eqFromRow(row);
+  if (esTecnico(req.user?.rol)) return eq;
+  const { procesador, ram, almacenamiento, so, serie, ip, mac, ...visible } = eq;
+  void procesador; void ram; void almacenamiento; void so; void serie; void ip; void mac;
+  return visible;
 }
 
 function agFromRow(row) {
@@ -300,14 +342,54 @@ function puedeModificarReporte(rep, req) {
   return rep.generado_por === uid;
 }
 
+// Adjuntos: validación estricta por allowlist de tipo MIME y tamaño máximo.
+const MAX_ARCHIVO_ADJUNTO = 6 * 1024 * 1024; // 6 MB por archivo (body total 10 MB)
+const MAX_ARCHIVOS = 10;
+const TIPOS_ADJUNTO = new Set([
+  "image/png", "image/jpeg", "image/gif", "image/webp",
+  "application/pdf",
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "text/plain", "text/csv",
+  "application/zip", "application/x-rar-compressed"
+]);
+
 function sanitizarAdjuntos(adjuntos) {
   if (!Array.isArray(adjuntos)) return [];
-  return adjuntos.slice(0, 10).map((a) => ({
-    nombre: String(a.nombre ?? "archivo").slice(0, 255),
-    tipo: String(a.tipo ?? "application/octet-stream").slice(0, 100),
-    tamano: Number(a.tamano) || 0,
-    data: typeof a.data === "string" && a.data.length <= 15_000_000 ? a.data : ""
-  })).filter((a) => a.data);
+  const resultado = [];
+  for (const a of adjuntos.slice(0, MAX_ARCHIVOS)) {
+    if (!a || typeof a !== "object") continue;
+    const data = typeof a.data === "string" ? a.data : "";
+    const t = String(a.tipo || "").toLowerCase();
+    const tamano = Number(a.tamano) || 0;
+    const valido =
+      t && TIPOS_ADJUNTO.has(t) &&
+      Number.isInteger(tamano) && tamano > 0 && tamano <= MAX_ARCHIVO_ADJUNTO &&
+      data.length > 0 && data.length <= MAX_ARCHIVO_ADJUNTO &&
+      /^data:(image|application|text)\/[a-zA-Z0-9+.-]+;base64,[A-Za-z0-9+/=\r\n]*$/.test(data) &&
+      data.startsWith(`data:${t};base64,`);
+    if (!valido) continue;
+    resultado.push({
+      nombre: String(a.nombre ?? "archivo").replace(/[^\w.\- ]/gi, "").slice(0, 120) || "archivo",
+      tipo: t,
+      tamano,
+      data
+    });
+  }
+  return resultado;
+}
+
+// Texto libre: normaliza y limita el largo (el escape HTML se hace al renderizar).
+function sanitizarTexto(valor, max = 5000) {
+  if (typeof valor !== "string") return "";
+  return String(valor).replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, "").slice(0, max);
+}
+
+// Ids generados en cliente: solo se aceptan formatos seguros (evita inyección por atributo).
+function nuevoId(prefijo, sugerido) {
+  const candidato = typeof sugerido === "string" ? sugerido.trim() : "";
+  if (candidato && /^[A-Za-z0-9_]{1,80}$/.test(candidato)) return candidato;
+  return `${prefijo}_${Date.now()}`;
 }
 
 /* Login (con rate limit estricto) */
@@ -359,16 +441,25 @@ app.post("/api/change-password", authenticateToken, (req, res) => {
 
 app.get("/api/laboratorios", authenticateToken, (req, res) => {
   const rows = db.prepare("SELECT * FROM laboratorios ORDER BY id").all();
-  responderLista(req, res, rows.map(labFromRow));
+  responderLista(req, res, rows.map((r) => labFromRowVisible(r, req)));
 });
 
 app.get("/api/laboratorios/:id", authenticateToken, (req, res) => {
   const row = db.prepare("SELECT * FROM laboratorios WHERE id = ?").get(req.params.id);
   if (!row) return res.status(404).json({ error: "Laboratorio no encontrado" });
-  res.json(labFromRow(row));
+  res.json(labFromRowVisible(row, req));
 });
 
-app.patch("/api/laboratorios/:id", authenticateToken, requireTecnico, (req, res) => {
+// Cambio de estado: cualquier usuario autenticado (como permite la interfaz y el README).
+// Otros campos requieren rol técnico y por ahora no están expuestos en la API.
+app.patch("/api/laboratorios/:id", authenticateToken, (req, res) => {
+  const campos = Object.keys(req.body || {});
+  if (!campos.includes("estado")) {
+    return res.status(400).json({ error: "Estado inválido" });
+  }
+  if (campos.some((k) => k !== "estado") && !esTecnico(req.user?.rol)) {
+    return res.status(403).json({ error: "Se requieren permisos técnicos para modificar otros campos" });
+  }
   const { estado } = req.body;
   if (!["disponible", "ocupado", "mantencion"].includes(estado)) {
     return res.status(400).json({ error: "Estado inválido" });
@@ -377,7 +468,7 @@ app.patch("/api/laboratorios/:id", authenticateToken, requireTecnico, (req, res)
   if (!anterior) return res.status(404).json({ error: "Laboratorio no encontrado" });
 
   db.prepare("UPDATE laboratorios SET estado = ? WHERE id = ?").run(estado, req.params.id);
-  const lab = labFromRow(db.prepare("SELECT * FROM laboratorios WHERE id = ?").get(req.params.id));
+  const lab = labFromRowVisible(db.prepare("SELECT * FROM laboratorios WHERE id = ?").get(req.params.id), req);
 
   notificarCambioEstadoLab(lab, estado, anterior.estado, req.user.id);
 
@@ -391,7 +482,7 @@ app.get("/api/equipos", authenticateToken, (req, res) => {
   const rows = labId
     ? db.prepare("SELECT * FROM equipos WHERE lab_id = ? ORDER BY id").all(labId)
     : db.prepare("SELECT * FROM equipos ORDER BY id").all();
-  responderLista(req, res, rows.map(eqFromRow));
+  responderLista(req, res, rows.map((r) => eqFromRowVisible(r, req)));
 });
 
 /* Usuarios */
@@ -408,7 +499,7 @@ app.get("/api/usuarios/:id", authenticateToken, (req, res) => {
 });
 
 app.post("/api/usuarios", authenticateToken, requireAdmin, [
-  body("id").trim().notEmpty().withMessage("El ID es obligatorio"),
+  body("id").trim().matches(/^[a-zA-Z0-9_]+$/).withMessage("El ID solo puede contener letras, números y guion bajo"),
   body("nombre").trim().notEmpty().withMessage("El nombre es obligatorio"),
   body("apellido").trim().notEmpty().withMessage("El apellido es obligatorio"),
   body("email").isEmail().withMessage("El email debe ser válido"),
@@ -425,15 +516,18 @@ app.post("/api/usuarios", authenticateToken, requireAdmin, [
   const existe = db.prepare("SELECT id FROM usuarios WHERE id = ?").get(u.id);
   if (existe) return res.status(409).json({ error: "Ya existe un usuario con ese ID" });
 
+  const emailUso = db.prepare("SELECT id FROM usuarios WHERE email = ?").get(u.email);
+  if (emailUso) return res.status(409).json({ error: "El email ya está en uso por otro usuario" });
+
   const hashed = bcrypt.hashSync(u.password, 10);
   db.prepare(`
     INSERT INTO usuarios (id,nombre,apellido,iniciales,email,password,rol,area,especialidad,nivel_acceso,activo)
     VALUES (@id,@nombre,@apellido,@iniciales,@email,@password,@rol,@area,@especialidad,@nivel_acceso,1)
   `).run({
-    id: u.id, nombre: u.nombre, apellido: u.apellido,
+    id: u.id, nombre: sanitizarTexto(u.nombre, 100), apellido: sanitizarTexto(u.apellido, 100),
     iniciales: u.iniciales || `${u.nombre[0]}${u.apellido[0]}`.toUpperCase(),
     email: u.email, password: hashed, rol: u.rol || "otro_area",
-    area: u.area || "", especialidad: u.especialidad || "",
+    area: sanitizarTexto(u.area, 100), especialidad: sanitizarTexto(u.especialidad, 200),
     nivel_acceso: u.nivelAcceso || "basico"
   });
 
@@ -441,21 +535,38 @@ app.post("/api/usuarios", authenticateToken, requireAdmin, [
   res.status(201).json(usrFromRow(row));
 });
 
-app.patch("/api/usuarios/:id", authenticateToken, requireAdmin, [
+// Un usuario puede editar su propio perfil (nombre, apellido, email, área, especialidad);
+// el admin puede editar cualquier campo de cualquier usuario.
+app.patch("/api/usuarios/:id", authenticateToken, [
   body("nombre").optional().trim().notEmpty(),
   body("apellido").optional().trim().notEmpty(),
-  body("email").optional().isEmail(),
+  body("email").optional().isEmail().withMessage("El email debe ser válido"),
   body("password").optional().isLength({ min: 6 }).withMessage("La contraseña debe tener al menos 6 caracteres"),
-  body("rol").optional().isIn(["admin", "programacion", "otro_area"]),
-  body("nivelAcceso").optional().isIn(["total", "tecnico", "basico"])
+  body("rol").optional().isIn(["admin", "programacion", "otro_area"]).withMessage("Rol inválido"),
+  body("nivelAcceso").optional().isIn(["total", "tecnico", "basico"]).withMessage("Nivel de acceso inválido")
 ], (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
     return res.status(400).json({ error: "Datos inválidos", details: errors.array() });
   }
 
+  const esSelf = String(req.params.id) === String(req.user.id);
+  const esAdmin = req.user?.rol === "admin";
+  if (!esSelf && !esAdmin) {
+    return res.status(403).json({ error: "Solo puedes editar tu propio perfil o ser administrador" });
+  }
+  const camposAdmin = ["rol", "nivelAcceso", "activo", "password"];
+  if (!esAdmin && camposAdmin.some((c) => req.body[c] !== undefined)) {
+    return res.status(403).json({ error: "Solo el administrador puede modificar rol, nivel de acceso, usuario activo o contraseña" });
+  }
+
   const actual = db.prepare("SELECT * FROM usuarios WHERE id = ?").get(req.params.id);
   if (!actual) return res.status(404).json({ error: "Usuario no encontrado" });
+
+  if (req.body.email !== undefined && String(req.body.email).toLowerCase() !== String(actual.email).toLowerCase()) {
+    const emailUso = db.prepare("SELECT id FROM usuarios WHERE email = ? AND id != ?").get(req.body.email, req.params.id);
+    if (emailUso) return res.status(409).json({ error: "El email ya está en uso por otro usuario" });
+  }
 
   const map = {
     nombre: "nombre", apellido: "apellido", email: "email", password: "password",
@@ -468,6 +579,10 @@ app.patch("/api/usuarios/:id", authenticateToken, requireAdmin, [
     if (req.body[key] !== undefined) {
       if (key === "password") {
         valores[col] = bcrypt.hashSync(req.body[key], 10);
+      } else if (key === "nombre" || key === "apellido" || key === "area") {
+        valores[col] = sanitizarTexto(req.body[key], 100);
+      } else if (key === "especialidad") {
+        valores[col] = sanitizarTexto(req.body[key], 200);
       } else {
         valores[col] = req.body[key];
       }
@@ -478,6 +593,18 @@ app.patch("/api/usuarios/:id", authenticateToken, requireAdmin, [
 
   valores.id = req.params.id;
   db.prepare(`UPDATE usuarios SET ${sets.join(", ")} WHERE id = @id`).run(valores);
+
+  // Si el propio usuario cambió su nombre/apellido, refrescar el JWT para que el menú se actualice.
+  if (esSelf && (req.body.nombre !== undefined || req.body.apellido !== undefined)) {
+    const fresca = db.prepare("SELECT * FROM usuarios WHERE id = ?").get(req.user.id);
+    const nuevoToken = jwt.sign(
+      { id: fresca.id, rol: fresca.rol, nombre: fresca.nombre, apellido: fresca.apellido, iniciales: fresca.iniciales, nivelAcceso: fresca.nivel_acceso },
+      JWT_SECRET,
+      { expiresIn: JWT_EXPIRES }
+    );
+    return res.json({ ...usrFromRow(db.prepare("SELECT * FROM usuarios WHERE id = ?").get(req.params.id)), token: nuevoToken });
+  }
+
   res.json(usrFromRow(db.prepare("SELECT * FROM usuarios WHERE id = ?").get(req.params.id)));
 });
 
@@ -489,9 +616,11 @@ app.get("/api/agenda", authenticateToken, (req, res) => {
 });
 
 app.post("/api/agenda", authenticateToken, [
-  body("labId").notEmpty().withMessage("El laboratorio es obligatorio"),
-  body("fecha").notEmpty().withMessage("La fecha es obligatoria"),
-  body("motivo").trim().notEmpty().withMessage("El motivo es obligatorio")
+  body("labId").trim().notEmpty().withMessage("El laboratorio es obligatorio"),
+  body("fecha").matches(/^\d{4}-\d{2}-\d{2}$/).withMessage("La fecha debe tener formato AAAA-MM-DD"),
+  body("motivo").trim().notEmpty().withMessage("El motivo es obligatorio"),
+  body("horaInicio").optional({ values: "falsy" }).matches(/^([01]\d|2[0-3]):[0-5]\d$/).withMessage("La hora de inicio debe tener formato HH:MM"),
+  body("horaFin").optional({ values: "falsy" }).matches(/^([01]\d|2[0-3]):[0-5]\d$/).withMessage("La hora de fin debe tener formato HH:MM")
 ], (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
@@ -499,11 +628,48 @@ app.post("/api/agenda", authenticateToken, [
   }
 
   const r = req.body;
-  const id = r.id || `res_${Date.now()}`;
+
+  const lab = db.prepare("SELECT id FROM laboratorios WHERE id = ?").get(r.labId);
+  if (!lab) return res.status(400).json({ error: "El laboratorio no existe" });
+
+  // No reservar en fechas pasadas
+  const hoy = new Date();
+  const hoyISO = new Date(hoy.getTime() - hoy.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+  if (r.fecha < hoyISO) {
+    return res.status(400).json({ error: "No se pueden agendar reservas en fechas pasadas" });
+  }
+
+  // Anticipación máxima configurable
+  const cfg = JSON.parse(db.prepare("SELECT data FROM config WHERE id = 1").get()?.data || "{}");
+  const anticipMax = Number(cfg.laboratorios?.anticipacionMaxReserva) || 7;
+  const dias = Math.round((new Date(r.fecha + "T00:00:00") - new Date(hoyISO + "T00:00:00")) / 86400000);
+  if (dias > anticipMax) {
+    return res.status(400).json({ error: `Solo se permite reservar con hasta ${anticipMax} día(s) de anticipación` });
+  }
+
+  const hIni = r.horaInicio || "00:00";
+  const hFin = r.horaFin || "23:59";
+  if (r.horaInicio && r.horaFin && r.horaFin <= r.horaInicio) {
+    return res.status(400).json({ error: "La hora de fin debe ser posterior a la de inicio" });
+  }
+
+  // Evitar solapamientos del mismo laboratorio en la misma fecha
+  const previas = db.prepare(`
+    SELECT * FROM agenda WHERE lab_id = ? AND fecha = ? AND estado != 'cancelada'
+  `).all(r.labId, r.fecha);
+  for (const p of previas) {
+    const pIni = p.hora_inicio || "00:00";
+    const pFin = p.hora_fin || "23:59";
+    if (hIni < pFin && pIni < hFin) {
+      return res.status(409).json({ error: "El laboratorio ya está reservado en ese horario" });
+    }
+  }
+
+  const id = nuevoId("res", r.id);
   db.prepare(`
     INSERT INTO agenda (id, lab_id, usuario_id, fecha, hora_inicio, hora_fin, motivo, estado)
     VALUES (?,?,?,?,?,?,?,?)
-  `).run(id, r.labId, req.user.id, r.fecha, r.horaInicio ?? null, r.horaFin ?? null, r.motivo, r.estado || "pendiente");
+  `).run(id, r.labId, req.user.id, r.fecha, r.horaInicio ?? null, r.horaFin ?? null, sanitizarTexto(r.motivo, 500), r.estado || "pendiente");
 
   const reserva = agFromRow(db.prepare("SELECT * FROM agenda WHERE id = ?").get(id));
   notificarNuevaReserva(reserva, req.user.id);
@@ -543,11 +709,11 @@ app.post("/api/reportes", authenticateToken, [
   }
 
   const r = req.body;
-  const id = r.id || `rep_${Date.now()}`;
+  const id = nuevoId("rep", r.id);
   db.prepare(`
     INSERT INTO reportes (id, tipo, titulo, descripcion, fecha, generado_por, datos, adjuntos)
     VALUES (?,?,?,?,?,?,?,?)
-  `).run(id, r.tipo, r.titulo.trim(), r.descripcion, r.fecha, req.user.id,
+  `).run(id, r.tipo, sanitizarTexto(r.titulo, 300), sanitizarTexto(r.descripcion, 5000), r.fecha, req.user.id,
          JSON.stringify(r.datos || {}), JSON.stringify(sanitizarAdjuntos(r.adjuntos)));
 
   const rep = repFromRow(db.prepare("SELECT * FROM reportes WHERE id = ?").get(id));
@@ -582,8 +748,8 @@ app.patch("/api/reportes/:id", authenticateToken, [
     WHERE id = ?
   `).run(
     r.tipo ?? actual.tipo,
-    r.titulo?.trim() ?? actual.titulo,
-    r.descripcion ?? actual.descripcion,
+    r.titulo !== undefined ? sanitizarTexto(r.titulo, 300) : actual.titulo,
+    r.descripcion !== undefined ? sanitizarTexto(r.descripcion, 5000) : actual.descripcion,
     r.fecha ?? actual.fecha,
     JSON.stringify(r.datos ?? JSON.parse(actual.datos || "{}")),
     JSON.stringify(r.adjuntos !== undefined ? sanitizarAdjuntos(r.adjuntos) : JSON.parse(actual.adjuntos || "[]")),
@@ -682,7 +848,7 @@ app.use((err, req, res, next) => {
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   app.listen(PORT, () => {
-    console.log(`\n  LabControl Liceo v2.8`);
+    console.log(`\n  LabControl Liceo v2.9`);
     console.log(`  API + sitio corriendo en: http://localhost:${PORT}/login.html`);
     console.log(`  Seguridad: JWT + bcrypt + rate limiting + helmet\n`);
   });

@@ -16,6 +16,19 @@ Solo el **Administrador** puede gestionar usuarios y acceder a la configuración
 
 ## Cambios
 
+> **v2.9** — **Corrección de errores y endurecimiento de seguridad**:
+> > - **XSS almacenado eliminado**: todos los datos de usuario se escapan al renderizar (notificaciones, reportes, laboratorios, equipos, usuarios y agenda). Los títulos de reportes, motivos de reserva y nombres ya no pueden inyectar HTML ni JavaScript.
+> > - **Adjuntos validados de verdad**: allowlist de tipos MIME (PNG/JPEG/GIF/WebP/PDF/DOC/DOCX/TXT/CSV/ZIP/RAR), máximo 6 MB por archivo y 10 archivos, con contenido verificado como data-URL base64 válido.
+> > - **Botón "Control" de equipos corregido**: antes lanzaba un error (`PC01 is not defined`) e impedía abrir el panel remoto; ahora usa delegación de eventos e identificadores seguros.
+> > - **Configuración 100% operativa**: "Guardar cambios" persiste todos los paneles (perfil, sitio, red, laboratorios, equipos, notificaciones y seguridad) y "Restablecer a valores de fábrica" restaura la configuración real. Los totales de laboratorios/equipos del panel Sistema se calculan en vivo.
+> > - **Perfil editable por cualquier profesor**: cada usuario puede actualizar su nombre, apellido, correo, área y especialidad (antes solo el administrador; las demás cuentas recibían 403).
+> > - **Permisos coherentes**: cualquier profesor puede cambiar el estado de un laboratorio (Disponible / Ocupado / Mantención), tal como mostraban la interfaz y el README. La API además redacta la información técnica (hardware, IP/MAC) para cuentas no técnicas.
+> > - **Reservas con validación completa**: laboratorio existente, fecha no pasada ni más allá de la anticipación máxima, horas con formato `HH:MM` y fin posterior al inicio, y detección de solapamientos.
+> > - **IDs y correos saneados**: los IDs de usuario solo aceptan letras, números y guion bajo; los ids de reportes/reservas venidos del cliente se validan, y el correo institucional debe ser único.
+> > - **Endurecimiento de seguridad**: CSP habilitado, CORS bloqueado a orígenes externos por defecto, `JWT_SECRET` aleatorio si no está definido en el entorno, y límites de peticiones en todas las rutas de escritura.
+> > - **Temas corregidos**: solo existen "Claro" y "Oscuro" (los valores Azul/Verde/legados se migran a Claro) y se agrega tamaño de texto accesible (Normal/Grande) aplicado en todo el sitio.
+> > - **Sugerencias en el login**: la pantalla de inicio muestra las cuentas de demostración con un clic para rellenarlas automáticamente.
+
 > **v2.8** — **Ajustes de notificaciones y botones**:
 > > - **Panel de notificaciones sobre todo y translúcido**: el recuadro ya no queda debajo de otros elementos y ahora es semi-transparente con desenfoque del fondo. Se corrigió la causa real: el sidebar no apilaba sobre el contenido (que conserva un contexto por la animación `page-in`), ahora tiene `z-index: 90` por debajo de modales y toasts.
 > > - **Botón de ayuda (?) más grande**: el símbolo de interrogación ahora llena mejor el círculo del botón (26px), venciendo la regla genérica `.btn svg.lucide` que lo reducía a 15px. El botón pasó a ser un círculo de exactamente 26px, del mismo tamaño que el símbolo y centrado.

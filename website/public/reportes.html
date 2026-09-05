@@ -11,8 +11,8 @@
 <meta property="og:url" content="https://dereckyql.github.io/LabControl-Project/reportes.html" />
 <title>Reportes · Insuco LabControl</title>
 <link rel="icon" type="image/png" href="img/logo-insuco.png" />
-<link rel="stylesheet" href="style.css?v=2.8.4" />
-<script src="theme.js?v=2.8.4"></script>
+<link rel="stylesheet" href="style.css?v=2.9" />
+<script src="theme.js?v=2.9"></script>
 </head>
 <body>
   <a class="skip-nav" href="#main-content">Saltar al contenido</a>
@@ -134,9 +134,9 @@
   </div>
 </div>
 
-<script src="data.js?v=2.8.4"></script>
-<script src="lucide.min.js?v=2.8.4"></script>
-<script src="app.js?v=2.8.4"></script>
+<script src="data.js?v=2.9"></script>
+<script src="lucide.min.js?v=2.9"></script>
+<script src="app.js?v=2.9"></script>
 <script>
   renderSidebar("reportes.html");
 
@@ -180,9 +180,7 @@
       const color   = COLORES_TIPO[rep.tipo] ?? "primary";
       const nAdj    = (rep.adjuntos ?? []).length;
       return `
-        <div class="card rep-card" role="button" tabindex="0"
-          onclick="abrirReporte('${rep.id}')"
-          onkeydown="if(event.key==='Enter')abrirReporte('${rep.id}')">
+        <div class="card rep-card" role="button" tabindex="0" data-id="${esc(rep.id)}">
           <div class="rep-card__icon stat-card__icon--${color}">
             <i data-lucide="${ICONOS_TIPO[rep.tipo] ?? "file-text"}"></i>
           </div>
@@ -191,7 +189,7 @@
             <div class="rep-card__meta">
               <span class="rep-chip rep-chip--${color}">${LABELS_TIPO[rep.tipo] ?? "Reporte"}</span>
               <span><i data-lucide="calendar-days"></i> ${formatFecha(rep.fecha)}</span>
-              <span><i data-lucide="user"></i> ${autor ? `${autor.nombre} ${autor.apellido}` : rep.generadoPor}</span>
+              <span><i data-lucide="user"></i> ${autor ? `${esc(autor.nombre)} ${esc(autor.apellido)}` : esc(rep.generadoPor)}</span>
               ${nAdj ? `<span><i data-lucide="paperclip"></i> ${nAdj}</span>` : ""}
             </div>
           </div>
@@ -199,6 +197,16 @@
         </div>
       `;
     }).join("");
+
+    grid.addEventListener("click", (e) => {
+      const tar = e.target.closest(".rep-card");
+      if (tar) abrirReporte(tar.dataset.id);
+    });
+    grid.addEventListener("keydown", (e) => {
+      if (e.key !== "Enter") return;
+      const tar = e.target.closest(".rep-card");
+      if (tar) abrirReporte(tar.dataset.id);
+    });
   }
 
   /* ======================================================
@@ -225,7 +233,7 @@
     document.getElementById("rep-fecha").innerHTML =
       `<i data-lucide="calendar-days"></i> ${formatFecha(rep.fecha)}`;
     document.getElementById("rep-autor").innerHTML =
-      `<i data-lucide="user"></i> ${autor ? `${autor.nombre} ${autor.apellido}` : rep.generadoPor}`;
+      `<i data-lucide="user"></i> ${autor ? `${esc(autor.nombre)} ${esc(autor.apellido)}` : esc(rep.generadoPor)}`;
 
     // Botones de acción: solo el creador o un administrador pueden editar/eliminar
     const acciones = document.getElementById("rep-acciones");
@@ -527,7 +535,7 @@
           <table>
             <thead><tr><th>Laboratorio</th><th>${rep.tipo === "uso" ? "Horas de uso" : "Disponibilidad (%)"}</th></tr></thead>
             <tbody>
-              ${rep.datos.labels.map((l, i) => `<tr><td>${l}</td><td><strong>${rep.datos.valores[i]}${rep.tipo === "disponibilidad" ? "%" : " h"}</strong></td></tr>`).join("")}
+              ${rep.datos.labels.map((l, i) => `<tr><td>${esc(l)}</td><td><strong>${esc(rep.datos.valores[i])}${rep.tipo === "disponibilidad" ? "%" : " h"}</strong></td></tr>`).join("")}
             </tbody>
           </table>
         </div>
@@ -556,10 +564,10 @@
       return `
         <h3 style="margin:0 0 16px;font-size:.95rem">Resumen de inventario</h3>
         <div class="stat-grid">
-          <div class="card stat-card"><div><div class="stat-card__label">Total equipos</div><div class="stat-card__value">${d.total}</div></div><div class="stat-card__icon stat-card__icon--primary"><i data-lucide="monitor"></i></div></div>
-          <div class="card stat-card"><div><div class="stat-card__label">Activos</div><div class="stat-card__value">${d.activos}</div></div><div class="stat-card__icon stat-card__icon--success"><i data-lucide="circle-check"></i></div></div>
-          <div class="card stat-card"><div><div class="stat-card__label">Con falla</div><div class="stat-card__value">${d.enFalla}</div></div><div class="stat-card__icon stat-card__icon--danger"><i data-lucide="triangle-alert"></i></div></div>
-          <div class="card stat-card"><div><div class="stat-card__label">En mantención</div><div class="stat-card__value">${d.enMantencion}</div></div><div class="stat-card__icon stat-card__icon--warning"><i data-lucide="wrench"></i></div></div>
+          <div class="card stat-card"><div><div class="stat-card__label">Total equipos</div><div class="stat-card__value">${esc(d.total)}</div></div><div class="stat-card__icon stat-card__icon--primary"><i data-lucide="monitor"></i></div></div>
+          <div class="card stat-card"><div><div class="stat-card__label">Activos</div><div class="stat-card__value">${esc(d.activos)}</div></div><div class="stat-card__icon stat-card__icon--success"><i data-lucide="circle-check"></i></div></div>
+          <div class="card stat-card"><div><div class="stat-card__label">Con falla</div><div class="stat-card__value">${esc(d.enFalla)}</div></div><div class="stat-card__icon stat-card__icon--danger"><i data-lucide="triangle-alert"></i></div></div>
+          <div class="card stat-card"><div><div class="stat-card__label">En mantención</div><div class="stat-card__value">${esc(d.enMantencion)}</div></div><div class="stat-card__icon stat-card__icon--warning"><i data-lucide="wrench"></i></div></div>
         </div>
       `;
     }

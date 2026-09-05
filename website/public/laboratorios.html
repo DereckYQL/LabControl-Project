@@ -11,8 +11,8 @@
 <meta property="og:url" content="https://dereckyql.github.io/LabControl-Project/laboratorios.html" />
 <title>Laboratorios · Insuco LabControl</title>
 <link rel="icon" type="image/png" href="img/logo-insuco.png" />
-<link rel="stylesheet" href="style.css?v=2.8.4" />
-<script src="theme.js?v=2.8.4"></script>
+<link rel="stylesheet" href="style.css?v=2.9" />
+<script src="theme.js?v=2.9"></script>
 </head>
 <body>
   <a class="skip-nav" href="#main-content">Saltar al contenido</a>
@@ -156,9 +156,9 @@
   </div>
 </div>
 
-<script src="data.js?v=2.8.4"></script>
-<script src="lucide.min.js?v=2.8.4"></script>
-<script src="app.js?v=2.8.4"></script>
+<script src="data.js?v=2.9"></script>
+<script src="lucide.min.js?v=2.9"></script>
+<script src="app.js?v=2.9"></script>
 <script>
   renderSidebar("laboratorios.html");
   initTabs();
@@ -214,12 +214,12 @@
 
     // Info general
     document.getElementById("detalle-info-general").innerHTML = `
-      <div><dt>Sala</dt><dd>${lab.sala}</dd></div>
-      <div><dt>Ubicación</dt><dd>${lab.ubicacion}</dd></div>
-      <div><dt>Capacidad</dt><dd>${lab.equipos} equipos</dd></div>
-      <div><dt>Responsable</dt><dd>${lab.responsable}</dd></div>
-      <div><dt>Horario disponible</dt><dd>${lab.horario}</dd></div>
-      <div style="grid-column:1/-1"><dt>Descripción</dt><dd style="font-weight:400">${lab.descripcion}</dd></div>
+      <div><dt>Sala</dt><dd>${esc(lab.sala)}</dd></div>
+      <div><dt>Ubicación</dt><dd>${esc(lab.ubicacion)}</dd></div>
+      <div><dt>Capacidad</dt><dd>${esc(lab.equipos)} equipos</dd></div>
+      <div><dt>Responsable</dt><dd>${esc(lab.responsable)}</dd></div>
+      <div><dt>Horario disponible</dt><dd>${esc(lab.horario)}</dd></div>
+      <div style="grid-column:1/-1"><dt>Descripción</dt><dd style="font-weight:400">${esc(lab.descripcion)}</dd></div>
     `;
 
     // Hardware — solo si tiene permisos técnicos
@@ -228,11 +228,11 @@
     if (AUTH.puedeVerTecnico()) {
       lockEl.style.display = "none";
       hardwareEl.innerHTML = `
-        <div><dt>Sistema operativo</dt><dd>${lab.so}</dd></div>
-        <div><dt>Procesador</dt><dd>${lab.procesador}</dd></div>
-        <div><dt>Memoria RAM</dt><dd>${lab.ram}</dd></div>
-        <div><dt>Almacenamiento</dt><dd>${lab.almacenamiento}</dd></div>
-        <div><dt>Red / Conectividad</dt><dd>${lab.red}</dd></div>
+        <div><dt>Sistema operativo</dt><dd>${esc(lab.so)}</dd></div>
+        <div><dt>Procesador</dt><dd>${esc(lab.procesador)}</dd></div>
+        <div><dt>Memoria RAM</dt><dd>${esc(lab.ram)}</dd></div>
+        <div><dt>Almacenamiento</dt><dd>${esc(lab.almacenamiento)}</dd></div>
+        <div><dt>Red / Conectividad</dt><dd>${esc(lab.red)}</dd></div>
         <div><dt>Estado de red</dt><dd>Operativa</dd></div>
       `;
     } else {
@@ -242,7 +242,7 @@
 
     // Servicios
     document.getElementById("detalle-servicios").innerHTML =
-      lab.servicios.map((s) => `<li><i data-lucide="check"></i>${s}</li>`).join("");
+      lab.servicios.map((s) => `<li><i data-lucide="check"></i>${esc(s)}</li>`).join("");
 
     // Agenda del laboratorio
     cargarAgenda().then((agenda) => {
@@ -256,10 +256,10 @@
         const usr = usuariosCache.find((u) => u.id === r.usuarioId);
         return `<tr>
           <td>${formatFecha(r.fecha)}</td>
-          <td>${r.horaInicio} – ${r.horaFin}</td>
-          <td>${r.motivo}</td>
-          <td>${usr ? `${usr.nombre} ${usr.apellido}` : r.usuarioId}</td>
-          <td><span class="badge ${r.estado === "confirmada" ? "badge--disponible" : "badge--mantencion"}">${r.estado}</span></td>
+          <td>${esc(r.horaInicio)} – ${esc(r.horaFin)}</td>
+          <td>${esc(r.motivo)}</td>
+          <td>${usr ? `${esc(usr.nombre)} ${esc(usr.apellido)}` : esc(r.usuarioId)}</td>
+          <td><span class="badge ${r.estado === "confirmada" ? "badge--disponible" : "badge--mantencion"}">${esc(r.estado)}</span></td>
         </tr>`;
       }).join("");
     }).catch(() => {});

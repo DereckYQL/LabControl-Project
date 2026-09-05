@@ -22,7 +22,26 @@ afterAll(() => {
   }
 });
 
+// Los límites de rate limiting del login (10/15 min) obligan a reutilizar sesiones.
+let tokenAdmin = null;
 async function login() {
+  if (!tokenAdmin) {
+    tokenAdmin = (await request(app).post("/api/login").send({ usuario: "INSUCO", password: "Insuco1336" })).body.token;
+  }
+  return tokenAdmin;
+}
+
+let tokenCamila = null;
+async function loginCamila() {
+  if (!tokenCamila) {
+    const res = await request(app).post("/api/login").send({ usuario: "prof_camila", password: "camila123" });
+    expect(res.status).toBe(200);
+    tokenCamila = res.body.token;
+  }
+  return tokenCamila;
+}
+
+async function loginFresh() {
   const res = await request(app).post("/api/login").send({ usuario: "INSUCO", password: "Insuco1336" });
   return res.body.token;
 }
@@ -45,7 +64,7 @@ test("seguridad: /api/usuarios exige token (401)", async () => {
 });
 
 test("POST /api/login: checkpoint", async () => {
-  const token = await login();
+  const token = await loginFresh();
   expect(token).toBeTruthy();
 });
 
@@ -104,4 +123,85 @@ test("reportes: crea con cuerpo mínimo", async () => {
     .set("Authorization", `Bearer ${token}`)
     .send({ numero: "R-TEST-1", tipo: "mantencion", titulo: "Reporte de prueba", descripcion: "Reporte generado por la suite de tests", fecha: "2026-01-01" });
   expect([200, 201]).toContain(res.status);
+});
+
+test("usuarios: un usuario edita su propio perfil y recibe token renovado", async () => {
+  const token = await loginCamila();
+  const res = await request(app)
+    .patch("/api/usuarios/prof_camila")
+    .set("Authorization", `Bearer ${token}`)
+    .send({ nombre: "Camila Editada", apellido: "Pérez", area: "Otra área" });
+  expect(res.status).toBe(200);
+  expect(res.body.token).toBeTruthy();
+  expect(res.body.nombre).toBe("Camila Editada");
+});
+
+test("usuarios: un no-admin no puede promover su rol (403)", async () => {
+  const token = await loginCamila();
+  const res = await request(app)
+    .patch("/api/usuarios/prof_camila")
+    .set("Authorization", `Bearer ${token}`)
+    .send({ rol: "admin" });
+  expect(res.status).toBe(403);
+});
+
+test("técnicos: prof_camila no ve el detalle técnico de laboratorios ni equipos", async () => {
+  const token = await loginCamila();
+  const labs = (await request(app).get("/api/laboratorios").set("Authorization", `Bearer ${token}`)).body;
+  const lab = Array.isArray(labs) ? labs[0] : labs.data[0];
+  expect(lab).not.toHaveProperty("so");
+  expect(lab).not.toHaveProperty("procesador");
+  expect(lab).not.toHaveProperty("red");
+
+  const eqs = (await request(app).get("/api/equipos").set("Authorization", `Bearer ${token}`)).body;
+  const eq = Array.isArray(eqs) ? eqs[0] : eqs.data[0];
+  expect(eq).not.toHaveProperty("ip");
+  expect(eq).not.toHaveProperty("mac");
+  expect(eq).not.toHaveProperty("serie");
+});
+
+test("laboratorios: cualquier autenticado cambia estado; campos técnicos exigen rol técnico", async () => {
+  const token = await loginCamila();
+  const ok = await request(app)
+    .patch("/api/laboratorios/1")
+    .set("Authorization", `Bearer ${token}`)
+    .send({ estado: "ocupado" });
+  expect(ok.status).toBe(200);
+  expect(ok.body.estado).toBe("ocupado");
+
+  const denegado = await request(app)
+    .patch("/api/laboratorios/1")
+    .set("Authorization", `Bearer ${token}`)
+    .send({ estado: "disponible", so: "Windows 11" });
+  expect(denegado.status).toBe(403);
+});
+
+test("agenda: rechaza fecha pasada y solapamientos", async () => {
+  const token = await login();
+  const pasado = await request(app)
+    .post("/api/agenda")
+    .set("Authorization", `Bearer ${token}`)
+    .send({ labId: 1, fecha: "2020-01-01", horaInicio: "09:00", horaFin: "10:00", motivo: "Prueba" });
+  expect(pasado.status).toBe(400);
+
+  const hoy = new Date();
+  const fecha = new Date(hoy.getTime() - hoy.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+
+  const primero = await request(app)
+    .post("/api/agenda")
+    .set("Authorization", `Bearer ${token}`)
+    .send({ labId: 2, fecha, horaInicio: "09:00", horaFin: "10:00", motivo: "Primera reserva" });
+  expect(primero.status).toBe(201);
+
+  const solapa = await request(app)
+    .post("/api/agenda")
+    .set("Authorization", `Bearer ${token}`)
+    .send({ labId: 2, fecha, horaInicio: "09:30", horaFin: "10:30", motivo: "Solapamiento" });
+  expect(solapa.status).toBe(409);
+
+  const compat = await request(app)
+    .post("/api/agenda")
+    .set("Authorization", `Bearer ${token}`)
+    .send({ labId: 2, fecha, horaInicio: "15:00", horaFin: "16:00", motivo: "Horario libre" });
+  expect(compat.status).toBe(201);
 });

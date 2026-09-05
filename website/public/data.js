@@ -89,12 +89,23 @@ function demoRequest(metodo, ruta, cuerpo) {
   const qs = new URLSearchParams(ruta.split("?")[1] ?? "");
   const clave = `${metodo} ${recurso}${id !== undefined ? "_x" : ""}`;
 
+  const demoEsTecnico = (() => {
+    const s = AUTH.getSesion();
+    return !!(s && (s.rol === "admin" || s.rol === "programacion"));
+  })();
+
   switch (clave) {
     case "GET laboratorios":
-      return copia(D.laboratorios);
+      if (demoEsTecnico) return copia(D.laboratorios);
+      return copia(D.laboratorios.map(({ so, procesador, ram, almacenamiento, red, ...vis }) => vis));
 
-    case "GET laboratorios_x":
-      return copia(D.laboratorios.find((l) => l.id === Number(id)));
+    case "GET laboratorios_x": {
+      const lab = D.laboratorios.find((l) => l.id === Number(id));
+      if (!lab) return undefined;
+      if (demoEsTecnico) return copia(lab);
+      const { so, procesador, ram, almacenamiento, red, ...vis } = lab;
+      return copia(vis);
+    }
 
     case "PATCH laboratorios_x": {
       const lab = D.laboratorios.find((l) => l.id === Number(id));
@@ -117,7 +128,9 @@ function demoRequest(metodo, ruta, cuerpo) {
 
     case "GET equipos": {
       const labId = qs.get("labId");
-      return copia(labId ? D.equipos.filter((e) => e.labId === Number(labId)) : D.equipos);
+      const lista = labId ? D.equipos.filter((e) => e.labId === Number(labId)) : D.equipos;
+      if (demoEsTecnico) return copia(lista);
+      return copia(lista.map(({ procesador, ram, almacenamiento, so, serie, ip, mac, ...vis }) => vis));
     }
 
     case "GET usuarios":

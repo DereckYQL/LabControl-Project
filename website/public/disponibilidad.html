@@ -11,8 +11,8 @@
 <meta property="og:url" content="https://dereckyql.github.io/LabControl-Project/disponibilidad.html" />
 <title>Disponibilidad · Insuco LabControl</title>
 <link rel="icon" type="image/png" href="img/logo-insuco.png" />
-<link rel="stylesheet" href="style.css?v=2.8.4" />
-<script src="theme.js?v=2.8.4"></script>
+<link rel="stylesheet" href="style.css?v=2.9" />
+<script src="theme.js?v=2.9"></script>
 </head>
 <body>
   <a class="skip-nav" href="#main-content">Saltar al contenido</a>
@@ -152,9 +152,9 @@
   </div>
 </div>
 
-<script src="data.js?v=2.8.4"></script>
-<script src="lucide.min.js?v=2.8.4"></script>
-<script src="app.js?v=2.8.4"></script>
+<script src="data.js?v=2.9"></script>
+<script src="lucide.min.js?v=2.9"></script>
+<script src="app.js?v=2.9"></script>
 <script>
   renderSidebar("disponibilidad.html");
   const sesion = AUTH.getSesion();
@@ -193,19 +193,23 @@
       const est = ESTADOS[lab.estado];
       return `
         <tr>
-          <td><strong>${lab.nombre}</strong></td>
-          <td>${lab.sala}</td>
-          <td>${lab.equipos}</td>
-          <td><span class="badge badge--${lab.estado}">${est.label}</span></td>
-          <td>${lab.horario}</td>
-          <td>${lab.responsable}</td>
+          <td><strong>${esc(lab.nombre)}</strong></td>
+          <td>${esc(lab.sala)}</td>
+          <td>${esc(lab.equipos)}</td>
+          <td><span class="badge badge--${lab.estado}">${esc(est.label)}</span></td>
+          <td>${esc(lab.horario)}</td>
+          <td>${esc(lab.responsable)}</td>
           <td style="display:flex;gap:6px;flex-wrap:wrap">
-            <button class="btn btn--sm" onclick="abrirModalEstado(${lab.id})">Cambiar estado</button>
-            <a class="btn btn--sm" href="laboratorios.html?id=${lab.id}">Ver detalles</a>
+            <button class="btn btn--sm" data-estado="${esc(lab.id)}">Cambiar estado</button>
+            <a class="btn btn--sm" href="laboratorios.html?id=${esc(lab.id)}">Ver detalles</a>
           </td>
         </tr>
       `;
     }).join("");
+
+    tbody.querySelectorAll("[data-estado]").forEach((btn) => {
+      btn.addEventListener("click", () => abrirModalEstado(Number(btn.dataset.estado)));
+    });
   }
 
   function renderTablaAgenda(agenda, labs) {
@@ -220,18 +224,22 @@
       const claseEstado = res.estado === "confirmada" ? "badge--disponible" : "badge--mantencion";
       return `
         <tr>
-          <td>${lab?.nombre ?? "—"}</td>
+          <td>${esc(lab?.nombre ?? "—")}</td>
           <td>${formatFecha(res.fecha)}</td>
-          <td>${res.horaInicio} – ${res.horaFin}</td>
-          <td>${res.motivo}</td>
-          <td>${usr ? `${usr.nombre} ${usr.apellido}` : res.usuarioId}</td>
-          <td><span class="badge ${claseEstado}">${res.estado}</span></td>
+          <td>${esc(res.horaInicio)} – ${esc(res.horaFin)}</td>
+          <td>${esc(res.motivo)}</td>
+          <td>${usr ? `${esc(usr.nombre)} ${esc(usr.apellido)}` : esc(res.usuarioId)}</td>
+          <td><span class="badge ${claseEstado}">${esc(res.estado)}</span></td>
           <td>${res.usuarioId === sesion?.id || AUTH.esAdmin()
-            ? `<button class="btn btn--sm btn--danger" onclick="cancelarReserva('${res.id}')">Cancelar</button>`
+            ? `<button class="btn btn--sm btn--danger" data-cancelar-id="${esc(res.id)}">Cancelar</button>`
             : "—"}</td>
         </tr>
       `;
     }).join("");
+
+    tbody.querySelectorAll("[data-cancelar-id]").forEach((btn) => {
+      btn.addEventListener("click", () => cancelarReserva(btn.dataset.cancelarId));
+    });
   }
 
   function abrirModalEstado(labId) {
@@ -276,7 +284,7 @@
   // Modal reserva
   document.getElementById("btn-nueva-reserva").addEventListener("click", () => {
     const sel = document.getElementById("res-lab");
-    sel.innerHTML = labsCache.map((l) => `<option value="${l.id}">${l.nombre} — ${l.sala}</option>`).join("");
+    sel.innerHTML = labsCache.map((l) => `<option value="${esc(l.id)}">${esc(l.nombre)} — ${esc(l.sala)}</option>`).join("");
     // Fecha mínima: hoy
     const hoy = new Date().toISOString().split("T")[0];
     document.getElementById("res-fecha").value = hoy;

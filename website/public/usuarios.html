@@ -11,8 +11,8 @@
 <meta property="og:url" content="https://dereckyql.github.io/LabControl-Project/usuarios.html" />
 <title>Usuarios · Insuco LabControl</title>
 <link rel="icon" type="image/png" href="img/logo-insuco.png" />
-<link rel="stylesheet" href="style.css?v=2.8.4" />
-<script src="theme.js?v=2.8.4"></script>
+<link rel="stylesheet" href="style.css?v=2.9" />
+<script src="theme.js?v=2.9"></script>
 </head>
 <body>
   <a class="skip-nav" href="#main-content">Saltar al contenido</a>
@@ -172,9 +172,9 @@
   </div>
 </div>
 
-<script src="data.js?v=2.8.4"></script>
-<script src="lucide.min.js?v=2.8.4"></script>
-<script src="app.js?v=2.8.4"></script>
+<script src="data.js?v=2.9"></script>
+<script src="lucide.min.js?v=2.9"></script>
+<script src="app.js?v=2.9"></script>
 <script>
   renderSidebar("usuarios.html");
   initTabs();
@@ -254,26 +254,29 @@
     grid.innerHTML = usuarios.map((u) => {
       const color = ROL_COLOR[u.rol] ?? "primary";
       return `
-        <div class="card usr-card" role="button" tabindex="0"
-          onclick="abrirDetalle('${u.id}')"
-          onkeydown="if(event.key==='Enter')abrirDetalle('${u.id}')">
+        <div class="card usr-card" role="button" tabindex="0" data-id="${esc(u.id)}">
           <div class="usr-card__avatar" style="background:var(--color-${color === "danger" ? "danger-bg" : color === "success" ? "success-bg" : "primary-light"});color:var(--color-${color === "danger" ? "danger" : color === "success" ? "success" : "primary"})">
-            ${u.iniciales}
+            ${esc(u.iniciales)}
           </div>
           <div class="usr-card__body">
-            <div class="usr-card__nombre">${u.nombre} ${u.apellido}</div>
-            <div class="usr-card__area">${u.area}</div>
-            <div class="usr-card__especialidad">${u.especialidad}</div>
+            <div class="usr-card__nombre">${esc(u.nombre)} ${esc(u.apellido)}</div>
+            <div class="usr-card__area">${esc(u.area)}</div>
+            <div class="usr-card__especialidad">${esc(u.especialidad)}</div>
             <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">
               <span class="badge badge--${color === "danger" ? "ocupado" : color === "success" ? "disponible" : ""}">
-                <i data-lucide="${ROL_ICON[u.rol]}"></i> ${rolLabel(u.rol)}
+                <i data-lucide="${ROL_ICON[u.rol]}"></i> ${esc(rolLabel(u.rol))}
               </span>
-              <span class="badge badge--muted">${nivelLabel(u.nivelAcceso)}</span>
+              <span class="badge badge--muted">${esc(nivelLabel(u.nivelAcceso))}</span>
             </div>
           </div>
         </div>
       `;
     }).join("");
+
+    grid.querySelectorAll(".usr-card").forEach((card) => {
+      card.addEventListener("click", () => abrirDetalle(card.dataset.id));
+      card.addEventListener("keydown", (e) => { if (e.key === "Enter") abrirDetalle(card.dataset.id); });
+    });
   }
 
   function abrirDetalle(id) {
@@ -320,13 +323,13 @@
 
     // Info
     document.getElementById("det-info-grid").innerHTML = `
-      <div><dt>Nombre completo</dt><dd>${u.nombre} ${u.apellido}</dd></div>
-      <div><dt>ID usuario</dt><dd>${u.id}</dd></div>
-      <div><dt>Correo</dt><dd>${u.email}</dd></div>
-      <div><dt>Área</dt><dd>${u.area}</dd></div>
-      <div><dt>Especialidad</dt><dd>${u.especialidad}</dd></div>
-      <div><dt>Rol</dt><dd>${rolLabel(u.rol)}</dd></div>
-      <div><dt>Nivel de acceso</dt><dd>${nivelLabel(u.nivelAcceso)}</dd></div>
+      <div><dt>Nombre completo</dt><dd>${esc(u.nombre)} ${esc(u.apellido)}</dd></div>
+      <div><dt>ID usuario</dt><dd>${esc(u.id)}</dd></div>
+      <div><dt>Correo</dt><dd>${esc(u.email)}</dd></div>
+      <div><dt>Área</dt><dd>${esc(u.area)}</dd></div>
+      <div><dt>Especialidad</dt><dd>${esc(u.especialidad)}</dd></div>
+      <div><dt>Rol</dt><dd>${esc(rolLabel(u.rol))}</dd></div>
+      <div><dt>Nivel de acceso</dt><dd>${esc(nivelLabel(u.nivelAcceso))}</dd></div>
       <div><dt>Estado</dt><dd>${u.activo ? "Activo" : "Inactivo"}</dd></div>
     `;
 

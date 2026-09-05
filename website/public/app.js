@@ -359,8 +359,8 @@ function renderListaNotificaciones() {
     <button class="notif-item ${n.leida ? "" : "notif-item--nueva"}" type="button" data-id="${n.id}" data-destino="${destinoNotificacion(n)}">
       <span class="notif-item__punto"></span>
       <span class="notif-item__cuerpo">
-        <span class="notif-item__titulo">${n.titulo}</span>
-        <span class="notif-item__msj">${n.mensaje ?? ""}</span>
+        <span class="notif-item__titulo">${esc(n.titulo)}</span>
+        <span class="notif-item__msj">${esc(n.mensaje ?? "")}</span>
         <span class="notif-item__fecha"><i data-lucide="calendar-days"></i> ${formatFecha(n.fecha)}</span>
       </span>
     </button>
@@ -442,8 +442,8 @@ function renderStatusList(labs, containerId) {
       <div class="status-row">
         <div class="status-row__icon" style="background:${estado.color}22;color:${estado.color}"><i data-lucide="monitor"></i></div>
         <div style="flex:1">
-          <div class="status-row__name">${lab.nombre}</div>
-          <div class="status-row__room">${lab.sala}</div>
+          <div class="status-row__name">${esc(lab.nombre)}</div>
+          <div class="status-row__room">${esc(lab.sala)}</div>
         </div>
         <div class="status-row__bar-wrap">
           <span class="badge badge--${lab.estado}">${estado.label}</span>
@@ -487,7 +487,7 @@ function renderDonut(labs, containerId) {
         ${validLabs.map((lab, i) => `
           <span>
             <span class="donut-legend__dot" style="background:${palette[i % palette.length]}"></span>
-            ${lab.nombre} (${lab.equipos})
+            ${esc(lab.nombre)} (${lab.equipos})
           </span>
         `).join("")}
       </div>
@@ -508,8 +508,8 @@ function renderLabGrid(labs, containerId, { linkTo = "laboratorios.html" } = {})
           <span class="photo-icon"><i data-lucide="monitor"></i></span>
         </div>
         <div class="lab-card__body">
-          <div class="lab-card__title">${lab.nombre}</div>
-          <div class="lab-card__room">${lab.sala}</div>
+          <div class="lab-card__title">${esc(lab.nombre)}</div>
+          <div class="lab-card__room">${esc(lab.sala)}</div>
           <div class="lab-card__row"><span>Equipos</span><strong style="color:var(--color-text)">${lab.equipos}</strong></div>
           <div class="lab-card__row"><span>Estado</span><span class="badge badge--${lab.estado}">${estado.label}</span></div>
           <a class="lab-card__link" href="${linkTo}?id=${lab.id}">Ver detalles →</a>
@@ -560,6 +560,7 @@ function showToast(mensaje, tipo = "success") {
 }
 
 function esc(str) {
+  if (str === null || str === undefined) return "";
   const div = document.createElement("div");
   div.textContent = str;
   return div.innerHTML;

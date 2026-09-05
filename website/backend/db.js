@@ -122,6 +122,15 @@ CREATE TABLE IF NOT EXISTS config (
 
 /* Migraciones (cada una se aplica una sola vez) */
 
+const CONFIG_DEFAULT = {
+  sitio: { nombreInstitucion: "Instituto Superior de Comercio", nombreSistema: "LabControl", logo: "", tema: "claro", idioma: "es" },
+  red: { subredLabs: "192.168.10.0/24", servidorDNS: "192.168.1.1", puertaEnlace: "192.168.1.254", wifiHabilitado: true },
+  notificaciones: { emailAdmin: "admin@liceo.cl", alertaFallas: true, alertaDisponibilidad: true, alertaReservas: true, alertaReportes: true, recordatorioReserva: false },
+  seguridad: { sesionTimeout: 30, intentosLoginMax: 5, registroActividad: true },
+  laboratorios: { horaApertura: "07:30", horaCierre: "18:00", permitirReservaExterna: true, anticipacionMaxReserva: 7 },
+  equipos: { habilitarControlRemoto: true, apagadoAutomatico: false, monitoreoTiempoReal: true, intervaloEncendido: 30 }
+};
+
 const MIGRACIONES = [
   {
     version: 2,
@@ -143,6 +152,28 @@ const MIGRACIONES = [
           const hashed = bcrypt.hashSync(u.password, 10);
           d.prepare("UPDATE usuarios SET password = ? WHERE id = ?").run(hashed, u.id);
         }
+      }
+    }
+  },
+  {
+    version: 4,
+    nombre: "completar configuracion por defecto (seccion equipos y claves nuevas)",
+    migrar(d) {
+      const fila = d.prepare("SELECT data FROM config WHERE id = 1").get();
+      if (!fila) return;
+      let actual = {};
+      try { actual = JSON.parse(fila.data || "{}"); } catch (e) { actual = {}; }
+      if (typeof actual !== "object" || actual === null) actual = {};
+      let adicion = false;
+      for (const [seccion, defs] of Object.entries(CONFIG_DEFAULT)) {
+        const destino = (actual[seccion] && typeof actual[seccion] === "object") ? actual[seccion] : {};
+        for (const [k, v] of Object.entries(defs)) {
+          if (!(k in destino)) { destino[k] = v; adicion = true; }
+        }
+        actual[seccion] = destino;
+      }
+      if (adicion) {
+        d.prepare("UPDATE config SET data = ? WHERE id = 1").run(JSON.stringify(actual));
       }
     }
   }
@@ -281,14 +312,6 @@ function seed() {
       datos: { total: 145, activos: 141, enFalla: 3, enMantencion: 1 }
     }
   ];
-
-  const CONFIG_DEFAULT = {
-    sitio: { nombreInstitucion: "Instituto Superior de Comercio", nombreSistema: "LabControl", logo: "", tema: "claro", idioma: "es" },
-    red: { subredLabs: "192.168.10.0/24", servidorDNS: "192.168.1.1", puertaEnlace: "192.168.1.254", wifiHabilitado: true },
-    notificaciones: { emailAdmin: "admin@liceo.cl", alertaFallas: true, alertaDisponibilidad: true, alertaReservas: true, alertaReportes: true, recordatorioReserva: false },
-    seguridad: { sesionTimeout: 30, intentosLoginMax: 5, registroActividad: true },
-    laboratorios: { horaApertura: "07:30", horaCierre: "18:00", permitirReservaExterna: true, anticipacionMaxReserva: 7 }
-  };
 
   const insertLab = db.prepare(`
     INSERT INTO laboratorios (id,nombre,sala,ubicacion,equipos,estado,so,procesador,ram,almacenamiento,red,responsable,responsable_id,horario,servicios,descripcion,foto,pos_x,pos_y,pos_w,pos_h)

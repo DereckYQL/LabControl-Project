@@ -11,8 +11,8 @@
 <meta property="og:url" content="https://dereckyql.github.io/LabControl-Project/login.html" />
 <title>Iniciar sesión · Insuco LabControl</title>
 <link rel="icon" type="image/png" href="img/logo-insuco.png" />
-<link rel="stylesheet" href="style.css?v=2.8.4" />
-<script src="theme.js?v=2.8.4"></script>
+<link rel="stylesheet" href="style.css?v=2.9" />
+<script src="theme.js?v=2.9"></script>
 </head>
 <body class="login-body">
   <a class="skip-nav" href="#login-form">Saltar al formulario</a>
@@ -44,11 +44,39 @@
     <button class="btn btn--primary login-submit" type="submit">Ingresar</button>
   </form>
 
-<script src="data.js?v=2.8.4"></script>
+  <div class="login-hint">
+    <strong>Cuentas de demostración</strong> — pulsa una para rellenar los datos:
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
+      <button type="button" class="login-hint__btn" onclick="completarCredencial(USUARIOS_DEMO[0])">
+        <code>INSUCO</code> (Admin)
+      </button>
+      <button type="button" class="login-hint__btn" onclick="completarCredencial(USUARIOS_DEMO[1])">
+        <code>prof_juan</code> (Programación)
+      </button>
+      <button type="button" class="login-hint__btn" onclick="completarCredencial(USUARIOS_DEMO[2])">
+        <code>prof_camila</code> (Otra área)
+      </button>
+    </div>
+  </div>
+
+<script src="data.js?v=2.9"></script>
 <script>
   // Si ya hay sesión activa, redirigir al inicio
   if (AUTH.getSesion()) {
     window.location.href = "index.html";
+  }
+
+  // Cuentas de demostración
+  const USUARIOS_DEMO = [
+    { u: "INSUCO",     p: "Insuco1336", rol: "Administrador" },
+    { u: "prof_juan",  p: "juan123",    rol: "Prof. Programación" },
+    { u: "prof_camila",p: "camila123",  rol: "Otra área" }
+  ];
+
+  function completarCredencial(cuenta) {
+    document.getElementById("input-user").value = cuenta.u;
+    document.getElementById("input-pass").value = cuenta.p;
+    document.getElementById("input-user").focus();
   }
 
   document.getElementById("login-form").addEventListener("submit", async (e) => {
