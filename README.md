@@ -17,11 +17,11 @@ Solo el **Administrador** puede gestionar usuarios y acceder a la configuración
 ## Cambios
 
 > **v2.8** — **Ajustes de notificaciones y botones**:
-> > - **Panel de notificaciones sobre todo y translúcido**: el recuadro ya no queda debajo de otros elementos (z-index elevado) y ahora es semi-transparente con desenfoque del fondo.
-> > - **Botón de ayuda (?) más grande**: el símbolo de interrogación ahora llena mejor el círculo del botón.
+> > - **Panel de notificaciones sobre todo y translúcido**: el recuadro ya no queda debajo de otros elementos y ahora es semi-transparente con desenfoque del fondo. Se corrigió la causa real: el sidebar no apilaba sobre el contenido (que conserva un contexto por la animación `page-in`), ahora tiene `z-index: 90` por debajo de modales y toasts.
+> > - **Botón de ayuda (?) más grande**: el símbolo de interrogación ahora llena mejor el círculo del botón (26px), venciendo la regla genérica `.btn svg.lucide` que lo reducía a 15px.
 > > - **Botones 100% clicables**: se corrigió que los iconos de lucide interceptaran el clic y se re-renderizaran en bucle; ahora toda la superficie de los botones de ayuda, notificaciones y cerrar sesión responde al clic.
 > > - **Título más pegado al logo**: el nombre de LabControl en el sidebar sube más hacia el logo.
-> > - Cache busting `?v=2.8` y caché del service worker (`labcontrol-v2.8`) para que la nueva versión cargue sin problemas en PC y celular.
+> > - *Hotfix*: la versión visible sigue siendo `v2.8`; el cache busting pasa a `?v=2.8.1` y la caché del service worker a `labcontrol-v2.8.1` para que los arreglos lleguen a PC y celular.
 
 > **v2.7** — **Ventana de notificaciones y ayuda en Configuración**:
 > > - **Ventana de notificaciones corregida**: el panel ya no sale recortado. En escritorio se abre hacia la derecha de la campana (antes se anclaba a la izquierda y quedaba cortado por el borde de la pantalla) y en celular se ajusta su ancho para que siempre quede completa, tirándola hacia la derecha.
