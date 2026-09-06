@@ -11,7 +11,12 @@ beforeAll(async () => {
   app = (await import("../server.js")).app;
 });
 
-afterAll(() => {
+afterAll(async () => {
+  try {
+    (await import("../db.js")).db.close();
+  } catch {
+    // Ya estaba cerrado.
+  }
   if (dir) {
     try {
       fs.rmSync(dir, { recursive: true, force: true });
@@ -650,4 +655,91 @@ test("backups: solo admin, exporta una BD válida y restaura cambiando datos", a
   // Al restaurar se revocan todos los refresh tokens, pero el access token sigue válido.
   const estado = await request(app).get("/api/2fa/estado").set("Authorization", `Bearer ${tokenAdmin}`);
   expect(estado.status).toBe(200);
+});
+
+/* ===== Registro autónomo y recuperación de contraseña ===== */
+
+test("registro: crea cuenta con rol otro_area, sin password y permite iniciar sesión", async () => {
+  const res = await request(app)
+    .post("/api/registro")
+    .send({ id: "prof_prueba", nombre: "Prueba", apellido: "Registro", email: "prueba@liceo.cl", password: "prueba123", area: "Matemáticas", especialidad: "Cálculo" });
+  expect(res.status).toBe(201);
+  expect(res.body.rol).toBe("otro_area");
+  expect(res.body.nivelAcceso).toBe("basico");
+  expect(res.body.iniciales).toBe("PR");
+  expect(res.body.password).toBeUndefined();
+
+  const loginNuevo = await request(app).post("/api/login").send({ usuario: "prof_prueba", password: "prueba123" });
+  expect(loginNuevo.status).toBe(200);
+  expect(loginNuevo.body.token).toBeTruthy();
+
+  // El admin recibe la notificación de la cuenta nueva.
+  const notifs = await request(app).get("/api/notificaciones").set("Authorization", `Bearer ${await login()}`);
+  const notif = notifs.body.find((n) => n.tipo === "usuario_registrado" && /prof_prueba/.test(n.mensaje));
+  expect(notif).toBeTruthy();
+});
+
+test("registro: rechaza usuario o correo duplicado y datos inválidos", async () => {
+  const dupId = await request(app).post("/api/registro").send({ id: "INSUCO", nombre: "X", apellido: "Y", email: "nuevo@liceo.cl", password: "clave123" });
+  expect(dupId.status).toBe(409);
+  expect(dupId.body.error).toContain("usuario");
+
+  const dupEmail = await request(app).post("/api/registro").send({ id: "prof_x", nombre: "X", apellido: "Y", email: "admin@liceo.cl", password: "clave123" });
+  expect(dupEmail.status).toBe(409);
+  expect(dupEmail.body.error).toContain("correo");
+
+  const malDominio = await request(app).post("/api/registro").send({ id: "prof_mal", nombre: "X", apellido: "Y", email: "no-es-un-correo", password: "clave123" });
+  expect(malDominio.status).toBe(400);
+
+  const corta = await request(app).post("/api/registro").send({ id: "prof_corta", nombre: "X", apellido: "Y", email: "corta@liceo.cl", password: "123" });
+  expect(corta.status).toBe(400);
+});
+
+test("recuperación: solicitud genérica, token de 30 min, nuevo login y refresh revocado", async () => {
+  const { abrirConexion } = await import(`../db.js?v=${Date.now()}`);
+
+  // El email inexistente también responde ok: no se revela si la cuenta existe.
+  const falso = await request(app).post("/api/recuperar-contrasena").send({ email: "nadie@liceo.cl" });
+  expect(falso.status).toBe(200);
+  expect(falso.body.ok).toBe(true);
+
+  const solicitud = await request(app).post("/api/recuperar-contrasena").send({ email: "csoto@liceo.cl" });
+  expect(solicitud.status).toBe(200);
+  expect(solicitud.body.ok).toBe(true);
+
+  const cone = abrirConexion();
+  const fila = cone.prepare("SELECT token, expira_en FROM contrasena_resets WHERE usuario_id = 'prof_camila' ORDER BY rowid DESC LIMIT 1").get();
+  cone.close();
+  expect(fila).toBeTruthy();
+  expect(fila.expira_en).toBeGreaterThan(Date.now());
+  const token = fila.token;
+
+  // Una sesión previa de prof_camila queda sin refresh válido tras restablecer.
+  const previa = await sesionNuevaCamila();
+  const refrescoViejo = await request(app).post("/api/refresh").send({ refreshToken: previa.refreshToken });
+  expect(refrescoViejo.status).toBe(200);
+
+  const restablecer = await request(app)
+    .post(`/api/recuperar-contrasena/${token}`)
+    .send({ newPassword: "camilaNueva99" });
+  expect(restablecer.status).toBe(200);
+
+  const refrescoRevocado = await request(app).post("/api/refresh").send({ refreshToken: previa.refreshToken });
+  expect(refrescoRevocado.status).toBe(401);
+
+  // Con el token reutilizable se entra con la nueva contraseña.
+  const login = await request(app).post("/api/login").send({ usuario: "prof_camila", password: "camilaNueva99" });
+  expect(login.status).toBe(200);
+  expect(login.body.token).toBeTruthy();
+
+  // El token ya usado no sirve de nuevo.
+  const reuso = await request(app).post(`/api/recuperar-contrasena/${token}`).send({ newPassword: "otraClave1" });
+  expect(reuso.status).toBe(400);
+
+  // Se restaura la contraseña original para no afectar al resto de la suite.
+  const restaura = await request(app)
+    .post("/api/change-password")
+    .set("Authorization", `Bearer ${login.body.token}`)
+    .send({ currentPassword: "camilaNueva99", newPassword: "camila123" });
+  expect(restaura.status).toBe(200);
 });

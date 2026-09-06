@@ -6,7 +6,7 @@ import { abrirModal, activarNotificacionesSistema, actualizarIconosLucide, esc, 
 const CONFIG_DEFAULT = {
   sitio: { nombreInstitucion: "Instituto Superior de Comercio", nombreSistema: "LabControl", logo: "", tema: "claro", idioma: "es" },
   red: { subredLabs: "192.168.10.0/24", servidorDNS: "192.168.1.1", puertaEnlace: "192.168.1.254", wifiHabilitado: true },
-  notificaciones: { emailAdmin: "admin@liceo.cl", alertaFallas: true, alertaDisponibilidad: true, alertaReservas: true, alertaReportes: true, alertaSolicitudes: true, recordatorioReserva: false },
+  notificaciones: { emailAdmin: "admin@liceo.cl", alertaFallas: true, alertaDisponibilidad: true, alertaReservas: true, alertaReportes: true, alertaSolicitudes: true, alertaNuevosUsuarios: true, recordatorioReserva: false },
   seguridad: { sesionTimeout: 30, intentosLoginMax: 5, registroActividad: true },
   laboratorios: { horaApertura: "07:30", horaCierre: "18:00", permitirReservaExterna: true, anticipacionMaxReserva: 7 },
   equipos: { habilitarControlRemoto: true, apagadoAutomatico: false, monitoreoTiempoReal: true, intervaloEncendido: 30 }
@@ -233,6 +233,7 @@ function buildPanel(id) {
           { id:"n-fallas",     label:"Alertas de fallas de equipos",           checked: config.notificaciones?.alertaFallas ?? true },
           { id:"n-reportes",   label:"Nuevos reportes y cambios en reportes",  checked: config.notificaciones?.alertaReportes ?? true },
           { id:"n-solicitudes", label:"Solicitudes de cambio de especialidad",  checked: config.notificaciones?.alertaSolicitudes ?? true },
+          { id:"n-registros",  label:"Nuevos usuarios registrados",          checked: config.notificaciones?.alertaNuevosUsuarios ?? true },
           { id:"n-recordator", label:"Recordatorio 30 min antes de reserva",   checked: config.notificaciones?.recordatorioReserva ?? false },
         ].map((n) => `
           <div class="toggle-row">
@@ -485,7 +486,7 @@ function buildPanel(id) {
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:20px">
           <div class="cfg-sys-card">
             <div class="cfg-sys-card__label">Versión del sistema</div>
-            <div class="cfg-sys-card__value">LabControl v3.4</div>
+            <div class="cfg-sys-card__value">LabControl v3.5</div>
           </div>
           <div class="cfg-sys-card">
             <div class="cfg-sys-card__label">Total laboratorios</div>
@@ -720,6 +721,7 @@ document.getElementById("btn-guardar-cfg").addEventListener("click", () => {
     "n-fallas":      "alertaFallas",
     "n-reportes":    "alertaReportes",
     "n-solicitudes": "alertaSolicitudes",
+    "n-registros":   "alertaNuevosUsuarios",
     "n-recordator":  "recordatorioReserva"
   };
   for (const [idToggle, clave] of Object.entries(togglesNotif)) {
@@ -887,7 +889,7 @@ function contenidoAcerca() {
       <div style="font-size:.85rem;color:var(--color-text-muted)">Sistema de control y supervisión de los laboratorios de computación del liceo.</div>
       <div class="cfg-sys-card" style="margin:18px auto 0;max-width:260px">
         <div class="cfg-sys-card__label">Versión del sistema</div>
-        <div class="cfg-sys-card__value">LabControl v3.4</div>
+        <div class="cfg-sys-card__value">LabControl v3.5</div>
       </div>
       <div class="cfg-sys-card" style="margin:10px auto 0;max-width:260px">
         <div class="cfg-sys-card__label">Institución</div>

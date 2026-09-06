@@ -615,6 +615,133 @@ h1 + p { margin: 4px 0 0; color: var(--color-text-muted); font-size: .9rem; }
   color: var(--color-primary);
 }
 
+/* Enlaces bajo el botón de ingresar (recuperar / crear cuenta) */
+.login-links {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 9px;
+  margin-top: 14px;
+  font-size: .82rem;
+}
+.login-links__sep { color: var(--color-text-muted); opacity: .6; }
+.login-link {
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  color: #1a66ff;
+  font-size: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  transition: color .15s;
+}
+.login-link:hover { color: var(--color-primary); }
+[data-theme="oscuro"] .login-link { color: #8fc3ff; }
+[data-theme="oscuro"] .login-link:hover { color: var(--color-primary); }
+
+/* Divisor "o continúa con" */
+.login-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 20px 0 16px;
+  color: var(--color-text-muted);
+  font-size: .76rem;
+  font-weight: 600;
+}
+.login-divider::before,
+.login-divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--color-border);
+}
+
+/* Botón social (Google) */
+.btn--social {
+  width: 100%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding-block: 11px !important;
+}
+.login-google {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  color: var(--color-text);
+  font-weight: 600;
+  box-shadow: var(--shadow-sm);
+}
+.login-google:hover {
+  border-color: var(--hover-border);
+  background: var(--btn-hover-bg);
+}
+
+/* Avisos del login */
+.login-info {
+  background: var(--soft-primary);
+  border: 1px solid var(--warning-line);
+  color: var(--warning-strong);
+  border-radius: 10px;
+  padding: 10px 13px;
+  font-size: .82rem;
+  line-height: 1.5;
+  margin-top: 14px;
+}
+.login-ok {
+  background: var(--soft-success);
+  color: var(--success-strong);
+  border: 1px solid var(--success-line);
+  border-radius: 10px;
+  padding: 10px 13px;
+  font-size: .85rem;
+  margin-bottom: 14px;
+}
+
+/* Vista de registro */
+.login-alt .login-title { margin-top: 8px; }
+.login-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 4px 0 12px;
+  font-size: .8rem;
+  line-height: 1.45;
+  color: var(--color-text-muted);
+}
+.login-check input { margin-top: 2px; accent-color: var(--color-primary); }
+.login-aviso-legal {
+  font-size: .72rem;
+  line-height: 1.55;
+  color: var(--color-text-muted);
+  margin: 0 0 16px;
+}
+.form-hint {
+  font-size: .74rem;
+  color: var(--color-text-muted);
+  margin: 4px 2px 0;
+}
+
+/* Cuerpo del modal de términos / privacidad */
+.terminos-cuerpo {
+  max-height: 58vh;
+  overflow-y: auto;
+  font-size: .86rem;
+  line-height: 1.6;
+  color: var(--color-text);
+}
+.terminos-cuerpo h3 {
+  font-size: .92rem;
+  font-weight: 800;
+  margin: 16px 0 6px;
+}
+.terminos-cuerpo p { margin: 0 0 10px; }
+.terminos-lead { color: var(--color-text-muted); }
+
 /* Tamaño de texto accesible (Configuración → Apariencia) */
 html.texto-grande { font-size: 112.5%; }
 

@@ -16,6 +16,13 @@ Solo el **Administrador** puede gestionar usuarios y acceder a la configuración
 
 ## Cambios
 
+> **v3.5** — **Registro de cuentas, recuperación de contraseña e inicio con Google en el login**:
+> > - **Login como en la vida real**: bajo el botón "Ingresar" ahora hay dos enlaces pequeños — *¿Olvidaste tu contraseña?* y *Crear cuenta* — y, debajo, un divisor con el botón **Continuar con Google**. El texto legal del registro está adaptado al estilo Roblox (Términos de uso, Política de privacidad y consentimiento de menores), y ambos documentos se muestran en un modal accesible directamente desde el formulario.
+> > - **Crear cuenta (funcional)**: formulario con nombre, apellido, usuario, correo, área y especialidad. La cuenta se crea al instante con rol *otra área* y nivel de acceso básico, ya puede iniciar sesión, rechaza usuarios o correos duplicados (409) y notifica a los administradores con el nuevo aviso *"Nuevos usuarios registrados"* (*Configuración → Notificaciones*). El mismo comportamiento está replicado en modo demo y verificado con tests de API.
+> > - **Recuperar contraseña (base lista)**: la solicitud siempre responde lo mismo, sin revelar si el correo existe. Si la cuenta existe, se genera un enlace con token de 30 minutos (tabla `contrasena_resets`), se revocan todas sus sesiones y el evento queda en la auditoría. El enlace llega por correo vía **Resend** cuando existe `RESEND_API_KEY`; sin esa clave se imprime en la consola del servidor para probar el flujo en desarrollo (ver *Correo de recuperación* más abajo). Incluye límite de peticiones (5/hora por IP y correo).
+> > - **Google**: el botón "Continuar con Google" queda visible en el login y explica en la propia interfaz que requiere conectar un cliente OAuth de Google en el backend (ver *Inicio con Google*), por lo que todavía no permite autenticar.
+> > - **Verificación completa en v3.5**: lint 0 errores, typecheck OK, sintaxis OK y suite backend 38/38.
+
 > **v3.4** — **Verificación en dos pasos (2FA), auditoría de actividad, respaldos, y mejoras de reportes y disponibilidad**:
 > > - **Verificación en dos pasos (2FA) para el administrador**: al iniciar sesión se solicita un código TOTP de 6 dígitos desde la aplicación de autenticación (Google Authenticator, Aegis, etc.). El administrador activa/desactiva la 2FA desde *Configuración → Seguridad* con un código QR; mientras está activa, cada inicio de sesión exige el código de su aplicación. Queda fuera del alcance de la contraseña única y verificado con pruebas de backend y e2e.
 > > - **Auditoría de actividad**: los eventos importantes (inicios de sesión, cierres, cambios de contraseña, laboratorios, usuarios, reservas, configuración y solicitudes) se registran con fecha, usuario, acción, detalle y dirección IP. El panel *Configuración → Auditoría* (solo admin) permite buscar y filtrar por rango de fechas (hasta 200 registros visibles).
@@ -201,6 +208,31 @@ labcontrol/
         └── database/
             └── labcontrol.db          (se crea solo la primera vez que se ejecuta el servidor)
 ```
+
+## Correo de recuperación (Resend) e inicio con Google
+
+### Activar el correo de recuperación (base construida en v3.5)
+
+El backend ya resuelve todo el flujo: genera el token, lo guarda 30 minutos en `contrasena_resets`, revoca las sesiones y registra en auditoría. Solo falta el proveedor de correo:
+
+1. Crea una cuenta en [Resend](https://resend.com), verifica un dominio (o usa el dominio `onboarding@resend.dev` de prueba) y genera una API Key.
+2. Define la variable de entorno al iniciar el servidor:
+   ```
+   RESEND_API_KEY=re_xxxx___   RESEND_FROM="LabControl <noresponder@liceo.cl>"
+   ```
+   (`RESEND_FROM` es opcional; por defecto usa `LabControl <onboarding@resend.dev>`.)
+3. Reinicia el servidor. Desde ese momento el formulario *¿Olvidaste tu contraseña?* envía un correo con el enlace `…/login.html?reset=<token>`. Sin la clave, el enlace se imprime en la consola del servidor (útil para desarrollo).
+
+### Activar el inicio con Google (pendiente de implementar)
+
+El botón del login está listo en la interfaz, pero la autenticación OAuth aún no está conectada. Para implementarla:
+
+1. En [Google Cloud Console](https://console.cloud.google.com), crea un proyecto y un **OAuth Client** de tipo *Web application* con URI de redirección, p. ej. `http://localhost:3000/api/auth/google/callback`.
+2. Define `GOOGLE_CLIENT_ID` y `GOOGLE_CLIENT_SECRET` en el backend e instala el paquete OAuth (p. ej. `google-auth-library`).
+3. Agrega en `server.js` (o un router aparte) dos rutas públicas:
+   - `GET /api/auth/google` → redirige a la pantalla de consentimiento de Google.
+   - `GET /api/auth/google/callback` → intercambia el código, verifica el `id_token`/perfil, busca o crea el usuario (con `email` de dominio institucional), firma la sesión igual que `/api/login` y redirige a `index.html`.
+4. En `login.js`, conecta el botón `#btn-google` a esa ruta (hoy solo muestra el aviso). Se recomienda crear la cuenta con dominio `@liceo.cl` para distinguir cuentas institucionales de personales.
 
 ## Próximos pasos sugeridos
 

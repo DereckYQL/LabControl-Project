@@ -441,6 +441,58 @@ function demoRequest(metodo, ruta, cuerpo) {
       return { ok: true };
     }
 
+    case "POST registro": {
+      const u = cuerpo ?? {};
+      const id = String(u.id ?? "").trim();
+      const email = String(u.email ?? "").trim().toLowerCase();
+      if (!/[a-zA-Z0-9_]{1,80}/.test(id)) throw new Error("El usuario solo puede contener letras, números y guion bajo");
+      if (D.usuarios.some((x) => x.id === id)) throw new Error("Ya existe una cuenta con ese usuario");
+      if (D.usuarios.some((x) => String(x.email).toLowerCase() === email)) throw new Error("El correo ya está en uso por otra cuenta");
+      const nuevo = {
+        id,
+        nombre: String(u.nombre ?? ""),
+        apellido: String(u.apellido ?? ""),
+        iniciales: `${(u.nombre?.[0] ?? "?")}${(u.apellido?.[0] ?? "")}`.toUpperCase(),
+        email,
+        password: String(u.password ?? ""),
+        rol: "otro_area",
+        area: String(u.area ?? ""),
+        especialidad: String(u.especialidad ?? ""),
+        nivelAcceso: "basico",
+        activo: true
+      };
+      D.usuarios.push(nuevo);
+      notificarDemoAAdmins({
+        toggle: "alertaNuevosUsuarios",
+        tipo: "usuario_registrado",
+        titulo: "Nuevo profesor registrado",
+        mensaje: `{quien} se registró en el sistema (${id}). Revisa sus datos: área "${u.area || "—"}", especialidad "${u.especialidad || "—"}".`,
+        actorId: id
+      });
+      const { password, ...publico } = nuevo;
+      return copia(publico);
+    }
+
+    case "POST recuperar-contrasena": {
+      const email = String(cuerpo?.email ?? "").trim().toLowerCase();
+      const usr = D.usuarios.find((x) => String(x.email).toLowerCase() === email);
+      if (!usr) return { ok: true };
+      try { sessionStorage.setItem("lc_reset_demo", usr.id); } catch { /* sin almacenamiento */ }
+      return { ok: true, demo: true, usuario: usr.id };
+    }
+
+    case "POST recuperar-contrasena_x": {
+      let uid = null;
+      try { uid = sessionStorage.getItem("lc_reset_demo"); } catch { /* sin almacenamiento */ }
+      const usr = D.usuarios.find((x) => x.id === uid && String(id) === "demo_reset_token");
+      if (!usr) throw new Error("El enlace de restablecimiento es inválido o expiró");
+      const pass = String(cuerpo?.newPassword ?? "");
+      if (pass.length < 6) throw new Error("La contraseña debe tener al menos 6 caracteres");
+      usr.password = pass;
+      try { sessionStorage.removeItem("lc_reset_demo"); } catch { /* sin almacenamiento */ }
+      return { ok: true, usuario: usr.id };
+    }
+
     case "GET auditoria": {
       const ahora = new Date().toISOString();
       return [
@@ -812,6 +864,24 @@ export const AUTH = {
       if (err instanceof TypeError) await activarModoDemo();
       throw err;
     }
+  },
+
+  // Registro autónomo: crea la cuenta con rol "otro_area" y nivel básico.
+  async registro(datos) {
+    return apiSend("POST", "/registro", datos);
+  },
+
+  // Solicita un enlace de restablecimiento para el correo dado. La respuesta
+  // es genérica (nunca revela si la cuenta existe); en modo demo incluye la
+  // marca `demo: true` para permitir completar el flujo sin servidor.
+  async solicitarRecuperacion(email) {
+    const data = await apiSend("POST", "/recuperar-contrasena", { email });
+    return data || { ok: true };
+  },
+
+  // Completa el restablecimiento con el token del enlace y la nueva contraseña.
+  async restablecerContrasena(token, newPassword) {
+    return apiSend("POST", `/recuperar-contrasena/${token}`, { newPassword });
   },
 
   logout() {

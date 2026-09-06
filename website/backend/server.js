@@ -115,6 +115,28 @@ const loginLimiter = rateLimit({
   message: { error: "Demasiados intentos de inicio de sesión. Espera 15 minutos." }
 });
 
+// Registro de cuentas nuevas: pocas cuentas por hora e IP (evita spam de cuentas).
+const registroLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: Number(process.env.LC_REGISTRO_LIMIT) || 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Demasiados intentos de registro. Intenta de nuevo más tarde." }
+});
+app.use("/api/registro", registroLimiter);
+
+// Recuperación de contraseña: por IP y por cuenta (evita abuso del envío de correos).
+const resetLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: Number(process.env.LC_RESET_LIMIT) || 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => `${req.ip}|${String(req.body?.email ?? req.params?.token ?? "").toLowerCase().trim().slice(0, 80)}`,
+  validate: false,
+  message: { error: "Demasiadas solicitudes de recuperación de contraseña. Espera 1 hora." }
+});
+app.use("/api/recuperar-contrasena", resetLimiter);
+
 // Rate limiting en renovación/cierre de sesión (token rotation es sensible).
 const refreshLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
@@ -786,6 +808,147 @@ app.post("/api/change-password", authenticateToken, (req, res) => {
   res.json({ ok: true, message: "Contraseña actualizada correctamente" });
 });
 
+/* Recuperación de contraseña (base lista; el correo real se envía con Resend) */
+// El enlace de restablecimiento vive 30 minutos en `contrasena_resets`.
+// Sin RESEND_API_KEY el servidor imprime el enlace en la consola (modo base);
+// en producción define RESEND_API_KEY y, opcionalmente, RESEND_FROM.
+const RESET_TOKEN_TTL_MS = 30 * 60 * 1000;
+
+function limpiarResetsExpirados() {
+  db.prepare("DELETE FROM contrasena_resets WHERE expira_en < ?").run(Date.now());
+}
+
+async function enviarCorreoReseteo(email, enlace) {
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) {
+    // Base sin proveedor de correo: el enlace se muestra en la consola del server.
+    console.log(`\n  [Recuperar contraseña] ${email}\n  Enlace de prueba: ${enlace}\n`);
+    return;
+  }
+  const from = process.env.RESEND_FROM || "LabControl <onboarding@resend.dev>";
+  await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      from,
+      to: [email],
+      subject: "Restablece tu contraseña de LabControl",
+      html: `
+        <div style="font-family:Arial,sans-serif;max-width:480px;margin:auto">
+          <h2>Restablece tu contraseña</h2>
+          <p>Recibimos una solicitud para restablecer la contraseña de tu cuenta en Insuco LabControl.</p>
+          <p><a href="${enlace}">Restablecer mi contraseña</a></p>
+          <p style="font-size:13px;color:#555">El enlace expira en 30 minutos. Si no solicitaste este cambio, ignora este correo.</p>
+        </div>`
+    })
+  });
+}
+
+// Solicitar recuperación: siempre responde lo mismo (no revela si la cuenta existe).
+app.post("/api/recuperar-contrasena", (req, res) => {
+  const email = String(req.body?.email ?? "").trim().toLowerCase();
+  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    return res.status(400).json({ error: "Ingresa un correo válido" });
+  }
+
+  const usuario = db.prepare("SELECT id, email FROM usuarios WHERE lower(email) = ? AND activo = 1").get(email);
+  if (usuario) {
+    limpiarResetsExpirados();
+    db.prepare("DELETE FROM contrasena_resets WHERE usuario_id = ?").run(usuario.id);
+    const token = randomBytes(32).toString("hex");
+    db.prepare("INSERT INTO contrasena_resets (token, usuario_id, expira_en, usado) VALUES (?,?,?,0)")
+      .run(token, usuario.id, Date.now() + RESET_TOKEN_TTL_MS);
+    registrarAuditoria(req, "recuperacion_solicitada", { usuario: usuario.id });
+    const enlace = `${req.protocol}://${req.get("host")}/login.html?reset=${token}`;
+    enviarCorreoReseteo(usuario.email, enlace)
+      .catch((e) => console.error("No se pudo enviar el correo de restablecimiento:", e?.message || e));
+  }
+  res.json({ ok: true });
+});
+
+// Completar restablecimiento con el token del enlace recibido por correo.
+app.post("/api/recuperar-contrasena/:token", [
+  body("newPassword").isLength({ min: 6 }).withMessage("La contraseña debe tener al menos 6 caracteres")
+], (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ error: "Datos inválidos", details: errors.array() });
+  }
+
+  limpiarResetsExpirados();
+  const fila = db.prepare("SELECT * FROM contrasena_resets WHERE token = ? AND usado = 0").get(req.params.token);
+  if (!fila) return res.status(400).json({ error: "El enlace de restablecimiento es inválido o expiró" });
+
+  const usuario = db.prepare("SELECT id FROM usuarios WHERE id = ? AND activo = 1").get(fila.usuario_id);
+  if (!usuario) return res.status(404).json({ error: "Usuario no encontrado" });
+
+  db.prepare("UPDATE usuarios SET password = ? WHERE id = ?").run(bcrypt.hashSync(req.body.newPassword, 10), fila.usuario_id);
+  db.prepare("UPDATE contrasena_resets SET usado = 1 WHERE token = ?").run(req.params.token);
+  db.prepare("DELETE FROM contrasena_resets WHERE usuario_id = ? AND token != ?").run(fila.usuario_id, req.params.token);
+  db.prepare("UPDATE refresh_tokens SET revocado = 1 WHERE usuario_id = ?").run(fila.usuario_id);
+  registrarAuditoria(req, "password_restablecida", { usuario: fila.usuario_id });
+  res.json({ ok: true, message: "Contraseña actualizada. Inicia sesión con tu nueva contraseña." });
+});
+
+/* Registro de cuenta propia (público, sin sesión) */
+app.post("/api/registro", [
+  body("id").trim().matches(/^[a-zA-Z0-9_]+$/).withMessage("El usuario solo puede contener letras, números y guion bajo"),
+  body("nombre").trim().notEmpty().withMessage("El nombre es obligatorio"),
+  body("apellido").trim().notEmpty().withMessage("El apellido es obligatorio"),
+  body("email").isEmail().withMessage("El correo debe ser válido"),
+  body("password").isLength({ min: 6 }).withMessage("La contraseña debe tener al menos 6 caracteres"),
+  body("area").optional({ values: "falsy" }).trim().isLength({ max: 100 }).withMessage("El área no puede superar 100 caracteres"),
+  body("especialidad").optional({ values: "falsy" }).trim().isLength({ max: 200 }).withMessage("La especialidad no puede superar 200 caracteres")
+], (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ error: "Datos inválidos", details: errors.array() });
+  }
+
+  const u = req.body;
+  u.id = String(u.id ?? "").trim();
+  u.email = String(u.email ?? "").trim().toLowerCase();
+  if (db.prepare("SELECT id FROM usuarios WHERE id = ?").get(u.id)) {
+    return res.status(409).json({ error: "Ya existe una cuenta con ese usuario" });
+  }
+  if (db.prepare("SELECT id FROM usuarios WHERE email = ?").get(u.email)) {
+    return res.status(409).json({ error: "El correo ya está en uso por otra cuenta" });
+  }
+
+  const iniciales = `${(u.nombre[0] ?? "?")}${(u.apellido[0] ?? "")}`.toUpperCase();
+  db.prepare(`
+    INSERT INTO usuarios (id,nombre,apellido,iniciales,email,password,rol,area,especialidad,nivel_acceso,activo)
+    VALUES (@id,@nombre,@apellido,@iniciales,@email,@password,@rol,@area,@especialidad,@nivel_acceso,1)
+  `).run({
+    id: u.id,
+    nombre: sanitizarTexto(u.nombre, 100),
+    apellido: sanitizarTexto(u.apellido, 100),
+    iniciales,
+    email: u.email,
+    password: bcrypt.hashSync(u.password, 10),
+    rol: "otro_area",
+    area: sanitizarTexto(u.area, 100),
+    especialidad: sanitizarTexto(u.especialidad, 200),
+    nivel_acceso: "basico"
+  });
+
+  // Los administradores reciben una notificación con la cuenta nueva.
+  const admins = db.prepare("SELECT id FROM usuarios WHERE rol = 'admin' AND activo = 1").all();
+  for (const a of admins) {
+    crearNotificacion({
+      toggle: "alertaNuevosUsuarios",
+      tipo: "usuario_registrado",
+      titulo: "Nuevo profesor registrado",
+      mensaje: `{quien} se registró en el sistema (${u.id}). Revisa sus datos: área "${u.area || "—"}", especialidad "${u.especialidad || "—"}".`,
+      actorId: u.id,
+      destinatario: a.id
+    });
+  }
+
+  registrarAuditoria(req, "usuario_registrado", { usuario: u.id, email: u.email });
+  res.status(201).json(usrFromRow(db.prepare("SELECT * FROM usuarios WHERE id = ?").get(u.id)));
+});
+
 /* Laboratorios */
 
 app.get("/api/laboratorios", authenticateToken, (req, res) => {
@@ -1330,7 +1493,7 @@ app.use((err, req, res, next) => {
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   app.listen(PORT, () => {
-    console.log(`\n  LabControl Liceo v3.4`);
+    console.log(`\n  LabControl Liceo v3.5`);
     console.log(`  API + sitio corriendo en: http://localhost:${PORT}/login.html`);
     console.log(`  Seguridad: JWT + bcrypt + rate limiting + helmet\n`);
   });

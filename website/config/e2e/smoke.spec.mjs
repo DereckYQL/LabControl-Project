@@ -4,7 +4,7 @@ async function login(page, user, pass) {
   await page.goto("/login.html");
   await page.fill("#input-user", user);
   await page.fill("#input-pass", pass);
-  await page.click(".login-submit");
+  await page.click("#btn-login-enviar");
   await page.waitForURL("**/index.html");
 }
 
@@ -16,17 +16,17 @@ test("login como INSUCO y el dashboard carga los datos", async ({ page }) => {
   await expect(page.locator(".sidebar__user .name")).not.toBeEmpty();
 });
 
-test("configuracion.html muestra la versión v3.4", async ({ page }) => {
+test("configuracion.html muestra la versión v3.5", async ({ page }) => {
   await login(page, "INSUCO", "Insuco1336");
 
   await page.goto("/configuracion.html");
-  await expect(page.locator("body")).toContainText("LabControl v3.4", { timeout: 8000 });
+  await expect(page.locator("body")).toContainText("LabControl v3.5", { timeout: 8000 });
 
   // El panel visible muestra la versión y el conteo en vivo de laboratorios/equipos.
   await page.click('#cfg-sidenav button[data-section="sistema"]');
   const panel = page.locator("#panel-sistema");
   await expect(panel).toBeVisible();
-  await expect(panel).toContainText("LabControl v3.4");
+  await expect(panel).toContainText("LabControl v3.5");
   await expect(panel).toContainText("Total laboratorios");
   await expect(panel).toContainText("Total equipos");
 });
@@ -36,6 +36,43 @@ test("login-hint autocompleta la cuenta de demostración", async ({ page }) => {
   await page.click(".login-hint__btn:has-text('Admin')");
   await expect(page.locator("#input-user")).toHaveValue("INSUCO");
   await expect(page.locator("#input-pass")).toHaveValue("Insuco1336");
+});
+
+test("registro de cuenta propia: crea la cuenta, inicia sesión y llega al dashboard", async ({ page }) => {
+  await page.goto("/login.html");
+  await page.click("#btn-ir-registrar");
+  const sufijo = Date.now().toString().slice(-6);
+  await page.fill("#reg-nombre", "Estela");
+  await page.fill("#reg-apellido", "Riquelme");
+  await page.fill("#reg-usuario", `prof_estela_${sufijo}`);
+  await page.fill("#reg-email", `estela${sufijo}@liceo.cl`);
+  await page.fill("#reg-area", "Historia");
+  await page.fill("#reg-especialidad", "Historia de Chile");
+  await page.fill("#reg-pass", "estela123");
+  await page.fill("#reg-pass2", "estela123");
+  await page.check("#reg-terminos");
+  await page.click("#vista-registrar button[type=submit]");
+  await page.waitForURL("**/index.html");
+  await expect(page.locator(".sidebar__user")).toBeVisible();
+});
+
+test("el formulario de recuperación responde de forma genérica", async ({ page }) => {
+  await page.goto("/login.html");
+  await page.click("#btn-ir-recuperar");
+  await expect(page.locator("#recuperar-form")).toBeVisible();
+  await page.fill("#rec-email", "nadie@liceo.cl");
+  await page.click("#recuperar-form button[type=submit]");
+  await expect(page.locator("#recuperar-ok")).toBeVisible();
+});
+
+test("el modal de términos abre desde el registro y cierra con la X", async ({ page }) => {
+  await page.goto("/login.html");
+  await page.click("#btn-ir-registrar");
+  await page.click("[data-term='terminos']");
+  await expect(page.locator("#modal-terminos")).toBeVisible();
+  await expect(page.locator("#modal-terminos-titulo")).toHaveText("Términos de uso");
+  await page.click("[data-cerrar-modal]");
+  await expect(page.locator("#modal-terminos")).toBeHidden();
 });
 
 test("prof_camila ve los datos técnicos restringidos en Equipos", async ({ page }) => {
@@ -178,15 +215,15 @@ test("modo offline: el SW sirve el shell y los assets desde caché y degrada a d
   await context.setOffline(true);
   const offline = await page.evaluate(async () => {
     const resultados = {};
-    for (const r of ["index.html", "style.css?v=3.4.1", "app.js?v=3.4.1"]) {
+    for (const r of ["index.html", "style.css?v=3.5", "app.js?v=3.5"]) {
       try { resultados[r] = (await fetch(r)).ok; }
       catch { resultados[r] = false; }
     }
     return resultados;
   });
   expect(offline["index.html"]).toBe(true);
-  expect(offline["style.css?v=3.4.1"]).toBe(true);
-  expect(offline["app.js?v=3.4.1"]).toBe(true);
+  expect(offline["style.css?v=3.5"]).toBe(true);
+  expect(offline["app.js?v=3.5"]).toBe(true);
 
   const degradacion = await page.evaluate(async () => {
     const mod = await import("./data.js");

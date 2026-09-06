@@ -139,7 +139,7 @@ CREATE TABLE IF NOT EXISTS config (
 const CONFIG_DEFAULT = {
   sitio: { nombreInstitucion: "Instituto Superior de Comercio", nombreSistema: "LabControl", logo: "", tema: "claro", idioma: "es" },
   red: { subredLabs: "192.168.10.0/24", servidorDNS: "192.168.1.1", puertaEnlace: "192.168.1.254", wifiHabilitado: true },
-  notificaciones: { emailAdmin: "admin@liceo.cl", alertaFallas: true, alertaDisponibilidad: true, alertaReservas: true, alertaReportes: true, alertaSolicitudes: true, recordatorioReserva: false },
+  notificaciones: { emailAdmin: "admin@liceo.cl", alertaFallas: true, alertaDisponibilidad: true, alertaReservas: true, alertaReportes: true, alertaSolicitudes: true, alertaNuevosUsuarios: true, recordatorioReserva: false },
   seguridad: { sesionTimeout: 30, intentosLoginMax: 5, registroActividad: true },
   laboratorios: { horaApertura: "07:30", horaCierre: "18:00", permitirReservaExterna: true, anticipacionMaxReserva: 7 },
   equipos: { habilitarControlRemoto: true, apagadoAutomatico: false, monitoreoTiempoReal: true, intervaloEncendido: 30 }
@@ -253,6 +253,20 @@ const MIGRACIONES = [
       if (!colUsuarios.some((c) => c.name === "totp_habilitado")) {
         d.exec("ALTER TABLE usuarios ADD COLUMN totp_habilitado INTEGER DEFAULT 0");
       }
+    }
+  },
+  {
+    version: 8,
+    nombre: "restablecimiento de contraseña (tabla contrasena_resets)",
+    migrar(d) {
+      d.exec(`
+        CREATE TABLE IF NOT EXISTS contrasena_resets (
+          token        TEXT PRIMARY KEY,
+          usuario_id   TEXT NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
+          expira_en    INTEGER NOT NULL,
+          usado        INTEGER NOT NULL DEFAULT 0
+        )
+      `);
     }
   }
 ];
