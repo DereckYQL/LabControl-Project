@@ -178,15 +178,15 @@ test("modo offline: el SW sirve el shell y los assets desde caché y degrada a d
   await context.setOffline(true);
   const offline = await page.evaluate(async () => {
     const resultados = {};
-    for (const r of ["index.html", "style.css?v=3.4", "app.js?v=3.4"]) {
+    for (const r of ["index.html", "style.css?v=3.4.1", "app.js?v=3.4.1"]) {
       try { resultados[r] = (await fetch(r)).ok; }
       catch { resultados[r] = false; }
     }
     return resultados;
   });
   expect(offline["index.html"]).toBe(true);
-  expect(offline["style.css?v=3.4"]).toBe(true);
-  expect(offline["app.js?v=3.4"]).toBe(true);
+  expect(offline["style.css?v=3.4.1"]).toBe(true);
+  expect(offline["app.js?v=3.4.1"]).toBe(true);
 
   const degradacion = await page.evaluate(async () => {
     const mod = await import("./data.js");

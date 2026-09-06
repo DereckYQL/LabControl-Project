@@ -102,6 +102,58 @@ function demoRequest(metodo, ruta, cuerpo) {
     return !!(s && (s.rol === "admin" || s.rol === "programacion"));
   })();
 
+  // Rutas con sub-acción (recurso/acción): el switch principal agrupa por
+  // recurso e id (clave "metodo recurso[_x]"), así que estas se atienden por
+  // su ruta completa para no colisionar entre sí.
+  // Estado 2FA simulado en modo demo: se persiste para que sobreviva a
+  // recargas de página (igual que el servidor lo guarda en la BD).
+  const demo2faEstado = () => {
+    try { return localStorage.getItem("lc_2fa_demo") === "1"; } catch { return false; }
+  };
+
+  const claveRuta = `${metodo} ${ruta.split("?")[0].replace(/^\/+/, "")}`;
+  const sesionDemo = (usr) => ({
+    token: `demo_token_${usr.id}`,
+    refreshToken: `demo_refresh_${usr.id}`,
+    usuario: copia((({ password, ...resto }) => resto)(usr))
+  });
+
+  switch (claveRuta) {
+    case "POST login/2fa": {
+      const idDesafio = D._2faChallengeUsuario;
+      const usr = D.usuarios.find((u) => u.id === idDesafio);
+      const codigo = String(cuerpo?.codigo ?? "").trim();
+      if (!usr || !/^\d{6}$/.test(codigo)) {
+        throw new Error("El código de verificación es incorrecto");
+      }
+      return sesionDemo(usr);
+    }
+    case "GET 2fa/estado":
+      return { habilitado: demo2faEstado() };
+    case "POST 2fa/setup":
+      return {
+        secreto: "JBSWY3DPEHPK3PXP",
+        otpauthUrl: "otpauth://totp/Liceo%20INSUCO%20-%20LabControl:INSUCO?secret=JBSWY3DPEHPK3PXP&algorithm=SHA1&digits=6&period=30",
+        qrDataUrl: ""
+      };
+    case "POST 2fa/verificar":
+      if (!/^\d{6}$/.test(String(cuerpo?.codigo ?? "").trim())) {
+        throw new Error("El código de verificación es incorrecto");
+      }
+      try { localStorage.setItem("lc_2fa_demo", "1"); } catch {}
+      return { ok: true };
+    case "POST 2fa/desactivar":
+      if (!/^\d{6}$/.test(String(cuerpo?.codigo ?? "").trim())) {
+        throw new Error("El código de verificación es incorrecto");
+      }
+      try { localStorage.removeItem("lc_2fa_demo"); } catch {}
+      return { ok: true };
+    case "GET backups/exportar":
+      throw new Error("La descarga de respaldos no está disponible en modo demo");
+    case "POST backups/restaurar":
+      return { ok: true };
+  }
+
   switch (clave) {
     case "GET laboratorios":
       if (demoEsTecnico) return copia(D.laboratorios);
@@ -373,6 +425,10 @@ function demoRequest(metodo, ruta, cuerpo) {
       );
       if (!usr) throw new Error("Credenciales incorrectas");
       const { password, ...sinPassword } = usr;
+      if (demo2faEstado()) {
+        D._2faChallengeUsuario = usr.id;
+        return { requires2FA: true, loginId: "demo_" + usr.id, usuario: copia(sinPassword) };
+      }
       return { token: "demo_token_" + usr.id, usuario: copia(sinPassword) };
     }
 
@@ -392,31 +448,6 @@ function demoRequest(metodo, ruta, cuerpo) {
         { id: 2, fecha: ahora, usuarioId: "prof_camila", rol: "otro_area", accion: "reserva_creada", detalle: { lab: 1, fecha: ahora.slice(0, 10) }, ip: "127.0.0.1" }
       ];
     }
-
-    case "GET 2fa/estado":
-      return { habilitado: D._2faDemo === true };
-
-    case "POST 2fa/setup":
-      return {
-        secreto: "JBSWY3DPEHPK3PXP",
-        otpauthUrl: "otpauth://totp/Liceo%20INSUCO%20-%20LabControl:INSUCO?secret=JBSWY3DPEHPK3PXP&algorithm=SHA1&digits=6&period=30",
-        qrDataUrl: ""
-      };
-
-    case "POST 2fa/verificar":
-      if (!cuerpo?.codigo) throw new Error("Falta el código de verificación");
-      D._2faDemo = true;
-      return { ok: true };
-
-    case "POST 2fa/desactivar":
-      D._2faDemo = false;
-      return { ok: true };
-
-    case "GET backups/exportar":
-      throw new Error("La descarga de respaldos no está disponible en modo demo");
-
-    case "POST backups/restaurar":
-      return { ok: true };
 
     default:
       throw new Error(`Endpoint no disponible en modo demo: ${metodo} ${ruta}`);
@@ -739,6 +770,21 @@ export const AUTH = {
   // Segundo paso del login (código TOTP) para sesiones con 2FA.
   async verificar2fa(loginId, codigo) {
     try {
+      if (MODO_DEMO) {
+        const data = await demoRequest("POST", "/login/2fa", { loginId, codigo: String(codigo).trim() });
+        const sesion = {
+          token: data.token,
+          refreshToken: data.refreshToken,
+          id: data.usuario.id,
+          rol: data.usuario.rol,
+          nombre: data.usuario.nombre,
+          apellido: data.usuario.apellido,
+          iniciales: data.usuario.iniciales,
+          nivelAcceso: data.usuario.nivelAcceso
+        };
+        localStorage.setItem("lc_sesion", JSON.stringify(sesion));
+        return data.usuario;
+      }
       const res = await fetch(`${API_BASE}/login/2fa`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
