@@ -9,10 +9,14 @@
 <meta property="og:type" content="website" />
 <meta property="og:image" content="https://dereckyql.github.io/LabControl-Project/img/logo-insuco.png" />
 <meta property="og:url" content="https://dereckyql.github.io/LabControl-Project/disponibilidad.html" />
+<link rel="canonical" href="https://dereckyql.github.io/LabControl-Project/disponibilidad.html" />
+<meta name="theme-color" content="#ffc300" />
+<link rel="manifest" href="manifest.webmanifest" />
+<link rel="apple-touch-icon" href="img/icon-192.png" />
 <title>Disponibilidad · Insuco LabControl</title>
 <link rel="icon" type="image/png" href="img/logo-insuco.png" />
-<link rel="stylesheet" href="style.css?v=3.3" />
-<script src="theme.js?v=3.3"></script>
+<link rel="stylesheet" href="style.css?v=3.4" />
+<script src="theme.js?v=3.4"></script>
 </head>
 <body>
   <a class="skip-nav" href="#main-content">Saltar al contenido</a>
@@ -86,6 +90,17 @@
         </table>
       </div>
     </div>
+
+    <!-- Calendario semanal -->
+    <div class="card" style="margin-top:20px">
+      <div class="section-title">Calendario semanal de reservas</div>
+      <div class="semana-nav">
+        <button class="btn btn--sm" id="btn-semana-ant"><i data-lucide="chevron-left"></i> Semana anterior</button>
+        <span id="semana-label" class="semana-label">Cargando…</span>
+        <button class="btn btn--sm" id="btn-semana-sig">Semana siguiente <i data-lucide="chevron-right"></i></button>
+      </div>
+      <div class="table-wrap" id="semana-wrap"></div>
+    </div>
   </main>
 </div>
 
@@ -152,9 +167,9 @@
   </div>
 </div>
 
-<script type="module" src="data.js?v=3.3"></script>
-<script src="lucide.min.js?v=3.3"></script>
-<script type="module" src="app.js?v=3.3"></script>
-<script type="module" src="disponibilidad.js?v=3.3"></script>
+<script type="module" src="data.js?v=3.4"></script>
+<script src="lucide.min.js?v=3.4"></script>
+<script type="module" src="app.js?v=3.4"></script>
+<script type="module" src="disponibilidad.js?v=3.4"></script>
 </body>
 </html>

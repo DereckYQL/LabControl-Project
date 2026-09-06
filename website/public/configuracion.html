@@ -9,10 +9,14 @@
 <meta property="og:type" content="website" />
 <meta property="og:image" content="https://dereckyql.github.io/LabControl-Project/img/logo-insuco.png" />
 <meta property="og:url" content="https://dereckyql.github.io/LabControl-Project/configuracion.html" />
+<link rel="canonical" href="https://dereckyql.github.io/LabControl-Project/configuracion.html" />
+<meta name="theme-color" content="#ffc300" />
+<link rel="manifest" href="manifest.webmanifest" />
+<link rel="apple-touch-icon" href="img/icon-192.png" />
 <title>Configuración · Insuco LabControl</title>
 <link rel="icon" type="image/png" href="img/logo-insuco.png" />
-<link rel="stylesheet" href="style.css?v=3.3" />
-<script src="theme.js?v=3.3"></script>
+<link rel="stylesheet" href="style.css?v=3.4" />
+<script src="theme.js?v=3.4"></script>
 </head>
 <body>
   <a class="skip-nav" href="#main-content">Saltar al contenido</a>
@@ -73,9 +77,39 @@
   </div>
 </div>
 
-<script type="module" src="data.js?v=3.3"></script>
-<script src="lucide.min.js?v=3.3"></script>
-<script type="module" src="app.js?v=3.3"></script>
-<script type="module" src="configuracion.js?v=3.3"></script>
+<!-- Modal de verificación en dos pasos (2FA) -->
+<div class="modal-overlay" id="modal-2fa" style="display:none">
+  <div class="modal modal--sm" role="dialog" aria-modal="true" aria-labelledby="modal-2fa-titulo">
+    <div class="modal__header">
+      <div class="modal__title" id="modal-2fa-titulo">Verificación en dos pasos</div>
+      <button class="modal__close" type="button" aria-label="Cerrar"><i data-lucide="x"></i></button>
+    </div>
+    <div class="modal__body" id="modal-2fa-cuerpo">
+      <p id="modal-2fa-info" style="color:var(--color-text-muted);font-size:.88rem;margin:0 0 14px"></p>
+      <div id="modal-2fa-qr-box" style="text-align:center">
+        <img id="modal-2fa-qr-img" alt="Código QR de configuración 2FA"
+          style="border:1px solid var(--color-border);border-radius:10px;max-width:200px;height:auto;margin:0 auto 10px" />
+        <div class="form-group">
+          <label class="form-label" for="modal-2fa-secreto">O ingresa este secreto manualmente</label>
+          <input class="form-input" id="modal-2fa-secreto" readonly value="" />
+        </div>
+      </div>
+      <div class="form-group" style="margin-top:12px">
+        <label class="form-label" for="modal-2fa-codigo">Código de verificación (6 dígitos)</label>
+        <input class="form-input login-otp__input" id="modal-2fa-codigo" type="text" inputmode="numeric" maxlength="6" pattern="[0-9]{6}" placeholder="••••••" required />
+      </div>
+      <div id="modal-2fa-error" class="login-error" style="display:none"></div>
+      <div style="display:flex;gap:10px;margin-top:16px">
+        <button class="btn btn--primary" id="btn-2fa-confirmar">Confirmar</button>
+        <button class="btn modal__close" type="button">Cancelar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script type="module" src="data.js?v=3.4"></script>
+<script src="lucide.min.js?v=3.4"></script>
+<script type="module" src="app.js?v=3.4"></script>
+<script type="module" src="configuracion.js?v=3.4"></script>
 </body>
 </html>

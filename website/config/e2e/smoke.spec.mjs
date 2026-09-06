@@ -16,17 +16,17 @@ test("login como INSUCO y el dashboard carga los datos", async ({ page }) => {
   await expect(page.locator(".sidebar__user .name")).not.toBeEmpty();
 });
 
-test("configuracion.html muestra la versión v3.1", async ({ page }) => {
+test("configuracion.html muestra la versión v3.4", async ({ page }) => {
   await login(page, "INSUCO", "Insuco1336");
 
   await page.goto("/configuracion.html");
-  await expect(page.locator("body")).toContainText("LabControl v3.3", { timeout: 8000 });
+  await expect(page.locator("body")).toContainText("LabControl v3.4", { timeout: 8000 });
 
   // El panel visible muestra la versión y el conteo en vivo de laboratorios/equipos.
   await page.click('#cfg-sidenav button[data-section="sistema"]');
   const panel = page.locator("#panel-sistema");
   await expect(panel).toBeVisible();
-  await expect(panel).toContainText("LabControl v3.3");
+  await expect(panel).toContainText("LabControl v3.4");
   await expect(panel).toContainText("Total laboratorios");
   await expect(panel).toContainText("Total equipos");
 });
@@ -178,15 +178,15 @@ test("modo offline: el SW sirve el shell y los assets desde caché y degrada a d
   await context.setOffline(true);
   const offline = await page.evaluate(async () => {
     const resultados = {};
-    for (const r of ["index.html", "style.css?v=3.3", "app.js?v=3.3"]) {
+    for (const r of ["index.html", "style.css?v=3.4", "app.js?v=3.4"]) {
       try { resultados[r] = (await fetch(r)).ok; }
       catch { resultados[r] = false; }
     }
     return resultados;
   });
   expect(offline["index.html"]).toBe(true);
-  expect(offline["style.css?v=3.3"]).toBe(true);
-  expect(offline["app.js?v=3.3"]).toBe(true);
+  expect(offline["style.css?v=3.4"]).toBe(true);
+  expect(offline["app.js?v=3.4"]).toBe(true);
 
   const degradacion = await page.evaluate(async () => {
     const mod = await import("./data.js");
@@ -242,4 +242,123 @@ test("accesibilidad: interruptores (switch) operables con teclado", async ({ pag
   await page.keyboard.press("Space");
   const despues = await tog.getAttribute("aria-checked");
   expect(despues).not.toBe(antes);
+});
+
+test("auditoría: el admin ve los registros de actividad y filtra", async ({ page }) => {
+  await login(page, "INSUCO", "Insuco1336");
+  await page.goto("/configuracion.html");
+  await page.click('#cfg-sidenav button[data-section="auditoria"]');
+
+  const tbody = page.locator("#aud-tbody");
+  await expect(tbody).toBeVisible({ timeout: 8000 });
+  await expect(tbody).not.toContainText("Sin registros", { timeout: 8000 });
+  await expect(page.locator("#aud-tbody tr")).not.toHaveCount(0, { timeout: 8000 });
+
+  // El login quedó registrado: filtrar "login_ok" debe devolver resultados.
+  await page.fill("#aud-q", "login_ok");
+  await page.click("#btn-aud-filtrar");
+  await expect(page.locator("#aud-tbody").first()).toContainText("Inicio de sesión", { timeout: 8000 });
+});
+
+test("calendario semanal: navegación entre semanas y columna de hoy", async ({ page }) => {
+  await login(page, "INSUCO", "Insuco1336");
+  await page.goto("/disponibilidad.html");
+
+  await expect(page.locator("#semana-wrap .semana-tabla")).toContainText("Laboratorio", { timeout: 8000 });
+  await expect(page.locator(".semana-th--hoy")).toHaveCount(1, { timeout: 8000 });
+  await expect(page.locator("#semana-label")).toContainText("(hoy)", { timeout: 8000 });
+
+  await page.click("#btn-semana-sig");
+  await expect(page.locator("#semana-label")).not.toContainText("(hoy)", { timeout: 8000 });
+  await page.click("#btn-semana-ant");
+  await expect(page.locator("#semana-label")).toContainText("(hoy)", { timeout: 8000 });
+});
+
+test("respaldos: el admin descarga un archivo .db", async ({ page }) => {
+  await login(page, "INSUCO", "Insuco1336");
+  await page.goto("/configuracion.html");
+  await page.click('#cfg-sidenav button[data-section="backups"]');
+
+  const downloadPromise = page.waitForEvent("download", { timeout: 10000 });
+  await page.click("#btn-backup-descargar");
+  const download = await downloadPromise;
+  expect(download.suggestedFilename()).toMatch(/\.db$/);
+});
+
+test("reportes: exportar el reporte a CSV", async ({ page }) => {
+  await login(page, "INSUCO", "Insuco1336");
+  await page.goto("/reportes.html");
+
+  const tarjeta = page.locator(".rep-card").first();
+  await expect(tarjeta).toBeVisible({ timeout: 8000 });
+  await tarjeta.click();
+
+  const downloadPromise = page.waitForEvent("download", { timeout: 10000 });
+  await page.click('button[data-acc="csv"]');
+  const download = await downloadPromise;
+  expect(download.suggestedFilename()).toMatch(/^reporte-.*\.csv$/);
+});
+
+test("2FA: el admin activa, verifica y desactiva en Configuración", async ({ page }) => {
+  await login(page, "INSUCO", "Insuco1336");
+  await page.goto("/configuracion.html");
+  await page.click('#cfg-sidenav button[data-section="seguridad"]');
+
+  const codigoTotp = ({ secreto, offset }) => page.evaluate(async ({ secreto, offset }) => {
+    const B32 = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
+    const bits = [];
+    for (const c of (secreto.toUpperCase().replace(/=+$/g, ""))) {
+      const v = B32.indexOf(c);
+      for (let b = 4; b >= 0; b--) bits.push((v >> b) & 1);
+    }
+    const key = new Uint8Array(Math.floor(bits.length / 8));
+    for (let i = 0; i < key.length; i++) {
+      let x = 0;
+      for (let b = 0; b < 8; b++) x = (x << 1) | bits[i * 8 + b];
+      key[i] = x;
+    }
+    const counter = Math.floor(Date.now() / 1000 / 30) + offset;
+    const msg = new Uint8Array(8);
+    let c2 = counter;
+    for (let i = 7; i >= 0; i--) { msg[i] = c2 & 0xff; c2 = Math.floor(c2 / 256); }
+    const buf = await crypto.subtle.importKey("raw", key, { name: "HMAC", hash: "SHA-1" }, false, ["sign"]);
+    const sign = new Uint8Array(await crypto.subtle.sign("HMAC", buf, msg));
+    const off = sign[sign.length - 1] & 0x0f;
+    const code = ((sign[off] & 0x7f) << 24 | (sign[off + 1] & 0xff) << 16 | (sign[off + 2] & 0xff) << 8 | (sign[off + 3] & 0xff)) % 1000000;
+    return String(code).padStart(6, "0");
+  }, { secreto, offset });
+
+  const confirmarCodigo = async (btnId) => {
+    const secreto = await page.locator("#modal-2fa-secreto").inputValue();
+    for (const offset of [0, -1, 1]) {
+      const codigo = await codigoTotp({ secreto, offset });
+      await page.fill("#modal-2fa-codigo", codigo);
+      await page.click(btnId);
+      try {
+        await page.waitForSelector("#modal-2fa", { state: "hidden", timeout: 2500 });
+        return; // modal cerrado: código válido
+      } catch {
+        /* código inválido: reintentar con la siguiente ventana */
+      }
+    }
+    throw new Error("No se pudo validar ningún código TOTP");
+  };
+
+  try {
+    // Activar
+    await page.click("#btn-2fa-config");
+    await expect(page.locator("#modal-2fa")).toBeVisible({ timeout: 8000 });
+    await expect(page.locator("#modal-2fa-secreto")).not.toHaveValue("");
+    await confirmarCodigo("#btn-2fa-confirmar");
+    await expect(page.locator("#s-2fa-desc")).toContainText("Activa", { timeout: 8000 });
+    await expect(page.locator("#btn-2fa-desactivar")).toBeVisible();
+  } finally {
+    // Desactivar para no bloquear los demás inicios de sesión
+    if (await page.locator("#btn-2fa-desactivar").isVisible().catch(() => false)) {
+      await page.click("#btn-2fa-desactivar");
+      await expect(page.locator("#modal-2fa")).toBeVisible({ timeout: 8000 });
+      await confirmarCodigo("#btn-2fa-confirmar");
+      await expect(page.locator("#s-2fa-desc")).toContainText("Inactiva", { timeout: 8000 });
+    }
+  }
 });

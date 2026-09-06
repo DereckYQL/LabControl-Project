@@ -408,3 +408,246 @@ test("solicitudes: un admin no puede crear solicitudes (edita directamente)", as
     .send({ especialidad: "Dirección" });
   expect(res.status).toBe(403);
 });
+
+/* ===== Auditoría de actividad ===== */
+
+test("auditoría: registra logins fallidos y exige rol admin", async () => {
+  // Un intento fallido deja huella.
+  await request(app).post("/api/login").send({ usuario: "INSUCO", password: "clave-invalida-xyz" });
+
+  const tokenAdmin = await login();
+  const lista = await request(app)
+    .get("/api/auditoria")
+    .set("Authorization", `Bearer ${tokenAdmin}`);
+  expect(lista.status).toBe(200);
+  expect(Array.isArray(lista.body)).toBe(true);
+  expect(lista.body.length).toBeGreaterThan(0);
+
+  const acciones = lista.body.map((e) => e.accion);
+  expect(acciones).toContain("login_fallido");
+  expect(acciones).toContain("login_ok");
+  expect(lista.body.some((e) => e.accion === "login_fallido" && e.detalle?.usuario)).toBe(true);
+
+  // Paginación correcta, orden descendente y filtro por término.
+  const filtrado = await request(app)
+    .get("/api/auditoria?q=login&limite=5&pagina=1")
+    .set("Authorization", `Bearer ${tokenAdmin}`);
+  expect(filtrado.status).toBe(200);
+  expect(filtrado.body.data.length).toBeLessThanOrEqual(5);
+
+  const paginado = await request(app)
+    .get("/api/auditoria?pagina=1&limite=3")
+    .set("Authorization", `Bearer ${tokenAdmin}`);
+  expect(paginado.body.total).toBeDefined();
+
+  // Un no-admin no puede consultar la auditoría.
+  const tokenCamila = await loginCamila();
+  const denegado = await request(app)
+    .get("/api/auditoria")
+    .set("Authorization", `Bearer ${tokenCamila}`);
+  expect(denegado.status).toBe(403);
+});
+
+/* ===== Verificación en dos pasos (2FA) ===== */
+
+test("2FA: no-admin no puede configurarlo y el flujo admin completo funciona", async () => {
+  const { codigoActual } = await import("../totp.mjs");
+
+  // Estado inicial: desactivado.
+  const estadoInicial = await request(app)
+    .get("/api/2fa/estado")
+    .set("Authorization", `Bearer ${await login()}`);
+  expect(estadoInicial.body.habilitado).toBe(false);
+
+  // Un no-admin no puede iniciar la configuración.
+  const noAdmin = await request(app)
+    .post("/api/2fa/setup")
+    .set("Authorization", `Bearer ${await loginCamila()}`);
+  expect(noAdmin.status).toBe(403);
+
+  // Setup: genera secreto, URI compatible y QR (data URL).
+  const setup = await request(app)
+    .post("/api/2fa/setup")
+    .set("Authorization", `Bearer ${await login()}`);
+  expect(setup.status).toBe(200);
+  expect(setup.body.secreto).toMatch(/^[A-Z2-7]{20,}$/);
+  expect(setup.body.otpauthUrl).toContain("otpauth://totp/");
+  expect(setup.body.qrDataUrl).toMatch(/^data:image\/png;base64,/);
+
+  // Código erróneo no activa.
+  const mal = await request(app)
+    .post("/api/2fa/verificar")
+    .set("Authorization", `Bearer ${await login()}`)
+    .send({ codigo: "000000" });
+  expect(mal.status).toBe(401);
+
+  // Código válido activa el 2FA.
+  const ok = await request(app)
+    .post("/api/2fa/verificar")
+    .set("Authorization", `Bearer ${await login()}`)
+    .send({ codigo: codigoActual(setup.body.secreto) });
+  expect(ok.status).toBe(200);
+
+  const estadoActivo = await request(app)
+    .get("/api/2fa/estado")
+    .set("Authorization", `Bearer ${await login()}`);
+  expect(estadoActivo.body.habilitado).toBe(true);
+});
+
+test("2FA: al estar activo, el login pide el código y solo se autentica con él", async () => {
+  const { codigoActual } = await import("../totp.mjs");
+
+  // Habilitar el 2FA del admin directamente por BD (independiente del test anterior).
+  const { abrirConexion } = await import(`../db.js?v=${Date.now()}`);
+  const cone = abrirConexion();
+  const secreto = "ABCDEFGHIJKLMNOPQRSTUV";
+  cone.prepare("UPDATE usuarios SET totp_secreto = ?, totp_habilitado = 1 WHERE id = 'INSUCO'").run(secreto);
+  cone.close();
+
+  // El login ya no entrega tokens: pide el segundo paso.
+  const login = await request(app).post("/api/login").send({ usuario: "INSUCO", password: "Insuco1336" });
+  expect(login.status).toBe(200);
+  expect(login.body.requires2FA).toBe(true);
+  expect(login.body.loginId).toBeTruthy();
+  expect(login.body.token).toBeUndefined();
+  expect(login.body.usuario.id).toBe("INSUCO");
+
+  // Código incorrecto (muchas veces, pero ante el límite basta uno para el 401).
+  const mal = await request(app)
+    .post("/api/login/2fa")
+    .send({ loginId: login.body.loginId, codigo: "000000" });
+  expect(mal.status).toBe(401);
+
+  const buenCodigo = codigoActual(secreto);
+  const resuelto = await request(app)
+    .post("/api/login/2fa")
+    .send({ loginId: login.body.loginId, codigo: buenCodigo });
+  expect(resuelto.status).toBe(200);
+  expect(resuelto.body.token).toBeTruthy();
+  expect(resuelto.body.refreshToken).toBeTruthy();
+
+  // El token obtenido tras el segundo paso es totalmente operativo.
+  const protegido = await request(app)
+    .get("/api/usuarios")
+    .set("Authorization", `Bearer ${resuelto.body.token}`);
+  expect(protegido.status).toBe(200);
+
+  // Un desafío consumido no sirve otra vez.
+  const reuso = await request(app)
+    .post("/api/login/2fa")
+    .send({ loginId: login.body.loginId, codigo: buenCodigo });
+  expect(reuso.status).toBe(401);
+
+  // Y se deja el estado original para no afectar al resto de la suite.
+  const cone2 = abrirConexion();
+  cone2.prepare("UPDATE usuarios SET totp_secreto = NULL, totp_habilitado = 0 WHERE id = 'INSUCO'").run();
+  cone2.close();
+});
+
+test("2FA: desactivar exige el código y queda reflejado", async () => {
+  const { codigoActual } = await import("../totp.mjs");
+  const tokenAdmin = await login();
+
+  // Habilitar por BD para probar solo la desactivación.
+  const { abrirConexion } = await import(`../db.js?v=${Date.now()}`);
+  const cone = abrirConexion();
+  const secreto = "ABCDEFGHIJKLMNOPQRSTUV";
+  cone.prepare("UPDATE usuarios SET totp_secreto = ?, totp_habilitado = 1 WHERE id = 'INSUCO'").run(secreto);
+  cone.close();
+
+  // Sin código, no se puede desactivar.
+  const sinCodigo = await request(app)
+    .post("/api/2fa/desactivar")
+    .set("Authorization", `Bearer ${tokenAdmin}`);
+  expect(sinCodigo.status).toBe(400);
+
+  // Código erróneo, tampoco.
+  const mal = await request(app)
+    .post("/api/2fa/desactivar")
+    .set("Authorization", `Bearer ${tokenAdmin}`)
+    .send({ codigo: "000000" });
+  expect(mal.status).toBe(401);
+
+  // Con el código vigente: se desactiva.
+  const ok = await request(app)
+    .post("/api/2fa/desactivar")
+    .set("Authorization", `Bearer ${tokenAdmin}`)
+    .send({ codigo: codigoActual(secreto) });
+  expect(ok.status).toBe(200);
+
+  const estado = await request(app)
+    .get("/api/2fa/estado")
+    .set("Authorization", `Bearer ${tokenAdmin}`);
+  expect(estado.body.habilitado).toBe(false);
+});
+
+/* ===== Respaldos de la base de datos ===== */
+
+test("backups: solo admin, exporta una BD válida y restaura cambiando datos", async () => {
+  const tokenAdmin = await login();
+
+  // Un no-admin no puede exportar ni restaurar.
+  const tokenCamila = await loginCamila();
+  const denegadoExp = await request(app)
+    .get("/api/backups/exportar")
+    .set("Authorization", `Bearer ${tokenCamila}`);
+  expect(denegadoExp.status).toBe(403);
+  const denegadoRest = await request(app)
+    .post("/api/backups/restaurar")
+    .set("Authorization", `Bearer ${tokenCamila}`)
+    .send(Buffer.from("basura"));
+  expect(denegadoRest.status).toBe(403);
+
+  // Exportar: cabeceras correctas y archivo SQLite válido.
+  const exportado = await request(app)
+    .get("/api/backups/exportar")
+    .set("Authorization", `Bearer ${tokenAdmin}`);
+  expect(exportado.status).toBe(200);
+  expect(exportado.headers["content-disposition"]).toContain("attachment");
+  expect(exportado.headers["content-type"]).toBe("application/octet-stream");
+  expect(Buffer.isBuffer(exportado.body)).toBe(true);
+  expect(exportado.body.subarray(0, 16).toString("utf8")).toBe("SQLite format 3\u0000");
+
+  // Restaurar basura: rechazado y la BD sigue operativa.
+  const basura = await request(app)
+    .post("/api/backups/restaurar")
+    .set("Authorization", `Bearer ${tokenAdmin}`)
+    .set("Content-Type", "application/octet-stream")
+    .send(Buffer.from([1, 2, 3, 4, 5]));
+  expect(basura.status).toBe(400);
+
+  // Cambiar datos tras el respaldo: crear una reserva que el respaldo no conoce.
+  const futura = new Date(Date.now() + 4 * 24 * 60 * 60 * 1000);
+  const fechaFutura = new Date(futura.getTime() - futura.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+  let creada = await request(app)
+    .post("/api/agenda")
+    .set("Authorization", `Bearer ${tokenAdmin}`)
+    .send({ labId: 1, fecha: fechaFutura, horaInicio: "09:00", horaFin: "10:00", motivo: "Reserva-previa-al-respaldo" });
+  if (creada.status !== 201) {
+    // La hora 09:00 podría chocar con el seed: probar con otro bloque horario libre.
+    creada = await request(app)
+      .post("/api/agenda")
+      .set("Authorization", `Bearer ${tokenAdmin}`)
+      .send({ labId: 2, fecha: fechaFutura, horaInicio: "12:00", horaFin: "13:00", motivo: "Reserva-previa-al-respaldo" });
+  }
+  expect(creada.status).toBe(201);
+
+  const restaurado = await request(app)
+    .post("/api/backups/restaurar")
+    .set("Authorization", `Bearer ${tokenAdmin}`)
+    .set("Content-Type", "application/octet-stream")
+    .send(exportado.body);
+  expect(restaurado.status).toBe(200);
+
+  // La reserva creada después del respaldo ya no existe: la BD volvió a su estado.
+  const despues = await request(app)
+    .get(`/api/agenda?fecha=${fechaFutura}&labId=${creada.body.labId}`)
+    .set("Authorization", `Bearer ${tokenAdmin}`);
+  const agenda = Array.isArray(despues.body) ? despues.body : despues.body.data;
+  expect(despues.status).toBe(200);
+  expect(agenda.some((r) => r.motivo === "Reserva-previa-al-respaldo")).toBe(false);
+
+  // Al restaurar se revocan todos los refresh tokens, pero el access token sigue válido.
+  const estado = await request(app).get("/api/2fa/estado").set("Authorization", `Bearer ${tokenAdmin}`);
+  expect(estado.status).toBe(200);
+});

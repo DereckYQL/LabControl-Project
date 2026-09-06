@@ -26,7 +26,7 @@ test("BD nueva: crea esquema, aplica migraciones y hace seed", async () => {
     .prepare("SELECT version FROM schema_migrations ORDER BY version")
     .all()
     .map((r) => r.version);
-  expect(versiones).toEqual([2, 3, 4, 5, 6]);
+  expect(versiones).toEqual([2, 3, 4, 5, 6, 7]);
 
   const columnas = db
     .prepare("PRAGMA table_info(reportes)")
@@ -74,7 +74,7 @@ test("es idempotente: reabrir la misma BD no re-aplica migraciones", async () =>
     .prepare("SELECT version FROM schema_migrations ORDER BY version")
     .all()
     .map((r) => r.version);
-  expect(versiones).toEqual([2, 3, 4, 5, 6]);
+  expect(versiones).toEqual([2, 3, 4, 5, 6, 7]);
 
   const admin = db.prepare("SELECT password FROM usuarios WHERE id = 'INSUCO'").get();
   expect(String(admin.password)).toMatch(/^\$2[ab]\$/);

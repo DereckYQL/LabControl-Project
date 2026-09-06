@@ -17,13 +17,27 @@ const esNueva = !fs.existsSync(DB_PATH);
 
 fs.mkdirSync(DB_DIR, { recursive: true });
 
-const db = new DatabaseSync(DB_PATH);
-db.exec("PRAGMA journal_mode = WAL");
-db.exec("PRAGMA foreign_keys = ON");
+let db = null;
+
+// Abre la base, aplica esquema y migraciones y devuelve la conexión lista.
+// Separada de la inicialización para poder reabrir la base tras un respaldo.
+function abrirConexion() {
+  const d = new DatabaseSync(DB_PATH);
+  // journal DELETE (sin WAL): la app es de un único proceso/usuario y así se
+  // evita que Windows deje handles de -wal/-shm que bloquean copias/restauros.
+  d.exec("PRAGMA journal_mode = DELETE");
+  d.exec("PRAGMA foreign_keys = ON");
+  // Windows libera handles con retardo; esperar en lugar de fallar.
+  d.exec("PRAGMA busy_timeout = 15000");
+  crearEsquema(d);
+  aplicarMigraciones(d);
+  return d;
+}
 
 /* Esquema */
 
-db.exec(`
+function crearEsquema(sesion) {
+sesion.exec(`
 CREATE TABLE IF NOT EXISTS laboratorios (
   id              INTEGER PRIMARY KEY,
   nombre          TEXT NOT NULL,
@@ -119,7 +133,7 @@ CREATE TABLE IF NOT EXISTS config (
   data  TEXT NOT NULL
 );
 `);
-
+}
 /* Migraciones (cada una se aplica una sola vez) */
 
 const CONFIG_DEFAULT = {
@@ -214,37 +228,65 @@ const MIGRACIONES = [
       `);
       d.exec("CREATE INDEX IF NOT EXISTS idx_refresh_tokens_usuario ON refresh_tokens(usuario_id)");
     }
+  },
+  {
+    version: 7,
+    nombre: "verificación en dos pasos (2FA) y tabla de auditoría de actividad",
+    migrar(d) {
+      d.exec(`
+        CREATE TABLE IF NOT EXISTS auditoria (
+          id         INTEGER PRIMARY KEY AUTOINCREMENT,
+          fecha      TEXT NOT NULL,
+          usuario_id TEXT REFERENCES usuarios(id) ON DELETE SET NULL,
+          rol        TEXT,
+          accion     TEXT NOT NULL,
+          detalle    TEXT DEFAULT '{}',
+          ip         TEXT
+        )
+      `);
+      d.exec("CREATE INDEX IF NOT EXISTS idx_auditoria_fecha ON auditoria(fecha)");
+      d.exec("CREATE INDEX IF NOT EXISTS idx_auditoria_usuario ON auditoria(usuario_id)");
+      const colUsuarios = d.prepare("PRAGMA table_info(usuarios)").all();
+      if (!colUsuarios.some((c) => c.name === "totp_secreto")) {
+        d.exec("ALTER TABLE usuarios ADD COLUMN totp_secreto TEXT");
+      }
+      if (!colUsuarios.some((c) => c.name === "totp_habilitado")) {
+        d.exec("ALTER TABLE usuarios ADD COLUMN totp_habilitado INTEGER DEFAULT 0");
+      }
+    }
   }
 ];
 
-function aplicarMigraciones() {
-  db.exec(`
+function aplicarMigraciones(conexion) {
+  conexion.exec(`
     CREATE TABLE IF NOT EXISTS schema_migrations (
       version     INTEGER PRIMARY KEY,
       nombre      TEXT NOT NULL,
       aplicada_en TEXT NOT NULL
     )
   `);
-  const fila = db.prepare("SELECT COALESCE(MAX(version), 0) AS v FROM schema_migrations").get();
+  const fila = conexion.prepare("SELECT COALESCE(MAX(version), 0) AS v FROM schema_migrations").get();
   const actual = fila.v || 0;
 
   for (const m of MIGRACIONES) {
     if (m.version <= actual) continue;
-    db.exec("BEGIN");
+    conexion.exec("BEGIN");
     try {
-      m.migrar(db);
-      db.prepare("INSERT INTO schema_migrations (version, nombre, aplicada_en) VALUES (?,?,?)")
+      m.migrar(conexion);
+      conexion.prepare("INSERT INTO schema_migrations (version, nombre, aplicada_en) VALUES (?,?,?)")
         .run(m.version, m.nombre, new Date().toISOString());
-      db.exec("COMMIT");
+      conexion.exec("COMMIT");
       console.log(`  Migración ${m.version} aplicada: ${m.nombre}`);
     } catch (err) {
-      db.exec("ROLLBACK");
+      conexion.exec("ROLLBACK");
       throw err;
     }
   }
 }
 
-aplicarMigraciones();
+// Abre la conexión inicial y aplica esquema + migraciones (después de que
+// MIGRACIONES ya está definido; de ahí su posición).
+db = abrirConexion();
 
 /* Seed: datos de ejemplo (solo la primera vez) */
 
@@ -434,6 +476,78 @@ function seed() {
   }
 
   console.log("Datos de ejemplo cargados: 5 laboratorios, equipos, 7 usuarios, agenda y reportes.");
+}
+
+export { DB_PATH, DB_DIR, db, abrirConexion };
+
+// Obliga a volcar el WAL al archivo principal: deja la BD consistente para copiarla.
+export function hacerCheckpoint() {
+  db.exec("PRAGMA wal_checkpoint(TRUNCATE)");
+}
+
+function esperar(ms) {
+  const fin = Date.now() + ms;
+  while (Date.now() < fin) { /* espera bloqueante mínima */ }
+}
+
+// En Windows, SQLite puede reportar "database is locked" o EPERM de forma
+// transitoria justo tras cerrar/reabrir la conexión; reintentar con pausa lo resuelve.
+function reintentar(fn, intentos = 6, pausaMs = 150) {
+  let ultimoError;
+  for (let i = 0; i < intentos; i++) {
+    try {
+      return fn();
+    } catch (err) {
+      ultimoError = err;
+      const mensaje = String(err?.message || err).toLowerCase();
+      const esTransitorio = mensaje.includes("locked") || mensaje.includes("eperm") || mensaje.includes("permission denied");
+      if (!esTransitorio || i === intentos - 1) throw err;
+      esperar(pausaMs);
+    }
+  }
+  throw ultimoError;
+}
+
+// Sustituye la base por la de un respaldo subido (buffers con el contenido del
+// archivo .db). Conserva una copia .prev para reintentar ante cualquier error.
+export function reemplazarBaseDesdeBuffer(buffer) {
+  if (!Buffer.isBuffer(buffer) || buffer.length < 100) {
+    const err = new Error("El archivo recibido no parece una base de datos válida");
+    err.status = 400;
+    throw err;
+  }
+  const cabecera = buffer.subarray(0, 16).toString("latin1");
+if (cabecera !== "SQLite format 3\u0000") {
+    const err = new Error("El archivo recibido no es una base de datos SQLite");
+    err.status = 400;
+    throw err;
+  }
+
+  // Cerrar la conexión actual (ella misma elimina su journal; sin WAL no hay
+  // archivos -wal/-shm que queden colgando en Windows).
+  reintentar(() => {
+    db.exec("PRAGMA wal_checkpoint(TRUNCATE)");
+    db.close();
+  });
+
+  const prev = `${DB_PATH}.prev`;
+  fs.copyFileSync(DB_PATH, prev);
+  fs.writeFileSync(DB_PATH, buffer);
+
+  try {
+    db = reintentar(() => {
+      const c = abrirConexion();
+      // Las sesiones de la base anterior ya no sirven.
+      if (c.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'refresh_tokens'").get()) {
+        c.prepare("UPDATE refresh_tokens SET revocado = 1 WHERE revocado = 0").run();
+      }
+      return c;
+    });
+  } catch (err) {
+    try { fs.copyFileSync(prev, DB_PATH); } catch { /* sin copia previa: se deja estado anterior */ }
+    abrirConexion();
+    throw err;
+  }
 }
 
 export default db;

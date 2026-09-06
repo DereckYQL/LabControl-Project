@@ -26,6 +26,9 @@ export default defineConfig({
       // que la suite no choque con el límite general de producción (200/15min).
       LC_API_LIMIT: "2000",
       LC_ESCRITURA_LIMIT: "2000",
+      // La suite inicia sesión decenas de veces por corrida: ampliar el máximo
+      // de intentos de login (el límite real de producción es 10).
+      LC_LOGIN_LIMIT: "200",
       LC_DB_DIR: path.join(os.tmpdir(), `lc-e2e-db-${Date.now()}`)
     }
   }

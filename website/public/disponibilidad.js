@@ -89,6 +89,79 @@ import { abrirModal, cerrarModal, esc, formatFecha, renderSidebar, showToast } f
     });
   }
 
+  /* ======================================================
+     CALENDARIO SEMANAL
+     ====================================================== */
+
+  let semanaOffset = 0;
+  const NOMBRES_DIAS = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
+
+  function fechaISO(d) {
+    const p = (n) => String(n).padStart(2, "0");
+    return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+  }
+
+  function obtenerSemana(offset) {
+    const ahora = new Date();
+    const dia   = (ahora.getDay() + 6) % 7; // lunes = 0
+    const inicio = new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate() - dia + offset * 7);
+    const dias = Array.from({ length: 7 }, (_, i) => {
+      const d = new Date(inicio.getFullYear(), inicio.getMonth(), inicio.getDate() + i);
+      return { fecha: fechaISO(d), nombre: NOMBRES_DIAS[i], numero: String(d.getDate()).padStart(2, "0") };
+    });
+    return { inicio: dias[0], fin: dias[6], dias };
+  }
+
+  function renderSemana(agenda = []) {
+    const wrap = document.getElementById("semana-wrap");
+    if (!wrap) return;
+    const { inicio, fin, dias } = obtenerSemana(semanaOffset);
+    const hoy = fechaISO(new Date());
+    const label = document.getElementById("semana-label");
+    if (label) label.textContent = semanaOffset === 0
+      ? `Semana del ${inicio.numero} al ${fin.numero} (hoy)`
+      : `Semana del ${inicio.numero} al ${fin.numero}`;
+
+    wrap.innerHTML = `
+      <table class="semana-tabla">
+        <thead>
+          <tr>
+            <th>Laboratorio</th>
+            ${dias.map((d) => `
+              <th class="${d.fecha === hoy ? "semana-th--hoy" : ""}">
+                <span class="semana-dia">${d.nombre}</span>
+                <span class="semana-fecha">${d.numero}</span>
+              </th>`).join("")}
+          </tr>
+        </thead>
+        <tbody>
+          ${labsCache.map((lab) => `
+            <tr>
+              <td class="semana-lab">${esc(lab.nombre)}</td>
+              ${dias.map((d) => {
+                const reservas = agenda.filter((r) => r.labId === lab.id && r.fecha === d.fecha);
+                return `
+                  <td class="${d.fecha === hoy ? "semana-td--hoy" : ""}">
+                    ${reservas.length
+                      ? reservas.map((r) => `
+                          <div class="semana-chip ${r.estado === "pendiente" ? "semana-chip--pendiente" : ""}"
+                               data-res-id="${esc(r.id)}">${esc(r.horaInicio)}–${esc(r.horaFin)}<span>${esc(r.motivo)}</span></div>`).join("")
+                      : ""}
+                  </td>`;
+              }).join("")}
+            </tr>`).join("")}
+        </tbody>
+      </table>
+    `;
+
+    wrap.querySelectorAll("[data-res-id]").forEach((chip) => {
+      chip.addEventListener("click", () => {
+        if (!confirm("¿Cancelar esta reserva?")) return;
+        cancelarReserva(chip.dataset.resId);
+      });
+    });
+  }
+
   function abrirModalEstado(labId) {
     labSeleccionado = labId;
     const lab = labsCache.find((l) => l.id === labId);
@@ -102,6 +175,7 @@ import { abrirModal, cerrarModal, esc, formatFecha, renderSidebar, showToast } f
       .then(() => cargarAgenda())
       .then((ag) => {
         renderTablaAgenda(ag, labsCache);
+        renderSemana(ag);
         showToast("Reserva cancelada correctamente.");
       })
       .catch(() => showToast("No se pudo cancelar la reserva.", "error"));
@@ -176,6 +250,16 @@ import { abrirModal, cerrarModal, esc, formatFecha, renderSidebar, showToast } f
     });
   });
 
+  // Navegación del calendario semanal
+  document.getElementById("btn-semana-ant").addEventListener("click", () => {
+    semanaOffset--;
+    renderSemana();
+  });
+  document.getElementById("btn-semana-sig").addEventListener("click", () => {
+    semanaOffset++;
+    renderSemana();
+  });
+
   // Carga inicial
   Promise.all([cargarLaboratorios(), cargarAgenda(), cargarUsuarios()]).then(([labs, agenda, usuarios]) => {
     labsCache = labs;
@@ -183,4 +267,5 @@ import { abrirModal, cerrarModal, esc, formatFecha, renderSidebar, showToast } f
     renderDispStats(labs);
     renderTablaDisp(labs);
     renderTablaAgenda(agenda, labs);
+    renderSemana(agenda);
   }).catch(() => showToast("No se pudieron cargar los datos de disponibilidad.", "error"));

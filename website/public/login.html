@@ -9,10 +9,14 @@
 <meta property="og:type" content="website" />
 <meta property="og:image" content="https://dereckyql.github.io/LabControl-Project/img/logo-insuco.png" />
 <meta property="og:url" content="https://dereckyql.github.io/LabControl-Project/login.html" />
+<link rel="canonical" href="https://dereckyql.github.io/LabControl-Project/login.html" />
+<meta name="theme-color" content="#ffc300" />
+<link rel="manifest" href="manifest.webmanifest" />
+<link rel="apple-touch-icon" href="img/icon-192.png" />
 <title>Iniciar sesión · Insuco LabControl</title>
 <link rel="icon" type="image/png" href="img/logo-insuco.png" />
-<link rel="stylesheet" href="style.css?v=3.3" />
-<script src="theme.js?v=3.3"></script>
+<link rel="stylesheet" href="style.css?v=3.4" />
+<script src="theme.js?v=3.4"></script>
 </head>
 <body class="login-body">
   <a class="skip-nav" href="#main-content">Saltar al contenido</a>
@@ -30,19 +34,34 @@
   <h2 class="login-title">Iniciar sesión</h2>
   <p class="login-desc">Ingresa con tu cuenta institucional</p>
 
-  <form id="login-form">
-    <div class="form-group">
-      <label class="form-label" for="input-user">Usuario o correo</label>
-      <input class="form-input" id="input-user" type="text" placeholder="ej. prof_juan" autocomplete="username" required minlength="3" />
+  <!-- novalidate: el paso 2 oculta sus campos required (la validación se hace en login.js) -->
+  <form id="login-form" novalidate>
+    <div id="paso-1">
+      <div class="form-group">
+        <label class="form-label" for="input-user">Usuario o correo</label>
+        <input class="form-input" id="input-user" type="text" placeholder="ej. prof_juan" autocomplete="username" required minlength="3" />
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="input-pass">Contraseña</label>
+        <input class="form-input" id="input-pass" type="password" placeholder="••••••••" autocomplete="current-password" required minlength="4" />
+      </div>
+      <div id="login-error" class="login-error" style="display:none">
+        Usuario o contraseña incorrectos.
+      </div>
+      <button class="btn btn--primary login-submit" type="submit">Ingresar</button>
     </div>
-    <div class="form-group">
-      <label class="form-label" for="input-pass">Contraseña</label>
-      <input class="form-input" id="input-pass" type="password" placeholder="••••••••" autocomplete="current-password" required minlength="4" />
+
+    <div id="paso-2" class="login-otp" style="display:none">
+      <div class="login-otp__title">Ingresa el código</div>
+      <div class="login-otp__desc">Tu cuenta tiene verificación en dos pasos activada. Abre tu aplicación de autenticación y escribe el código de 6 dígitos.</div>
+      <div class="form-group">
+        <label class="form-label" for="input-2fa">Código de verificación</label>
+        <input class="form-input login-otp__input" id="input-2fa" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="••••••" pattern="[0-9]{6}" required />
+      </div>
+      <div id="login-2fa-error" class="login-error" style="display:none"></div>
+      <button class="btn btn--primary login-submit login-submit--2fa" type="submit">Verificar</button>
+      <button class="login-back" type="button">Volver a iniciar sesión</button>
     </div>
-    <div id="login-error" class="login-error" style="display:none">
-      Usuario o contraseña incorrectos.
-    </div>
-    <button class="btn btn--primary login-submit" type="submit">Ingresar</button>
   </form>
 
   <div class="login-hint">
@@ -61,7 +80,7 @@
   </div>
 </main>
 
-<script type="module" src="data.js?v=3.3"></script>
-<script type="module" src="login.js?v=3.3"></script>
+<script type="module" src="data.js?v=3.4"></script>
+<script type="module" src="login.js?v=3.4"></script>
 </body>
 </html>

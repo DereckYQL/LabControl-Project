@@ -102,7 +102,7 @@ import { abrirModal, cerrarModal, formatFecha, getQueryParam, refrescarNotificac
 
     // Botones de acción: solo el creador o un administrador pueden editar/eliminar
     const acciones = document.getElementById("rep-acciones");
-    const botones  = [`<button class="btn" data-acc="imprimir"><i data-lucide="printer"></i> Imprimir</button>`];
+    const botones  = [`<button class="btn" data-acc="csv"><i data-lucide="file-down"></i> Exportar CSV</button>`, `<button class="btn" data-acc="imprimir"><i data-lucide="printer"></i> Imprimir</button>`];
     if (puedeModificar(rep)) {
       botones.push(`<button class="btn" data-acc="editar"><i data-lucide="pencil"></i> Editar</button>`);
       botones.push(`<button class="btn btn--danger" data-acc="eliminar"><i data-lucide="trash-2"></i> Eliminar</button>`);
@@ -111,7 +111,8 @@ import { abrirModal, cerrarModal, formatFecha, getQueryParam, refrescarNotificac
     acciones.onclick = (e) => {
       const b = e.target.closest("[data-acc]");
       if (!b) return;
-      if (b.dataset.acc === "imprimir") imprimirReporte();
+      if (b.dataset.acc === "csv") exportarReporteCSV();
+      else if (b.dataset.acc === "imprimir") imprimirReporte();
       else if (b.dataset.acc === "editar") editarReporteActual();
       else if (b.dataset.acc === "eliminar") eliminarReporteActual();
     };
@@ -518,6 +519,59 @@ import { abrirModal, cerrarModal, formatFecha, getQueryParam, refrescarNotificac
 
   function imprimirReporte() {
     window.print();
+  }
+
+  function escapeCSV(val) {
+    const s = String(val ?? "");
+    return /[",\r\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+  }
+
+  function filasDatosCSV(datos) {
+    if (!datos || typeof datos !== "object") return [];
+    const filas = [];
+    const agregar = (prefijo, val) => {
+      if (Array.isArray(val)) {
+        val.forEach((item, i) => {
+          if (item && typeof item === "object") {
+            Object.entries(item).forEach(([k, v]) => agregar(`${prefijo}${i + 1}.${k}`, v));
+          } else {
+            filas.push([`${prefijo}${i + 1}`, item]);
+          }
+        });
+      } else if (val && typeof val === "object") {
+        Object.entries(val).forEach(([k, v]) => agregar(`${prefijo}${k}`, v));
+      } else {
+        filas.push([prefijo, val]);
+      }
+    };
+    Object.entries(datos).forEach(([k, v]) => agregar(`${k}.`, v));
+    return filas;
+  }
+
+  function exportarReporteCSV() {
+    const rep = reportesCache.find((r) => r.id === repAbiertoId);
+    if (!rep) return;
+    const autor = usuariosCache.find((u) => u.id === rep.generadoPor);
+    const filas = [
+      ["Campo", "Valor"],
+      ["Título", rep.titulo],
+      ["Tipo", LABELS_TIPO[rep.tipo] ?? rep.tipo],
+      ["Fecha", formatFecha(rep.fecha)],
+      ["Autor", autor ? `${autor.nombre} ${autor.apellido}` : rep.generadoPor],
+      ["Descripción", rep.descripcion ?? ""],
+      ...filasDatosCSV(rep.datos)
+    ];
+    const csv = filas.map((f) => f.map(escapeCSV).join(",")).join("\r\n");
+    const nombre = `reporte-${(rep.titulo || "sin-titulo").toLowerCase().replace(/[^a-z0-9ñáéíóú]+/gi, "-").replace(/^-+|-+$/g, "") || "exportado"}.csv`;
+    const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = nombre;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+    showToast("Reporte exportado a CSV", "success");
   }
 
   document.getElementById("lightbox")?.addEventListener("click", () => {

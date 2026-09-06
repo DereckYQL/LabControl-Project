@@ -1,5 +1,5 @@
 /* Imports (ES modules) */
-import { AUTH, ESTADOS, actualizarConfig, actualizarUsuario, apiSend, cargarConfig, cargarEquipos, cargarLaboratorios, cargarSolicitudEspecialidad, cargarSolicitudesEspecialidad, cargarUsuarios, resolverSolicitudEspecialidad, solicitarCambioEspecialidad } from "./data.js";
+import { AUTH, ESTADOS, actualizarConfig, actualizarUsuario, apiSend, cargarAuditoria, cargarConfig, cargarEquipos, cargarEstado2FA, cargarLaboratorios, cargarSolicitudEspecialidad, cargarSolicitudesEspecialidad, cargarUsuarios, desactivar2FA, exportarBackup, iniciarConfiguracion2FA, resolverSolicitudEspecialidad, restaurarBackup, solicitarCambioEspecialidad, verificarConfiguracion2FA } from "./data.js";
 import { abrirModal, activarNotificacionesSistema, actualizarIconosLucide, esc, renderSidebar, rolLabel, showToast } from "./app.js";
 
 /* Valores por defecto de configuración (espejo del backend, db.js). */
@@ -77,6 +77,8 @@ function iniciarPantalla() {
     { id: "equipos-cfg",      icon: "laptop",   label: "Equipos" },
     { id: "red",              icon: "globe",    label: "Red" },
     { id: "usuarios-cfg",     icon: "users",    label: "Usuarios" },
+    { id: "auditoria",        icon: "history",  label: "Auditoría" },
+    { id: "backups",          icon: "database", label: "Respaldos" },
     { id: "sistema",          icon: "wrench",   label: "Sistema" },
   ];
 
@@ -104,6 +106,10 @@ function iniciarPantalla() {
   if (selTexto) selTexto.value = tamanoTextoGuardado();
   refrescarHintsPerfil();
   actualizarIconosLucide();
+
+  /* Contenido dinámico de secciones nuevas */
+  refrescarEstado2FA();
+  if (esAdmin) cargarAuditoriaPanel();
 }
 
 function refrescarHintsPerfil() {
@@ -268,6 +274,13 @@ function buildPanel(id) {
         </div>
         <button class="btn btn--primary" id="btn-cambiar-contrasena" style="margin-top:4px">Cambiar contraseña</button>
         <hr style="margin:24px 0;border-color:var(--color-border)">
+        <div style="font-weight:600;margin-bottom:6px">Verificación en dos pasos</div>
+        <p id="s-2fa-desc" style="color:var(--color-text-muted);font-size:.88rem">Cargando estado…</p>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:10px">
+          <button class="btn" id="btn-2fa-config"><i data-lucide="shield-plus"></i> Configurar 2FA</button>
+          <button class="btn btn--danger" id="btn-2fa-desactivar" style="display:none"><i data-lucide="shield-off"></i> Desactivar 2FA</button>
+        </div>
+        <hr style="margin:24px 0;border-color:var(--color-border)">
         <div style="font-weight:600;margin-bottom:10px">Sesión activa</div>
         <p style="color:var(--color-text-muted);font-size:.88rem;margin-bottom:12px">Usuario: <strong>${sesion?.id}</strong> — Rol: ${rolLabel(sesion?.rol)}</p>
         <button class="btn btn--danger" id="btn-cerrar-sesion">Cerrar sesión</button>
@@ -410,6 +423,60 @@ function buildPanel(id) {
       </div>
     `;
 
+    /* Auditoría (admin) */
+    case "auditoria": return `
+      <h2 class="cfg-panel__title">Auditoría de actividad</h2>
+      <div class="cfg-admin-badge"><i data-lucide="key-round"></i> Solo administradores</div>
+      <div class="cfg-section">
+        <div class="cfg-aud-filtros">
+          <div class="form-group">
+            <label class="form-label" for="aud-q">Buscar</label>
+            <input class="form-input" id="aud-q" placeholder="Acción, usuario, detalle…" />
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="aud-desde">Desde</label>
+            <input class="form-input" type="date" id="aud-desde" />
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="aud-hasta">Hasta</label>
+            <input class="form-input" type="date" id="aud-hasta" />
+          </div>
+          <div class="cfg-aud-filtros__acciones">
+            <button class="btn btn--primary" id="btn-aud-filtrar"><i data-lucide="search"></i> Filtrar</button>
+            <button class="btn" id="btn-aud-limpiar">Limpiar</button>
+          </div>
+        </div>
+        <div class="cfg-aud-wrap">
+          <table class="cfg-aud-table">
+            <thead><tr><th>Fecha</th><th>Usuario</th><th>Rol</th><th>Acción</th><th>Detalle</th><th>IP</th></tr></thead>
+            <tbody id="aud-tbody"><tr><td colspan="6" class="cfg-aud-vacio">Cargando…</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    `;
+
+    /* Respaldos de la base de datos (admin) */
+    case "backups": return `
+      <h2 class="cfg-panel__title">Respaldos de la base de datos</h2>
+      <div class="cfg-admin-badge"><i data-lucide="key-round"></i> Solo administradores</div>
+      <div class="cfg-section">
+        <p style="color:var(--color-text-muted);font-size:.88rem;margin:0 0 16px">
+          Descarga una copia de seguridad de toda la base de datos (laboratorios, usuarios, reservas, reportes y configuración).
+          Puedes restaurarla después desde un archivo <code>.db</code>.
+        </p>
+        <div class="cfg-backup-acciones">
+          <button class="btn btn--primary" id="btn-backup-descargar"><i data-lucide="download"></i> Descargar respaldo (.db)</button>
+          <label class="btn" for="input-backup-archivo"><i data-lucide="upload"></i> Restaurar respaldo…</label>
+          <input type="file" id="input-backup-archivo" accept=".db,application/octet-stream" style="display:none" />
+        </div>
+        <p id="p-backup-estado" class="form-hint" style="margin-top:12px"></p>
+        <p class="form-hint" style="margin-top:8px">
+          <strong>Aviso:</strong> restaurar reemplaza por completo la base de datos actual y
+          <strong>cierra todas las demás sesiones activas</strong>. Guarda una copia antes de restaurar.
+        </p>
+      </div>
+    `;
+
     /* Sistema (admin) */
     case "sistema": return `
       <h2 class="cfg-panel__title">Sistema</h2>
@@ -418,7 +485,7 @@ function buildPanel(id) {
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:20px">
           <div class="cfg-sys-card">
             <div class="cfg-sys-card__label">Versión del sistema</div>
-            <div class="cfg-sys-card__value">LabControl v3.3</div>
+            <div class="cfg-sys-card__value">LabControl v3.4</div>
           </div>
           <div class="cfg-sys-card">
             <div class="cfg-sys-card__label">Total laboratorios</div>
@@ -820,7 +887,7 @@ function contenidoAcerca() {
       <div style="font-size:.85rem;color:var(--color-text-muted)">Sistema de control y supervisión de los laboratorios de computación del liceo.</div>
       <div class="cfg-sys-card" style="margin:18px auto 0;max-width:260px">
         <div class="cfg-sys-card__label">Versión del sistema</div>
-        <div class="cfg-sys-card__value">LabControl v3.3</div>
+        <div class="cfg-sys-card__value">LabControl v3.4</div>
       </div>
       <div class="cfg-sys-card" style="margin:10px auto 0;max-width:260px">
         <div class="cfg-sys-card__label">Institución</div>
@@ -850,8 +917,240 @@ document.addEventListener("click", (e) => {
     if (confirm("¿Restablecer la configuración a valores de fábrica?")) restablecerConfiguracion();
     return;
   }
+  if (e.target.closest("#btn-2fa-config")) { configurar2FA(); return; }
+  if (e.target.closest("#btn-2fa-desactivar")) { abrirModal2FA("desactivar"); return; }
+  if (e.target.closest("#btn-2fa-confirmar")) { confirmarModal2FA(); return; }
+  if (e.target.closest("#btn-backup-descargar")) { descargarBackup(); return; }
+  if (e.target.closest("#btn-aud-filtrar") || e.target.closest("#btn-aud-limpiar")) {
+    if (e.target.closest("#btn-aud-limpiar")) {
+      const q = document.getElementById("aud-q");
+      const d = document.getElementById("aud-desde");
+      const h = document.getElementById("aud-hasta");
+      if (q) q.value = "";
+      if (d) d.value = "";
+      if (h) h.value = "";
+    }
+    cargarAuditoriaPanel();
+    return;
+  }
 });
 
 document.addEventListener("change", (e) => {
   if (e.target.id === "p-texto") aplicarTamanoTexto(e.target.value);
+  if (e.target.id === "input-backup-archivo") { restaurarBackupDesdeInput(); return; }
 });
+
+/* ===== Verificación en dos pasos ===== */
+
+async function refrescarEstado2FA() {
+  const desc = document.getElementById("s-2fa-desc");
+  const btnConfig = document.getElementById("btn-2fa-config");
+  const btnDesac = document.getElementById("btn-2fa-desactivar");
+  if (!desc) return;
+  try {
+    const estado = await cargarEstado2FA();
+    if (estado?.habilitado) {
+      desc.textContent = "Activa. Necesitarás tu aplicación de autenticación al iniciar sesión.";
+      if (btnConfig) btnConfig.style.display = "none";
+      if (btnDesac) btnDesac.style.display = "";
+    } else {
+      desc.textContent = esAdmin
+        ? "Inactiva. Protégete con un código desde tu aplicación de autenticación (Google Authenticator, Aegis, etc.)."
+        : "Solo el administrador puede activar la verificación en dos pasos.";
+      if (btnConfig) btnConfig.style.display = esAdmin ? "" : "none";
+      if (btnDesac) btnDesac.style.display = "none";
+    }
+  } catch {
+    desc.textContent = "No se pudo consultar el estado de la verificación.";
+  }
+}
+
+async function configurar2FA() {
+  try {
+    const r = await iniciarConfiguracion2FA();
+    const img = document.getElementById("modal-2fa-qr-img");
+    if (img) {
+      img.src = r.qrDataUrl || "";
+      img.style.display = r.qrDataUrl ? "" : "none";
+    }
+    const secreto = document.getElementById("modal-2fa-secreto");
+    if (secreto) secreto.value = r.secreto || "";
+    abrirModal2FA("activar");
+  } catch (err) {
+    showToast(err?.message || "No se pudo iniciar la configuración 2FA", "error");
+  }
+}
+
+async function abrirModal2FA(accion) {
+  const cuerpo = document.getElementById("modal-2fa-cuerpo");
+  if (!cuerpo) return;
+  cuerpo.dataset.accion = accion;
+  const qr = document.getElementById("modal-2fa-qr-box");
+  const secreto = document.getElementById("modal-2fa-secreto");
+  const info = document.getElementById("modal-2fa-info");
+  document.getElementById("modal-2fa-titulo").textContent =
+    accion === "activar" ? "Activar verificación en dos pasos" : "Desactivar verificación en dos pasos";
+  if (qr) qr.style.display = accion === "activar" ? "" : "none";
+  if (secreto) secreto.style.display = accion === "activar" ? "" : "none";
+  if (info) {
+    info.textContent = accion === "activar"
+      ? "Escanea el código QR con tu aplicación de autenticación o ingresa el secreto manualmente. Luego escribe el código de 6 dígitos para confirmar."
+      : "Escribe el código actual de tu aplicación de autenticación para desactivar la verificación.";
+  }
+  document.getElementById("modal-2fa-codigo").value = "";
+  document.getElementById("modal-2fa-error").style.display = "none";
+  abrirModal("modal-2fa");
+}
+
+async function confirmarModal2FA() {
+  const cuerpo = document.getElementById("modal-2fa-cuerpo");
+  const accion = cuerpo?.dataset.accion || "activar";
+  const codigo = document.getElementById("modal-2fa-codigo").value.trim();
+  const errorEl = document.getElementById("modal-2fa-error");
+  if (errorEl) errorEl.style.display = "none";
+  if (!/^\d{6}$/.test(codigo)) {
+    if (errorEl) {
+      errorEl.textContent = "Ingresa el código de 6 dígitos.";
+      errorEl.style.display = "block";
+    }
+    return;
+  }
+  const btn = document.getElementById("btn-2fa-confirmar");
+  if (btn) btn.disabled = true;
+  try {
+    if (accion === "activar") await verificarConfiguracion2FA(codigo);
+    else await desactivar2FA(codigo);
+    // Cierra el modal por su botón (libera también los listeners de abrirModal).
+    const cierreBoton = document.querySelector("#modal-2fa .modal__close");
+    if (cierreBoton) cierreBoton.click();
+    showToast(
+      accion === "activar" ? "Verificación en dos pasos activada" : "Verificación en dos pasos desactivada",
+      "success"
+    );
+    refrescarEstado2FA();
+  } catch (err) {
+    if (errorEl) {
+      errorEl.textContent = err?.message || "Ocurrió un error al guardar.";
+      errorEl.style.display = "block";
+    }
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
+/* ===== Auditoría ===== */
+
+const ACCIONES_LEGIBLE = {
+  login_ok: "Inicio de sesión",
+  login_fallido: "Intento de acceso fallido",
+  login_2fa_pendiente: "Verificación 2FA solicitada",
+  login_2fa_codigo_invalido: "Código 2FA inválido",
+  logout: "Cierre de sesión",
+  password_cambiada: "Cambio de contraseña",
+  laboratorio_estado_cambiado: "Estado de laboratorio",
+  usuario_creado: "Usuario creado",
+  usuario_editado: "Usuario modificado",
+  reserva_creada: "Reserva creada",
+  reserva_cancelada: "Reserva cancelada",
+  configuracion_actualizada: "Configuración actualizada",
+  solicitud_aceptada: "Solicitud aprobada",
+  solicitud_rechazada: "Solicitud rechazada",
+  backup_descargado: "Respaldo descargado",
+  backup_restaurado: "Respaldo restaurado",
+  "2fa_configuracion_iniciada": "Configuración 2FA iniciada",
+  "2fa_activada": "Verificación 2FA activada",
+  "2fa_desactivada": "Verificación 2FA desactivada"
+};
+
+function formatearFechaAud(iso) {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return esc(iso);
+  const p = (n) => String(n).padStart(2, "0");
+  return `${p(d.getDate())}/${p(d.getMonth() + 1)}/${d.getFullYear()} ${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+
+function detalleLegible(detalle) {
+  try {
+    const obj = typeof detalle === "string" ? JSON.parse(detalle) : detalle;
+    if (!obj || typeof obj !== "object" || !Object.keys(obj).length) return "—";
+    return Object.entries(obj).map(([k, v]) => `${k}=${String(v)}`).join(", ");
+  } catch {
+    return "—";
+  }
+}
+
+async function cargarAuditoriaPanel() {
+  const tbody = document.getElementById("aud-tbody");
+  if (!tbody) return;
+  tbody.innerHTML = `<tr><td colspan="6" class="cfg-aud-vacio">Cargando…</td></tr>`;
+  const q = document.getElementById("aud-q");
+  const desde = document.getElementById("aud-desde");
+  const hasta = document.getElementById("aud-hasta");
+  try {
+    const res = await cargarAuditoria({
+      q: q?.value.trim() || "",
+      desde: desde?.value || "",
+      hasta: hasta?.value || "",
+      limite: 100
+    });
+    const lista = Array.isArray(res) ? res : res?.data || [];
+    if (!lista.length) {
+      tbody.innerHTML = `<tr><td colspan="6" class="cfg-aud-vacio">Sin registros para los criterios seleccionados.</td></tr>`;
+      return;
+    }
+    tbody.innerHTML = lista.map((e) => `
+      <tr>
+        <td title="${esc(e.fecha || "")}">${formatearFechaAud(e.fecha)}</td>
+        <td>${esc(e.usuarioId ?? "—")}</td>
+        <td>${esc(e.rol ?? "—")}</td>
+        <td>${esc(ACCIONES_LEGIBLE[e.accion] || e.accion)}</td>
+        <td class="cfg-aud-detalle">${esc(detalleLegible(e.detalle))}</td>
+        <td>${esc(e.ip || "—")}</td>
+      </tr>`).join("");
+  } catch {
+    tbody.innerHTML = `<tr><td colspan="6" class="cfg-aud-vacio">No se pudo cargar la auditoría.</td></tr>`;
+  }
+}
+
+/* ===== Respaldos ===== */
+
+async function descargarBackup() {
+  try {
+    const blob = await exportarBackup();
+    const a = document.createElement("a");
+    const nombre = `labcontrol-backup-${new Date().toISOString().slice(0, 10)}.db`;
+    a.href = URL.createObjectURL(blob);
+    a.download = nombre;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+    showToast("Respaldo descargado", "success");
+  } catch (err) {
+    showToast(err?.message || "No se pudo descargar el respaldo", "error");
+  }
+}
+
+async function restaurarBackupDesdeInput() {
+  const input = document.getElementById("input-backup-archivo");
+  const archivo = input?.files?.[0];
+  if (!archivo) return;
+  if (!confirm("Restaurar reemplazará TODA la base de datos actual y cerrará las demás sesiones activas. ¿Continuar?")) {
+    input.value = "";
+    return;
+  }
+  const estadoP = document.getElementById("p-backup-estado");
+  try {
+    if (estadoP) estadoP.textContent = "Restaurando respaldo…";
+    await restaurarBackup(archivo);
+    if (estadoP) estadoP.textContent = "Respaldo restaurado. Cerrando sesión para proteger tu cuenta…";
+    showToast("Respaldo restaurado correctamente", "success");
+    setTimeout(() => AUTH.logout(), 1500);
+  } catch (err) {
+    if (estadoP) estadoP.textContent = "";
+    showToast(err?.message || "No se pudo restaurar el respaldo", "error");
+  } finally {
+    input.value = "";
+  }
+}

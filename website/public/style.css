@@ -574,6 +574,47 @@ h1 + p { margin: 4px 0 0; color: var(--color-text-muted); font-size: .9rem; }
   background: var(--soft-primary);
 }
 
+/* Paso 2FA del login */
+.login-otp {
+  text-align: center;
+  padding: 4px 0 2px;
+}
+.login-otp__title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+.login-otp__desc {
+  color: var(--color-text-muted);
+  font-size: .84rem;
+  line-height: 1.45;
+  margin: 0 0 18px;
+}
+.login-otp__input {
+  text-align: center;
+  font-size: 1.4rem;
+  letter-spacing: .45em;
+  font-variant-numeric: tabular-nums;
+  min-width: 130px;
+}
+.login-submit--2fa {
+  width: 100%;
+}
+.login-back {
+  display: block;
+  width: 100%;
+  margin-top: 10px;
+  background: transparent;
+  border: none;
+  color: var(--color-text-muted);
+  font-size: .78rem;
+  cursor: pointer;
+  text-decoration: underline;
+}
+.login-back:hover {
+  color: var(--color-primary);
+}
+
 /* Tamaño de texto accesible (Configuración → Apariencia) */
 html.texto-grande { font-size: 112.5%; }
 
@@ -1396,6 +1437,67 @@ tbody tr:hover { background: var(--row-hover); }
 .cfg-sys-card__label { font-size: .7rem; text-transform: uppercase; letter-spacing: .06em; color: var(--color-text-muted); font-weight: 800; }
 .cfg-sys-card__value { font-weight: 800; font-size: 1.08rem; margin-top: 4px; }
 
+/* Auditoría */
+.cfg-aud-filtros {
+  display: grid;
+  grid-template-columns: 1fr 150px 150px;
+  gap: 12px;
+  align-items: end;
+  margin-bottom: 16px;
+}
+.cfg-aud-filtros__acciones {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.cfg-aud-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  max-width: 720px;
+}
+.cfg-aud-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: .8rem;
+  min-width: 620px;
+}
+.cfg-aud-table th {
+  text-align: left;
+  padding: 9px 12px;
+  background: var(--surface-deep);
+  color: var(--color-text-muted);
+  font-weight: 800;
+  font-size: .7rem;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  border-bottom: 1px solid var(--color-border);
+}
+.cfg-aud-table td {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--color-border);
+  vertical-align: top;
+}
+.cfg-aud-table tr:last-child td { border-bottom: none; }
+.cfg-aud-detalle { color: var(--color-text-muted); max-width: 300px; }
+.cfg-aud-vacio {
+  text-align: center;
+  color: var(--color-text-muted);
+  padding: 24px !important;
+}
+
+/* Respaldos */
+.cfg-backup-acciones {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.cfg-backup-acciones label.btn { cursor: pointer; }
+
+/* Modal pequeño (2FA) */
+.modal.modal--sm { max-width: 400px; }
+
 .tema-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(142px, 1fr));
@@ -2104,6 +2206,64 @@ textarea.form-input { resize: vertical; min-height: 90px; }
   background: #1f2937;
   border-color: rgba(148, 197, 255, .35);
   color: #7dd3fc;
+}
+
+/* Calendario semanal de disponibilidad */
+.semana-nav {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+}
+.semana-nav .btn { display: inline-flex; align-items: center; gap: 6px; }
+.semana-label { font-weight: 700; font-size: .9rem; }
+.semana-tabla {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: .78rem;
+  min-width: 760px;
+}
+.semana-tabla th,
+.semana-tabla td {
+  border: 1px solid var(--color-border);
+  padding: 7px 8px;
+  vertical-align: top;
+  text-align: center;
+}
+.semana-tabla td { min-width: 92px; height: 52px; }
+.semana-tabla thead th { background: var(--surface-deep); font-weight: 800; }
+.semana-th--hoy,
+.semana-td--hoy { background: color-mix(in srgb, var(--color-primary) 8%, transparent); }
+.semana-dia { display: block; font-size: .72rem; }
+.semana-fecha {
+  display: inline-block;
+  margin-top: 3px;
+  background: var(--color-primary);
+  color: #fff;
+  border-radius: 999px;
+  font-size: .68rem;
+  font-weight: 800;
+  padding: 1px 8px;
+}
+.semana-lab { font-weight: 700; text-align: left; white-space: nowrap; }
+.semana-chip {
+  cursor: pointer;
+  background: var(--soft-primary);
+  color: var(--color-text);
+  border: 1px solid var(--color-primary);
+  border-radius: 8px;
+  padding: 4px 7px;
+  margin-bottom: 5px;
+  font-size: .72rem;
+  line-height: 1.25;
+  transition: transform .15s, box-shadow .15s;
+}
+.semana-chip:hover { transform: translateY(-1px); box-shadow: var(--shadow-sm); }
+.semana-chip span { display: block; font-weight: 700; }
+.semana-chip--pendiente {
+  background: var(--soft-danger);
+  border-color: var(--danger);
 }
 
 /* prefers-reduced-motion: usuario pide menos movimiento */

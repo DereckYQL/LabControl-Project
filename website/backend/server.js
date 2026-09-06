@@ -2,6 +2,7 @@
    Arranque: cd backend && npm install && npm start  (http://localhost:3000) */
 
 import path from "node:path";
+import fs from "node:fs";
 import { randomBytes } from "node:crypto";
 import { fileURLToPath } from "node:url";
 import express from "express";
@@ -10,8 +11,10 @@ import cors from "cors";
 import rateLimit from "express-rate-limit";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
+import QRCode from "qrcode";
 import { body, validationResult } from "express-validator";
-import db from "./db.js";
+import { db, DB_PATH, reemplazarBaseDesdeBuffer } from "./db.js";
+import { generaSecreto, verificarCodigo } from "./totp.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -100,13 +103,14 @@ const escrituraLimiter = rateLimit({
 app.use(["/api/usuarios", "/api/agenda", "/api/reportes", "/api/config", "/api/notificaciones", "/api/laboratorios", "/api/solicitudes-especialidad"], escrituraLimiter);
 
 // Rate limiting estricto en login (por IP y por cuenta: bloquea fuerza bruta
-// por usuario aunque las IP roten).
+// por usuario aunque las IP roten). LC_LOGIN_LIMIT permite ampliarlo en los
+// tests e2e, que inician sesión muchas veces en la misma corrida.
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 10,
+  max: Number(process.env.LC_LOGIN_LIMIT) || 10,
   standardHeaders: true,
   legacyHeaders: false,
-  keyGenerator: (req) => `${req.ip}|${String(req.body?.usuario ?? "").toLowerCase().trim()}`,
+  keyGenerator: (req) => `${req.ip}|${String(req.body?.loginId ?? req.body?.usuario ?? "").toLowerCase().trim().slice(0, 24)}`,
   validate: false,
   message: { error: "Demasiados intentos de inicio de sesión. Espera 15 minutos." }
 });
@@ -309,6 +313,44 @@ function crearNotificacion({ toggle, tipo, titulo, mensaje, actorId = null, dest
   }
 }
 
+/* Auditoría de actividad */
+// Respeta el interruptor config.seguridad.registroActividad; nunca rompe la petición.
+
+function audFromRow(row) {
+  return {
+    id: row.id, fecha: row.fecha, usuarioId: row.usuario_id, rol: row.rol,
+    accion: row.accion, detalle: JSON.parse(row.detalle || "{}"), ip: row.ip
+  };
+}
+
+function registrarAuditoria(req, accion, detalle = {}, contexto = null) {
+  try {
+    const cfg = JSON.parse(db.prepare("SELECT data FROM config WHERE id = 1").get()?.data || "{}");
+    if (cfg.seguridad?.registroActividad === false) return;
+    // Antes del login no hay req.user (aún no hay token); el contexto permite
+    // asociar el usuario aunque la sesión aún no exista.
+    const origen = contexto ?? req.user ?? null;
+    db.prepare(`INSERT INTO auditoria (fecha, usuario_id, rol, accion, detalle, ip) VALUES (?,?,?,?,?,?)`)
+      .run(new Date().toISOString(), origen?.id ?? null, origen?.rol ?? null, accion, JSON.stringify(detalle), String(req.ip || ""));
+  } catch {
+    // La auditoría nunca debe tumbar la petición en curso.
+  }
+}
+
+/* Verificación en dos pasos (2FA) */
+// Desafíos de login (en memoria): un login con 2FA activo emite un desafío de
+// corta duración y solo entrega tokens tras validar el código TOTP.
+const DESAFIOS_2FA = new Map();          // loginId -> { usuarioId, expira, intentos }
+const DESAFIO_TTL_MS = 5 * 60 * 1000;
+const DESAFIO_MAX_INTENTOS = 5;
+const PENDIENTES_2FA = new Map();        // usuarioId -> { secreto, otpauth, expira }
+
+function limpiarDesafiosVencidos() {
+  const ahora = Date.now();
+  for (const [clave, dato] of DESAFIOS_2FA) if (dato.expira < ahora) DESAFIOS_2FA.delete(clave);
+  for (const [clave, dato] of PENDIENTES_2FA) if (dato.expira < ahora) PENDIENTES_2FA.delete(clave);
+}
+
 function notificarATodos(opciones) {
   try {
     const destinatarios = db.prepare("SELECT id FROM usuarios WHERE activo = 1 AND id != ?").all(opciones.actorId ?? "");
@@ -478,14 +520,194 @@ app.post("/api/login", loginLimiter, (req, res) => {
   `).get(usuario, usuario);
 
   if (!row || !bcrypt.compareSync(password, row.password)) {
+    registrarAuditoria(req, "login_fallido", { usuario: String(usuario).slice(0, 60) });
     return res.status(401).json({ error: "Usuario o contraseña incorrectos" });
   }
 
+  // 2FA activo: se pide el código TOTP antes de emitir ningún token.
+  if (row.totp_habilitado === 1 && row.totp_secreto) {
+    limpiarDesafiosVencidos();
+    const loginId = randomBytes(32).toString("hex");
+    DESAFIOS_2FA.set(loginId, { usuarioId: row.id, expira: Date.now() + DESAFIO_TTL_MS, intentos: 0 });
+    registrarAuditoria(req, "login_2fa_pendiente", { usuario: row.id }, { id: row.id, rol: row.rol });
+    return res.json({ requires2FA: true, loginId, usuario: usrFromRow(row) });
+  }
+
+  registrarAuditoria(req, "login_ok", { usuario: row.id }, { id: row.id, rol: row.rol });
   const token = firmarAcceso(row);
   const refreshToken = emitirRefreshToken(row.id);
 
   res.json({ token, refreshToken, usuario: usrFromRow(row) });
 });
+
+// Segundo paso del login con 2FA: valida el código TOTP del desafío pendiente.
+app.post("/api/login/2fa", loginLimiter, (req, res) => {
+  const { loginId, codigo } = req.body || {};
+  if (!loginId || !codigo) {
+    return res.status(400).json({ error: "Faltan el identificador de inicio de sesión y el código" });
+  }
+
+  const desafio = DESAFIOS_2FA.get(loginId);
+  if (!desafio || desafio.expira < Date.now()) {
+    DESAFIOS_2FA.delete(loginId);
+    return res.status(401).json({ error: "El intento de verificación expiró. Inicia sesión nuevamente." });
+  }
+  if (desafio.intentos >= DESAFIO_MAX_INTENTOS) {
+    DESAFIOS_2FA.delete(loginId);
+    return res.status(429).json({ error: "Demasiados intentos. Inicia sesión nuevamente." });
+  }
+
+  const row = db.prepare("SELECT * FROM usuarios WHERE id = ? AND activo = 1").get(desafio.usuarioId);
+  if (!row || row.totp_habilitado !== 1 || !row.totp_secreto) {
+    DESAFIOS_2FA.delete(loginId);
+    return res.status(401).json({ error: "La verificación no está disponible. Inicia sesión nuevamente." });
+  }
+
+  if (!verificarCodigo(row.totp_secreto, String(codigo))) {
+    desafio.intentos += 1;
+    registrarAuditoria(req, "login_2fa_codigo_invalido", { usuario: row.id }, { id: row.id, rol: row.rol });
+    return res.status(401).json({ error: "El código de verificación es incorrecto" });
+  }
+
+  DESAFIOS_2FA.delete(loginId);
+  registrarAuditoria(req, "login_ok", { usuario: row.id, con2fa: true }, { id: row.id, rol: row.rol });
+  const token = firmarAcceso(row);
+  const refreshToken = emitirRefreshToken(row.id);
+  res.json({ token, refreshToken, usuario: usrFromRow(row) });
+});
+
+/* Verificación en dos pasos (2FA) — gestión propia (entra a Configuración → Seguridad) */
+
+// Estado del 2FA de la sesión actual.
+app.get("/api/2fa/estado", authenticateToken, (req, res) => {
+  const fila = db.prepare("SELECT totp_habilitado FROM usuarios WHERE id = ?").get(req.user.id);
+  res.json({ habilitado: fila?.totp_habilitado === 1 });
+});
+
+// Inicia la configuración: genera un secreto nuevo (no se activa hasta verificar).
+app.post("/api/2fa/setup", authenticateToken, requireAdmin, async (req, res) => {
+  const fila = db.prepare("SELECT totp_habilitado FROM usuarios WHERE id = ?").get(req.user.id);
+  if (fila?.totp_habilitado === 1) {
+    return res.status(409).json({ error: "La verificación en dos pasos ya está activada" });
+  }
+
+  const secreto = generaSecreto();
+  const emisor = "Liceo INSUCO - LabControl";
+  const otpauth = `otpauth://totp/${encodeURIComponent(emisor)}:${encodeURIComponent(req.user.id)}?secret=${secreto}&issuer=${encodeURIComponent(emisor)}&algorithm=SHA1&digits=6&period=30`;
+
+  let qrDataUrl = "";
+  try {
+    qrDataUrl = await QRCode.toDataURL(otpauth, { margin: 1, width: 220, color: { dark: "#1f2937", light: "#ffffff" } });
+  } catch { /* el QR es opcional; el secreto se puede ingresar a mano */ }
+
+  PENDIENTES_2FA.set(req.user.id, { secreto, otpauth, expira: Date.now() + DESAFIO_TTL_MS });
+  registrarAuditoria(req, "2fa_configuracion_iniciada");
+  res.json({ secreto, otpauthUrl: otpauth, qrDataUrl });
+});
+
+// Activa el 2FA tras verificar el código generado con el secreto pendiente.
+app.post("/api/2fa/verificar", authenticateToken, requireAdmin, (req, res) => {
+  const { codigo } = req.body || {};
+  if (!codigo) return res.status(400).json({ error: "Falta el código de verificación" });
+
+  const pendiente = PENDIENTES_2FA.get(req.user.id);
+  if (!pendiente || pendiente.expira < Date.now()) {
+    PENDIENTES_2FA.delete(req.user.id);
+    return res.status(410).json({ error: "La configuración expiró. Vuelve a iniciarla." });
+  }
+  if (!verificarCodigo(pendiente.secreto, String(codigo))) {
+    return res.status(401).json({ error: "El código de verificación es incorrecto" });
+  }
+
+  db.prepare("UPDATE usuarios SET totp_secreto = ?, totp_habilitado = 1 WHERE id = ?")
+    .run(pendiente.secreto, req.user.id);
+  PENDIENTES_2FA.delete(req.user.id);
+  registrarAuditoria(req, "2fa_activada");
+  res.json({ ok: true });
+});
+
+// Desactiva el 2FA (exige el código actual para confirmar).
+app.post("/api/2fa/desactivar", authenticateToken, requireAdmin, (req, res) => {
+  const { codigo } = req.body || {};
+  const fila = db.prepare("SELECT totp_secreto, totp_habilitado FROM usuarios WHERE id = ?").get(req.user.id);
+  if (!fila || fila.totp_habilitado !== 1) {
+    return res.status(400).json({ error: "La verificación en dos pasos no está activada" });
+  }
+  if (!codigo) {
+    return res.status(400).json({ error: "El código de verificación es obligatorio para desactivar" });
+  }
+  if (!verificarCodigo(fila.totp_secreto, String(codigo))) {
+    return res.status(401).json({ error: "El código de verificación es incorrecto" });
+  }
+
+  db.prepare("UPDATE usuarios SET totp_secreto = NULL, totp_habilitado = 0 WHERE id = ?").run(req.user.id);
+  registrarAuditoria(req, "2fa_desactivada");
+  res.json({ ok: true });
+});
+
+/* Auditoría de actividad (solo administrador) */
+
+app.get("/api/auditoria", authenticateToken, requireAdmin, (req, res) => {
+  let rows = db.prepare("SELECT * FROM auditoria ORDER BY id DESC").all();
+
+  const q = typeof req.query.q === "string" ? req.query.q.trim().toLowerCase() : "";
+  const usuario = typeof req.query.usuario === "string" ? req.query.usuario.trim() : "";
+  const desde = typeof req.query.desde === "string" ? req.query.desde.trim() : "";
+  const hasta = typeof req.query.hasta === "string" ? req.query.hasta.trim() : "";
+
+  if (q || usuario || desde || hasta) {
+    rows = rows.filter((r) => {
+      const detalle = JSON.stringify(r.detalle || {});
+      const criterio = `${r.accion} ${r.usuario_id || ""} ${r.rol || ""} ${detalle}`.toLowerCase();
+      if (q && !criterio.includes(q)) return false;
+      if (usuario && r.usuario_id !== usuario) return false;
+      const fecha = (r.fecha || "").slice(0, 10);
+      if (desde && fecha < desde) return false;
+      if (hasta && fecha > hasta) return false;
+      return true;
+    });
+  }
+
+  responderLista(req, res, rows.map(audFromRow));
+});
+
+/* Respaldo de la base de datos (solo administrador) */
+
+// Descargar: primero se vacía el WAL al archivo principal y se envía ese archivo.
+app.get("/api/backups/exportar", authenticateToken, requireAdmin, (req, res) => {
+  db.exec("PRAGMA wal_checkpoint(TRUNCATE)");
+  const nombre = `labcontrol-backup-${new Date().toISOString().slice(0, 10)}-${Date.now()}.db`;
+  registrarAuditoria(req, "backup_descargado");
+  res.setHeader("Content-Type", "application/octet-stream");
+  res.setHeader("Content-Disposition", `attachment; filename="${nombre}"`);
+  const stream = fs.createReadStream(DB_PATH);
+  stream.on("error", () => {
+    if (!res.headersSent) res.status(500).json({ error: "No se pudo leer la base de datos" });
+    else res.end();
+  });
+  stream.pipe(res);
+});
+
+// Restaurar: se recibe el archivo .db como binario y se reemplaza la base actual.
+app.post("/api/backups/restaurar", authenticateToken, requireAdmin,
+  express.raw({ type: ["application/octet-stream", "application/x-sqlite3", "application/vnd.sqlite3"], limit: "60mb" }),
+  (req, res) => {
+    const buffer = req.body;
+    if (!Buffer.isBuffer(buffer) || buffer.length === 0) {
+      return res.status(400).json({ error: "No se recibió ningún archivo" });
+    }
+    try {
+      reemplazarBaseDesdeBuffer(buffer);
+    } catch (err) {
+      const status = err?.status || 400;
+      return res.status(status).json({
+        error: status === 400 ? err.message : "No se pudo restaurar el respaldo. La base anterior fue conservada."
+      });
+    }
+    try { registrarAuditoria(req, "backup_restaurado"); } catch { /* tabla nueva en la base restaurada */ }
+    res.json({ ok: true });
+  }
+);
 
 // Renovación de sesión con rotación del refresh token: cada uso invalida el
 // token anterior y emite uno nuevo, de modo que un token robado deja de servir
@@ -523,16 +745,19 @@ app.post("/api/refresh", refreshLimiter, (req, res) => {
 // Cierre de sesión: revoca el refresh token entregado (best-effort).
 app.post("/api/logout", refreshLimiter, (req, res) => {
   const { refreshToken } = req.body || {};
+  let usuarioLogout = null;
   if (typeof refreshToken === "string" && refreshToken) {
     try {
       const decoded = jwt.verify(refreshToken, JWT_SECRET);
       if (decoded.tipo === "refresh" && decoded.id) {
+        usuarioLogout = decoded.sub ?? null;
         db.prepare("UPDATE refresh_tokens SET revocado = 1 WHERE id = ?").run(decoded.id);
       }
     } catch {
       // Token ya inválido o vencido: no hay nada que revocar.
     }
   }
+  registrarAuditoria(req, "logout", { usuario: usuarioLogout });
   res.json({ ok: true });
 });
 
@@ -557,6 +782,7 @@ app.post("/api/change-password", authenticateToken, (req, res) => {
   db.prepare("UPDATE usuarios SET password = ? WHERE id = ?").run(hashed, req.user.id);
   // Por seguridad, toda sesión de larga duración muere al cambiar la contraseña.
   db.prepare("UPDATE refresh_tokens SET revocado = 1 WHERE usuario_id = ?").run(req.user.id);
+  registrarAuditoria(req, "password_cambiada");
   res.json({ ok: true, message: "Contraseña actualizada correctamente" });
 });
 
@@ -594,6 +820,7 @@ app.patch("/api/laboratorios/:id", authenticateToken, (req, res) => {
   const lab = labFromRowVisible(db.prepare("SELECT * FROM laboratorios WHERE id = ?").get(req.params.id), req);
 
   notificarCambioEstadoLab(lab, estado, anterior.estado, req.user.id);
+  registrarAuditoria(req, "laboratorio_estado_cambiado", { lab: req.params.id, anterior: anterior.estado, estado });
 
   res.json(lab);
 });
@@ -655,6 +882,7 @@ app.post("/api/usuarios", authenticateToken, requireAdmin, [
   });
 
   const row = db.prepare("SELECT * FROM usuarios WHERE id = ?").get(u.id);
+  registrarAuditoria(req, "usuario_creado", { usuario: u.id, rol: u.rol || "otro_area" });
   res.status(201).json(usrFromRow(row));
 });
 
@@ -723,6 +951,10 @@ app.patch("/api/usuarios/:id", authenticateToken, [
 
   valores.id = req.params.id;
   db.prepare(`UPDATE usuarios SET ${sets.join(", ")} WHERE id = @id`).run(valores);
+  registrarAuditoria(req, "usuario_editado", {
+    usuario: req.params.id,
+    campos: Object.keys(map).filter((k) => req.body[k] !== undefined)
+  });
 
   // Si el propio usuario cambió su nombre/apellido, refrescar el JWT para que el menú se actualice.
   if (esSelf && (req.body.nombre !== undefined || req.body.apellido !== undefined)) {
@@ -803,6 +1035,7 @@ app.post("/api/agenda", authenticateToken, [
 
   const reserva = agFromRow(db.prepare("SELECT * FROM agenda WHERE id = ?").get(id));
   notificarNuevaReserva(reserva, req.user.id);
+  registrarAuditoria(req, "reserva_creada", { reserva: id, lab: r.labId, fecha: r.fecha });
 
   res.status(201).json(reserva);
 });
@@ -818,6 +1051,7 @@ app.delete("/api/agenda/:id", authenticateToken, (req, res) => {
 
   db.prepare("DELETE FROM agenda WHERE id = ?").run(req.params.id);
   notificarReservaCancelada(agFromRow(actual), req.user.id);
+  registrarAuditoria(req, "reserva_cancelada", { reserva: req.params.id, lab: actual.lab_id, fecha: actual.fecha });
   res.status(204).end();
 });
 
@@ -1023,6 +1257,7 @@ app.post("/api/solicitudes-especialidad/:id/aceptar", authenticateToken, require
     mensaje: `El administrador aprobó tu solicitud de cambio de especialidad: ahora tu especialidad es "${solicitud.especialidad_solicitada}".`,
     destinatario: solicitud.usuario_id
   });
+  registrarAuditoria(req, "solicitud_aceptada", { solicitud: solicitud.id, usuario: solicitud.usuario_id });
   res.json(solicitudFromRow(db.prepare("SELECT * FROM solicitudes_especialidad WHERE id = ?").get(solicitud.id)));
 });
 
@@ -1042,6 +1277,7 @@ app.post("/api/solicitudes-especialidad/:id/rechazar", authenticateToken, requir
     mensaje: `El administrador rechazó tu solicitud para cambiar la especialidad a "${solicitud.especialidad_solicitada}". Tu especialidad no cambió.`,
     destinatario: solicitud.usuario_id
   });
+  registrarAuditoria(req, "solicitud_rechazada", { solicitud: solicitud.id, usuario: solicitud.usuario_id });
   res.json(solicitudFromRow(db.prepare("SELECT * FROM solicitudes_especialidad WHERE id = ?").get(solicitud.id)));
 });
 
@@ -1069,6 +1305,7 @@ app.patch("/api/config", authenticateToken, requireAdmin, (req, res) => {
   }
 
   db.prepare("UPDATE config SET data = ? WHERE id = 1").run(JSON.stringify(nuevo));
+  registrarAuditoria(req, "configuracion_actualizada", { claves: Object.keys(req.body) });
   res.json(nuevo);
 });
 
@@ -1093,7 +1330,7 @@ app.use((err, req, res, next) => {
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   app.listen(PORT, () => {
-    console.log(`\n  LabControl Liceo v3.1`);
+    console.log(`\n  LabControl Liceo v3.4`);
     console.log(`  API + sitio corriendo en: http://localhost:${PORT}/login.html`);
     console.log(`  Seguridad: JWT + bcrypt + rate limiting + helmet\n`);
   });

@@ -385,6 +385,39 @@ function demoRequest(metodo, ruta, cuerpo) {
       return { ok: true };
     }
 
+    case "GET auditoria": {
+      const ahora = new Date().toISOString();
+      return [
+        { id: 1, fecha: ahora, usuarioId: "INSUCO", rol: "admin", accion: "login_ok", detalle: { usuario: "INSUCO" }, ip: "127.0.0.1" },
+        { id: 2, fecha: ahora, usuarioId: "prof_camila", rol: "otro_area", accion: "reserva_creada", detalle: { lab: 1, fecha: ahora.slice(0, 10) }, ip: "127.0.0.1" }
+      ];
+    }
+
+    case "GET 2fa/estado":
+      return { habilitado: D._2faDemo === true };
+
+    case "POST 2fa/setup":
+      return {
+        secreto: "JBSWY3DPEHPK3PXP",
+        otpauthUrl: "otpauth://totp/Liceo%20INSUCO%20-%20LabControl:INSUCO?secret=JBSWY3DPEHPK3PXP&algorithm=SHA1&digits=6&period=30",
+        qrDataUrl: ""
+      };
+
+    case "POST 2fa/verificar":
+      if (!cuerpo?.codigo) throw new Error("Falta el código de verificación");
+      D._2faDemo = true;
+      return { ok: true };
+
+    case "POST 2fa/desactivar":
+      D._2faDemo = false;
+      return { ok: true };
+
+    case "GET backups/exportar":
+      throw new Error("La descarga de respaldos no está disponible en modo demo");
+
+    case "POST backups/restaurar":
+      return { ok: true };
+
     default:
       throw new Error(`Endpoint no disponible en modo demo: ${metodo} ${ruta}`);
   }
@@ -609,6 +642,62 @@ export function resolverSolicitudEspecialidad(id, accion) {
   return apiSend("POST", `/solicitudes-especialidad/${id}/${accion}`, {});
 }
 
+/* Auditoría, verificación en dos pasos y respaldos */
+
+export async function cargarAuditoria(filtros = {}) {
+  const q = new URLSearchParams();
+  for (const clave of ["q", "usuario", "desde", "hasta", "pagina", "limite"]) {
+    if (filtros[clave] !== undefined && filtros[clave] !== null && filtros[clave] !== "")
+      q.set(clave, filtros[clave]);
+  }
+  const sufijo = q.toString() ? `?${q.toString()}` : "";
+  return apiGet(`/auditoria${sufijo}`);
+}
+
+export function cargarEstado2FA() {
+  return apiGet("/2fa/estado");
+}
+
+export function iniciarConfiguracion2FA() {
+  return apiSend("POST", "/2fa/setup", {});
+}
+
+export function verificarConfiguracion2FA(codigo) {
+  return apiSend("POST", "/2fa/verificar", { codigo });
+}
+
+export function desactivar2FA(codigo) {
+  return apiSend("POST", "/2fa/desactivar", { codigo });
+}
+
+// Descarga el respaldo de la BD como blob binario.
+export async function exportarBackup() {
+  const res = await fetch(`${API_BASE}/backups/exportar`, { headers: authHeaders() });
+  if (!res.ok) throw new Error("No se pudo generar el respaldo");
+  return res.blob();
+}
+
+// Restaura la BD desde un archivo .db (el servidor revoca las demás sesiones).
+export async function restaurarBackup(archivo) {
+  try {
+    const res = await fetch(`${API_BASE}/backups/restaurar`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${getToken()}`, "Content-Type": "application/octet-stream" },
+      body: archivo
+    });
+    if (!res.ok) {
+      const e = await res.json().catch(() => ({}));
+      throw new Error(e.error || "No se pudo restaurar el respaldo");
+    }
+    return true;
+  } catch (err) {
+    if (!(err instanceof TypeError)) throw err;
+    await activarModoDemo();
+    await demoRequest("POST", "backups/restaurar", {});
+    return true;
+  }
+}
+
 /* Configuración */
 
 export function cargarConfig() {
@@ -622,11 +711,14 @@ export function actualizarConfig(cambios) {
 /* Sesión (AUTH) */
 
 export const AUTH = {
-  // Inicia sesión en la API. Devuelve el usuario o null.
+  // Inicia sesión en la API. Si el admin tiene 2FA devuelve { requires2FA,
+  // loginId, usuario } para completar el segundo paso; si no, el usuario.
   async login(username, password) {
     try {
       const data = await apiSend("POST", "/login", { usuario: username, password });
-      if (!data || !data.token) return null;
+      if (!data) return null;
+      if (data.requires2FA) return data;
+      if (!data.token) return null;
       const sesion = {
         token: data.token,
         refreshToken: data.refreshToken,
@@ -641,6 +733,38 @@ export const AUTH = {
       return data.usuario;
     } catch {
       return null;
+    }
+  },
+
+  // Segundo paso del login (código TOTP) para sesiones con 2FA.
+  async verificar2fa(loginId, codigo) {
+    try {
+      const res = await fetch(`${API_BASE}/login/2fa`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ loginId, codigo: String(codigo).trim() })
+      });
+      if (res.status === 401 || res.status === 429) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || "El código de verificación es incorrecto");
+      }
+      if (!res.ok) throw new Error("No se pudo completar la verificación");
+      const data = await res.json();
+      const sesion = {
+        token: data.token,
+        refreshToken: data.refreshToken,
+        id: data.usuario.id,
+        rol: data.usuario.rol,
+        nombre: data.usuario.nombre,
+        apellido: data.usuario.apellido,
+        iniciales: data.usuario.iniciales,
+        nivelAcceso: data.usuario.nivelAcceso
+      };
+      localStorage.setItem("lc_sesion", JSON.stringify(sesion));
+      return data.usuario;
+    } catch (err) {
+      if (err instanceof TypeError) await activarModoDemo();
+      throw err;
     }
   },
 

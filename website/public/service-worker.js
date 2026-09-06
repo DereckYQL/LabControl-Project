@@ -1,6 +1,6 @@
 /* service-worker.js — caché offline: red para la API, caché para estáticos. */
 
-const CACHE_NAME = "labcontrol-v3.3";
+const CACHE_NAME = "labcontrol-v3.4";
 const PRECACHE_URLS = [
   "./",
   "index.html",
@@ -12,19 +12,19 @@ const PRECACHE_URLS = [
   "usuarios.html",
   "reportes.html",
   "configuracion.html",
-  "style.css?v=3.3",
-  "theme.js?v=3.3",
-  "app.js?v=3.3",
-  "data.js?v=3.3",
-  "index.js?v=3.3",
-  "login.js?v=3.3",
-  "laboratorios.js?v=3.3",
-  "equipos.js?v=3.3",
-  "disponibilidad.js?v=3.3",
-  "mapa.js?v=3.3",
-  "reportes.js?v=3.3",
-  "usuarios.js?v=3.3",
-  "configuracion.js?v=3.3",
+  "style.css?v=3.4",
+  "theme.js?v=3.4",
+  "app.js?v=3.4",
+  "data.js?v=3.4",
+  "index.js?v=3.4",
+  "login.js?v=3.4",
+  "laboratorios.js?v=3.4",
+  "equipos.js?v=3.4",
+  "disponibilidad.js?v=3.4",
+  "mapa.js?v=3.4",
+  "reportes.js?v=3.4",
+  "usuarios.js?v=3.4",
+  "configuracion.js?v=3.4",
   "app.js",
   "data.js",
   "index.js",
@@ -37,8 +37,11 @@ const PRECACHE_URLS = [
   "usuarios.js",
   "configuracion.js",
   "datos-demo.js",
-  "lucide.min.js?v=3.3",
+  "lucide.min.js?v=3.4",
+  "manifest.webmanifest",
   "img/logo-insuco.png",
+  "img/icon-192.png",
+  "img/icon-512.png",
   "img/bg-tech.svg",
   "img/bg-tech-light.svg"
 ];
