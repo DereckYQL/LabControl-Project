@@ -1,6 +1,6 @@
 {
   "name": "labcontrol",
-  "version": "3.1.0",
+  "version": "3.2.0",
   "private": true,
   "description": "LabControl 3.1 - Monorepo de calidad (tests, lint, typecheck). El sitio vive en website/ y su backend en website/backend.",
   "scripts": {

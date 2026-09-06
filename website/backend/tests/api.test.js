@@ -46,6 +46,19 @@ async function loginFresh() {
   return res.body.token;
 }
 
+// Sesión completa (access + refresh) con una autenticación fresca.
+async function sesionNueva() {
+  const res = await request(app).post("/api/login").send({ usuario: "INSUCO", password: "Insuco1336" });
+  expect(res.status).toBe(200);
+  return res.body;
+}
+
+async function sesionNuevaCamila() {
+  const res = await request(app).post("/api/login").send({ usuario: "prof_camila", password: "camila123" });
+  expect(res.status).toBe(200);
+  return res.body;
+}
+
 test("autenticación: rechaza credenciales incorrectas (401)", async () => {
   const res = await request(app).post("/api/login").send({ usuario: "INSUCO", password: "incorrecta" });
   expect(res.status).toBe(401);
@@ -55,6 +68,7 @@ test("autenticación: login correcto devuelve token y sin password", async () =>
   const res = await request(app).post("/api/login").send({ usuario: "INSUCO", password: "Insuco1336" });
   expect(res.status).toBe(200);
   expect(res.body.token).toBeTruthy();
+  expect(res.body.refreshToken).toBeTruthy();
   expect(res.body.usuario.password).toBeUndefined();
 });
 
@@ -66,6 +80,65 @@ test("seguridad: /api/usuarios exige token (401)", async () => {
 test("POST /api/login: checkpoint", async () => {
   const token = await loginFresh();
   expect(token).toBeTruthy();
+});
+
+test("refresh tokens: renueva sesión, rota el token viejo y el nuevo access autentica", async () => {
+  const primero = await sesionNueva();
+  expect(primero.refreshToken).toBeTruthy();
+
+  const renovado = await request(app).post("/api/refresh").send({ refreshToken: primero.refreshToken });
+  expect(renovado.status).toBe(200);
+  expect(renovado.body.token).toBeTruthy();
+  expect(renovado.body.refreshToken).toBeTruthy();
+  expect(renovado.body.refreshToken).not.toBe(primero.refreshToken);
+
+  // El nuevo access token funciona contra la API.
+  const api = await request(app).get("/api/laboratorios").set("Authorization", `Bearer ${renovado.body.token}`);
+  expect(api.status).toBe(200);
+
+  // Un refresh token ya rotado jamás se reutiliza.
+  const reuso = await request(app).post("/api/refresh").send({ refreshToken: primero.refreshToken });
+  expect(reuso.status).toBe(401);
+});
+
+test("refresh tokens: un token de refresco no autentica la API (403)", async () => {
+  const sesion = await sesionNueva();
+  const api = await request(app).get("/api/laboratorios").set("Authorization", `Bearer ${sesion.refreshToken}`);
+  expect(api.status).toBe(403);
+});
+
+test("refresh tokens: logout revoca el token de refresco", async () => {
+  const sesion = await sesionNueva();
+  const salida = await request(app).post("/api/logout").send({ refreshToken: sesion.refreshToken });
+  expect(salida.status).toBe(200);
+
+  const res = await request(app).post("/api/refresh").send({ refreshToken: sesion.refreshToken });
+  expect(res.status).toBe(401);
+});
+
+test("refresh tokens: cambiar la contraseña revoca las sesiones de larga duración", async () => {
+  const sesion = await sesionNuevaCamila();
+  const cambio = await request(app).post("/api/change-password")
+    .set("Authorization", `Bearer ${sesion.token}`)
+    .send({ currentPassword: "camila123", newPassword: "camila456" });
+  expect(cambio.status).toBe(200);
+
+  const res = await request(app).post("/api/refresh").send({ refreshToken: sesion.refreshToken });
+  expect(res.status).toBe(401);
+
+  // Se restaura la contraseña original para no afectar al resto de la suite.
+  const restaura = await request(app).post("/api/change-password")
+    .set("Authorization", `Bearer ${sesion.token}`)
+    .send({ currentPassword: "camila456", newPassword: "camila123" });
+  expect(restaura.status).toBe(200);
+});
+
+test("refresh tokens: token inválido o ausente se rechaza", async () => {
+  const invalido = await request(app).post("/api/refresh").send({ refreshToken: "abc.def.ghi" });
+  expect(invalido.status).toBe(401);
+
+  const ausente = await request(app).post("/api/refresh").send({});
+  expect(ausente.status).toBe(400);
 });
 
 test("listado plano: /api/laboratorios sin parámetros devuelve arreglo", async () => {

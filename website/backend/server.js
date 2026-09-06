@@ -21,7 +21,11 @@ const PORT = process.env.PORT || 3000;
 // Clave JWT — en producción usar variable de entorno; si no existe, se genera
 // una aleatoria por arranque (las sesiones se invalidan al reiniciar).
 const JWT_SECRET = process.env.JWT_SECRET || randomBytes(48).toString("hex");
-const JWT_EXPIRES = "2h";
+// En producción los access tokens viven 2h; los tests e2e pueden acortarlo
+// con LC_JWT_EXPIRES para ejercitar la renovación automática.
+const JWT_EXPIRES = process.env.LC_JWT_EXPIRES || "2h";
+const JWT_REFRESH_EXPIRES = "30d";
+const REFRESH_TOKEN_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 if (!process.env.JWT_SECRET) {
   console.warn("  AVISO: JWT_SECRET no está definido. Se generó una clave aleatoria; las sesiones expiran al reiniciar el servidor.");
 }
@@ -75,10 +79,10 @@ app.use(cors({
 // Límite de body (reportes con adjuntos base64)
 app.use(express.json({ limit: "10mb" }));
 
-// Rate limiting general
+// Rate limiting general (los tests e2e pueden ampliarlo con LC_API_LIMIT).
 const generalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutos
-  max: 200,
+  max: process.env.LC_API_LIMIT ? Number(process.env.LC_API_LIMIT) : 200,
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: "Demasiadas peticiones. Intenta de nuevo en 15 minutos." }
@@ -88,7 +92,7 @@ app.use("/api/", generalLimiter);
 // Rate limiting adicional en rutas de escritura (evita abusos de creación/PATCH/borrado)
 const escrituraLimiter = rateLimit({
   windowMs: 60 * 1000,
-  max: 60,
+  max: process.env.LC_ESCRITURA_LIMIT ? Number(process.env.LC_ESCRITURA_LIMIT) : 60,
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: "Demasiadas solicitudes. Intenta de nuevo en 1 minuto." }
@@ -107,6 +111,15 @@ const loginLimiter = rateLimit({
   message: { error: "Demasiados intentos de inicio de sesión. Espera 15 minutos." }
 });
 
+// Rate limiting en renovación/cierre de sesión (token rotation es sensible).
+const refreshLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 120,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Demasiadas renovaciones de sesión. Intenta de nuevo en 15 minutos." }
+});
+
 /* Autenticación y autorización */
 // Verifica el JWT del header y deja el payload en req.user.
 function authenticateToken(req, res, next) {
@@ -116,6 +129,10 @@ function authenticateToken(req, res, next) {
 
   try {
     const decoded = jwt.verify(token, JWT_SECRET);
+    // Solo los tokens de acceso pasan; un token de refresco jamás autentica.
+    if (decoded.tipo && decoded.tipo !== "access") {
+      return res.status(403).json({ error: "Token inválido" });
+    }
     req.user = decoded;
     next();
   } catch (err) {
@@ -428,6 +445,30 @@ function nuevoId(prefijo, sugerido) {
 
 /* Login (con rate limit estricto) */
 
+// Token de acceso: corto plazo, autentica las peticiones a la API.
+function firmarAcceso(fila) {
+  return jwt.sign(
+    { tipo: "access", id: fila.id, rol: fila.rol, nombre: fila.nombre, apellido: fila.apellido, iniciales: fila.iniciales, nivelAcceso: fila.nivel_acceso },
+    JWT_SECRET,
+    { expiresIn: JWT_EXPIRES }
+  );
+}
+
+// Token de refresco: largo plazo, se guarda en la tabla refresh_tokens y se
+// rota en cada uso. Limpia además los tokens ya vencidos para no acumular filas.
+function emitirRefreshToken(usuarioId) {
+  db.prepare("DELETE FROM refresh_tokens WHERE expira_en < ?").run(Date.now());
+  const id = randomBytes(32).toString("hex");
+  const ahora = Date.now();
+  db.prepare("INSERT INTO refresh_tokens (id, usuario_id, creado_en, expira_en, revocado) VALUES (?,?,?,?,0)")
+    .run(id, usuarioId, ahora, ahora + REFRESH_TOKEN_TTL_MS);
+  return jwt.sign(
+    { tipo: "refresh", id, sub: usuarioId },
+    JWT_SECRET,
+    { expiresIn: JWT_REFRESH_EXPIRES }
+  );
+}
+
 app.post("/api/login", loginLimiter, (req, res) => {
   const { usuario, password } = req.body || {};
   if (!usuario || !password) return res.status(400).json({ error: "Faltan credenciales" });
@@ -440,13 +481,59 @@ app.post("/api/login", loginLimiter, (req, res) => {
     return res.status(401).json({ error: "Usuario o contraseña incorrectos" });
   }
 
-  const token = jwt.sign(
-    { id: row.id, rol: row.rol, nombre: row.nombre, apellido: row.apellido, iniciales: row.iniciales, nivelAcceso: row.nivel_acceso },
-    JWT_SECRET,
-    { expiresIn: JWT_EXPIRES }
-  );
+  const token = firmarAcceso(row);
+  const refreshToken = emitirRefreshToken(row.id);
 
-  res.json({ token, usuario: usrFromRow(row) });
+  res.json({ token, refreshToken, usuario: usrFromRow(row) });
+});
+
+// Renovación de sesión con rotación del refresh token: cada uso invalida el
+// token anterior y emite uno nuevo, de modo que un token robado deja de servir
+// en cuanto sea reutilizado o se cierre sesión.
+app.post("/api/refresh", refreshLimiter, (req, res) => {
+  const { refreshToken } = req.body || {};
+  if (typeof refreshToken !== "string" || !refreshToken) {
+    return res.status(400).json({ error: "Falta el token de refresco" });
+  }
+
+  let decoded;
+  try {
+    decoded = jwt.verify(refreshToken, JWT_SECRET);
+  } catch {
+    return res.status(401).json({ error: "Sesión expirada. Inicia sesión nuevamente." });
+  }
+  if (decoded.tipo !== "refresh" || !decoded.id) {
+    return res.status(403).json({ error: "Token de refresco inválido" });
+  }
+
+  const fila = db.prepare("SELECT revocado, expira_en FROM refresh_tokens WHERE id = ?").get(decoded.id);
+  if (!fila || fila.revocado === 1 || fila.expira_en < Date.now()) {
+    return res.status(401).json({ error: "Sesión expirada. Inicia sesión nuevamente." });
+  }
+
+  const usuario = db.prepare("SELECT * FROM usuarios WHERE id = ? AND activo = 1").get(decoded.sub);
+  if (!usuario) return res.status(401).json({ error: "Usuario no encontrado" });
+
+  db.prepare("UPDATE refresh_tokens SET revocado = 1 WHERE id = ?").run(decoded.id);
+  const nuevoRefresh = emitirRefreshToken(usuario.id);
+
+  res.json({ token: firmarAcceso(usuario), refreshToken: nuevoRefresh, usuario: usrFromRow(usuario) });
+});
+
+// Cierre de sesión: revoca el refresh token entregado (best-effort).
+app.post("/api/logout", refreshLimiter, (req, res) => {
+  const { refreshToken } = req.body || {};
+  if (typeof refreshToken === "string" && refreshToken) {
+    try {
+      const decoded = jwt.verify(refreshToken, JWT_SECRET);
+      if (decoded.tipo === "refresh" && decoded.id) {
+        db.prepare("UPDATE refresh_tokens SET revocado = 1 WHERE id = ?").run(decoded.id);
+      }
+    } catch {
+      // Token ya inválido o vencido: no hay nada que revocar.
+    }
+  }
+  res.json({ ok: true });
 });
 
 // Cambio de contraseña (verifica la contraseña actual)
@@ -468,6 +555,8 @@ app.post("/api/change-password", authenticateToken, (req, res) => {
 
   const hashed = bcrypt.hashSync(newPassword, 10);
   db.prepare("UPDATE usuarios SET password = ? WHERE id = ?").run(hashed, req.user.id);
+  // Por seguridad, toda sesión de larga duración muere al cambiar la contraseña.
+  db.prepare("UPDATE refresh_tokens SET revocado = 1 WHERE usuario_id = ?").run(req.user.id);
   res.json({ ok: true, message: "Contraseña actualizada correctamente" });
 });
 

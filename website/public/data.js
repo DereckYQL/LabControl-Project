@@ -392,13 +392,51 @@ function demoRequest(metodo, ruta, cuerpo) {
 
 /* Peticiones a la API (con JWT) */
 
-async function pedir(ruta, opciones = {}) {
+// Renovación de sesión (single-flight): evita refrescar dos veces en paralelo.
+let _refrescando = null;
+
+async function renovarSesion() {
+  if (_refrescando) return _refrescando;
+  _refrescando = pedirRefresh().finally(() => { _refrescando = null; });
+  return _refrescando;
+}
+
+async function pedirRefresh() {
+  const sesion = AUTH.getSesion();
+  if (!sesion?.refreshToken) return false;
+  try {
+    const res = await fetch(`${API_BASE}/refresh`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ refreshToken: sesion.refreshToken })
+    });
+    if (!res.ok) return false;
+    const data = await res.json();
+    if (!data?.token || !data?.refreshToken) return false;
+    localStorage.setItem("lc_sesion", JSON.stringify({
+      ...sesion,
+      token: data.token,
+      refreshToken: data.refreshToken
+    }));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function pedir(ruta, opciones = {}, _reintentado = false) {
   const metodo = opciones.method ?? "GET";
   const cuerpo = opciones.body ? JSON.parse(opciones.body) : undefined;
 
   if (!MODO_DEMO) {
     try {
       const res = await fetch(`${API_BASE}${ruta}`, opciones);
+
+      // Token de acceso expirado: se renueva una sola vez con el refresh token
+      // y se reintenta la petición original antes de cerrar la sesión.
+      if (res.status === 401 && !_reintentado && (await renovarSesion())) {
+        return pedir(ruta, { ...opciones, headers: authHeaders() }, true);
+      }
 
       if (res.status === 401) {
         AUTH.logout();
@@ -591,6 +629,7 @@ const AUTH = {
       if (!data || !data.token) return null;
       const sesion = {
         token: data.token,
+        refreshToken: data.refreshToken,
         id: data.usuario.id,
         rol: data.usuario.rol,
         nombre: data.usuario.nombre,
@@ -606,6 +645,15 @@ const AUTH = {
   },
 
   logout() {
+    // Revoca el refresh token en el servidor (best-effort) antes de cerrar.
+    const sesion = this.getSesion();
+    if (sesion?.refreshToken) {
+      fetch(`${API_BASE}/logout`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ refreshToken: sesion.refreshToken })
+      }).catch(() => {});
+    }
     localStorage.removeItem("lc_sesion");
     window.location.href = "login.html";
   },

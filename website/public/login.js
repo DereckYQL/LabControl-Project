@@ -30,7 +30,7 @@ document.getElementById("login-form").addEventListener("submit", async (e) => {
   document.getElementById("login-error").style.display = "none";
   btn.disabled = true;
   btn.textContent = "Ingresando…";
-  const result = await AUTH.login(user, pass);
+  const result = await AUTH.login(user, pass).catch(() => null);
   btn.disabled = false;
   btn.textContent = "Ingresar";
   if (result) {

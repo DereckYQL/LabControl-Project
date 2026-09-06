@@ -19,6 +19,13 @@ export default defineConfig({
     reuseExistingServer: !process.env.CI,
     env: {
       PORT: "3100",
+      // Access tokens de 3s: cada corrida ejercita la renovación automática
+      // de sesión (refresh) en todas las páginas que hacen peticiones.
+      LC_JWT_EXPIRES: "3s",
+      // El refresh duplica peticiones (401 + reintento); amplía el límite para
+      // que la suite no choque con el límite general de producción (200/15min).
+      LC_API_LIMIT: "2000",
+      LC_ESCRITURA_LIMIT: "2000",
       LC_DB_DIR: path.join(os.tmpdir(), `lc-e2e-db-${Date.now()}`)
     }
   }

@@ -1,5 +1,5 @@
 @echo off
-title Insuco LabControl - v3.1
+title Insuco LabControl - v3.2
 cd /d "%~dp0website\backend"
 
 rem Detener cualquier servidor anterior que este usando el puerto 3000

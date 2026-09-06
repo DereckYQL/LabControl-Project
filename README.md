@@ -16,6 +16,13 @@ Solo el **Administrador** puede gestionar usuarios y acceder a la configuración
 
 ## Cambios
 
+> **v3.2** — **Sesiones seguras con refresh tokens y estabilidad general**:
+> > - **Renovación automática de sesión (refresh tokens)**: al expirar el token de acceso (2 h), la aplicación renueva la sesión sola mediante un token de larga duración (30 días) con **rotación**: cada renovación invalida el token anterior, reutilizar un token ya usado es rechazado, y cerrar sesión o cambiar la contraseña revocan todos los tokens al instante. Verificado con una prueba e2e real que expira el token mientras se usa la web y confirma que la sesión se mantiene.
+> > - **Peticiones resilientes**: la renovación es single-flight (las peticiones paralelas comparten un único refresco) y las peticiones que fallaron por token vencido se reintentan automáticamente.
+> > - **Errores siempre visibles**: se agregó recuperación de errores con aviso en el mapa de laboratorios y en el formulario de inicio de sesión; la aplicación ya no falla en silencio en ninguna página.
+> > - **Descarga sin conexión (offline) verificada**: el Service Worker precachea el 100 % de los archivos estáticos (páginas, estilos, scripts e imágenes); acreditado con prueba e2e que sirve la interfaz y los assets desde la caché sin conexión y, si la API no responde, muestra un aviso en lugar de quedarse en blanco.
+> > - **Prioridades P1 y P2 completadas**: autenticación robusta (bcrypt + JWT con token de acceso y refresco), autorización verificada en el servidor, saneamiento con express-validator, helmet, CORS restrictivo, límites de peticiones, contraseñas nunca expuestas, tabs con varios grupos, gráficos sin división por cero y manejo de errores con interfaz — todo cubierto por pruebas (jest 30/30 y e2e 12/12).
+
 > **v3.1** — **Corrección de vulnerabilidades**:
 > > - **CSP estricto (sin `unsafe-inline`)**: los scripts inline y los manejadores `onclick` de todas las páginas se migraron a archivos `.js` externos con eventos delegados, y ahora la política `script-src 'self'` bloquea cualquier ejecución de JavaScript inyectado. Verificado con una prueba e2e que inyecta un script malicioso y confirma que no se ejecuta.
 > > - **Respuestas de la API sin caché**: `Cache-Control: no-store` en todas las rutas `/api` para que el navegador no almacene datos sensibles (usuario, correo, configuraciones).

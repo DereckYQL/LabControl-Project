@@ -198,6 +198,22 @@ const MIGRACIONES = [
         d.exec("ALTER TABLE notificaciones ADD COLUMN solicitud_id INTEGER REFERENCES solicitudes_especialidad(id)");
       }
     }
+  },
+  {
+    version: 6,
+    nombre: "refresh tokens para sesiones de larga duración",
+    migrar(d) {
+      d.exec(`
+        CREATE TABLE IF NOT EXISTS refresh_tokens (
+          id         TEXT PRIMARY KEY,
+          usuario_id TEXT NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
+          creado_en  INTEGER NOT NULL,
+          expira_en  INTEGER NOT NULL,
+          revocado   INTEGER NOT NULL DEFAULT 0
+        )
+      `);
+      d.exec("CREATE INDEX IF NOT EXISTS idx_refresh_tokens_usuario ON refresh_tokens(usuario_id)");
+    }
   }
 ];
 

@@ -31,7 +31,7 @@
         }
       });
     });
-  });
+  }).catch(() => showToast("No se pudieron cargar los laboratorios.", "error"));
 
   function seleccionarLab(id) {
     const lab = labsCache.find((l) => l.id === id);

@@ -20,13 +20,13 @@ test("configuracion.html muestra la versión v3.1", async ({ page }) => {
   await login(page, "INSUCO", "Insuco1336");
 
   await page.goto("/configuracion.html");
-  await expect(page.locator("body")).toContainText("LabControl v3.1", { timeout: 8000 });
+  await expect(page.locator("body")).toContainText("LabControl v3.2", { timeout: 8000 });
 
   // El panel visible muestra la versión y el conteo en vivo de laboratorios/equipos.
   await page.click('#cfg-sidenav button[data-section="sistema"]');
   const panel = page.locator("#panel-sistema");
   await expect(panel).toBeVisible();
-  await expect(panel).toContainText("LabControl v3.1");
+  await expect(panel).toContainText("LabControl v3.2");
   await expect(panel).toContainText("Total laboratorios");
   await expect(panel).toContainText("Total equipos");
 });
@@ -137,4 +137,65 @@ test("CSP estricto bloquea la ejecución de scripts inline", async ({ page }) =>
     document.head.appendChild(s);
   });
   await expect(page.locator("body")).not.toHaveAttribute("data-csp-trap", "1");
+});
+
+test("sesión de larga duración: el access token expirado se renueva solo", async ({ page }) => {
+  await login(page, "INSUCO", "Insuco1336");
+  await expect(page.locator("#stat-cards .stat-card")).toHaveCount(5, { timeout: 8000 });
+
+  const tokenAntes = await page.evaluate(() => JSON.parse(localStorage.getItem("lc_sesion")).token);
+  expect(tokenAntes).toBeTruthy();
+
+  // El servidor e2e firma access tokens de 3s: tras esperar, el dashboard debe
+  // renovar la sesión con el refresh token y reintentar con éxito.
+  await page.waitForTimeout(4000);
+  await page.reload();
+  await expect(page.locator("#stat-cards .stat-card")).toHaveCount(5, { timeout: 10000 });
+
+  const tokenDespues = await page.evaluate(() => JSON.parse(localStorage.getItem("lc_sesion")).token);
+  expect(tokenDespues).toBeTruthy();
+  expect(tokenDespues).not.toBe(tokenAntes);
+});
+
+test("modo offline: el SW sirve el shell y los assets desde caché y degrada a datos demo", async ({ page, context }) => {
+  const errores = [];
+  page.on("pageerror", (e) => errores.push(e.message));
+
+  await login(page, "INSUCO", "Insuco1336");
+  await page.evaluate(() => navigator.serviceWorker.ready);
+  await page.reload();
+  await expect(page.locator(".sidebar")).toBeVisible();
+
+  const cache = await page.evaluate(async () => {
+    const claves = await caches.keys();
+    const cache = await caches.open(claves.find((k) => k.startsWith("labcontrol")));
+    return (await cache.keys()).map((r) => new URL(r.url).pathname.replace(/^\//, ""));
+  });
+  expect(cache).toContain("index.html");
+  expect(cache).toContain("style.css");
+  expect(cache).toContain("app.js");
+
+  await context.setOffline(true);
+  const offline = await page.evaluate(async () => {
+    const resultados = {};
+    for (const r of ["index.html", "style.css?v=3.2", "app.js?v=3.2"]) {
+      try { resultados[r] = (await fetch(r)).ok; }
+      catch { resultados[r] = false; }
+    }
+    return resultados;
+  });
+  expect(offline["index.html"]).toBe(true);
+  expect(offline["style.css?v=3.2"]).toBe(true);
+  expect(offline["app.js?v=3.2"]).toBe(true);
+
+  const degradacion = await page.evaluate(() =>
+    window.cargarLaboratorios().then(
+      () => "datos",
+      () => "error-capturado"
+    )
+  );
+  expect(degradacion).toBe("error-capturado");
+  await context.setOffline(false);
+
+  expect(errores).toEqual([]);
 });
