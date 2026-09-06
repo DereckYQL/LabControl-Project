@@ -475,11 +475,11 @@ function authHeaders(extra = {}) {
   return headers;
 }
 
-async function apiGet(path) {
+export async function apiGet(path) {
   return pedir(path, { headers: authHeaders() });
 }
 
-async function apiSend(method, path, body) {
+export async function apiSend(method, path, body) {
   return pedir(path, {
     method,
     headers: authHeaders(),
@@ -489,13 +489,13 @@ async function apiSend(method, path, body) {
 
 /* Estados */
 
-const ESTADOS = {
+export const ESTADOS = {
   disponible: { label: "Disponible", color: "#48bb78" },
   ocupado:    { label: "Ocupado",    color: "#f56565" },
   mantencion: { label: "Mantención", color: "#ed8936" }
 };
 
-const ESTADOS_EQUIPO = {
+export const ESTADOS_EQUIPO = {
   activo:     { label: "Activo",     clase: "badge--disponible" },
   mantencion: { label: "Mantención", clase: "badge--mantencion" },
   falla:      { label: "Falla",      clase: "badge--ocupado" },
@@ -504,31 +504,31 @@ const ESTADOS_EQUIPO = {
 
 /* Laboratorios */
 
-function cargarLaboratorios() {
+export function cargarLaboratorios() {
   return apiGet("/laboratorios");
 }
 
-function obtenerLaboratorioPorId(id) {
+export function obtenerLaboratorioPorId(id) {
   return apiGet(`/laboratorios/${id}`);
 }
 
-function actualizarEstadoLaboratorio(id, estado) {
+export function actualizarEstadoLaboratorio(id, estado) {
   return apiSend("PATCH", `/laboratorios/${id}`, { estado });
 }
 
 /* Equipos */
 
-function cargarEquipos(labId = null) {
+export function cargarEquipos(labId = null) {
   return apiGet(labId ? `/equipos?labId=${labId}` : "/equipos");
 }
 
 /* Usuarios */
 
-function cargarUsuarios() {
+export function cargarUsuarios() {
   return apiGet("/usuarios");
 }
 
-async function obtenerUsuarioPorId(id) {
+export async function obtenerUsuarioPorId(id) {
   if (!id) return null;
   try {
     return await apiGet(`/usuarios/${id}`);
@@ -537,91 +537,91 @@ async function obtenerUsuarioPorId(id) {
   }
 }
 
-function crearUsuario(usuario) {
+export function crearUsuario(usuario) {
   return apiSend("POST", "/usuarios", usuario);
 }
 
-function actualizarUsuario(id, cambios) {
+export function actualizarUsuario(id, cambios) {
   return apiSend("PATCH", `/usuarios/${id}`, cambios);
 }
 
 /* Agenda / reservas */
 
-function cargarAgenda() {
+export function cargarAgenda() {
   return apiGet("/agenda");
 }
 
-function crearReserva(reserva) {
+export function crearReserva(reserva) {
   return apiSend("POST", "/agenda", reserva);
 }
 
-function eliminarReserva(id) {
+export function eliminarReserva(id) {
   return pedir(`/agenda/${id}`, { method: "DELETE", headers: authHeaders() });
 }
 
 /* Reportes */
 
-function cargarReportes() {
+export function cargarReportes() {
   return apiGet("/reportes");
 }
 
-function crearReporte(reporte) {
+export function crearReporte(reporte) {
   return apiSend("POST", "/reportes", reporte);
 }
 
-function actualizarReporte(id, cambios) {
+export function actualizarReporte(id, cambios) {
   return apiSend("PATCH", `/reportes/${id}`, cambios);
 }
 
-function eliminarReporte(id) {
+export function eliminarReporte(id) {
   return pedir(`/reportes/${id}`, { method: "DELETE", headers: authHeaders() });
 }
 
 /* Notificaciones */
 
-function cargarNotificaciones(usuarioId) {
+export function cargarNotificaciones(usuarioId) {
   return apiGet("/notificaciones");
 }
 
-function marcarNotificacionLeida(id) {
+export function marcarNotificacionLeida(id) {
   return apiSend("PATCH", `/notificaciones/${id}`, { leida: true });
 }
 
-function marcarTodasNotificaciones() {
+export function marcarTodasNotificaciones() {
   return apiSend("POST", "/notificaciones/leer-todas", {});
 }
 
 /* Solicitudes de cambio de especialidad */
 
-function cargarSolicitudesEspecialidad() {
+export function cargarSolicitudesEspecialidad() {
   return apiGet("/solicitudes-especialidad");
 }
 
-function cargarSolicitudEspecialidad(id) {
+export function cargarSolicitudEspecialidad(id) {
   return apiGet(`/solicitudes-especialidad/${id}`);
 }
 
-function solicitarCambioEspecialidad(especialidad) {
+export function solicitarCambioEspecialidad(especialidad) {
   return apiSend("POST", "/solicitudes-especialidad", { especialidad });
 }
 
-function resolverSolicitudEspecialidad(id, accion) {
+export function resolverSolicitudEspecialidad(id, accion) {
   return apiSend("POST", `/solicitudes-especialidad/${id}/${accion}`, {});
 }
 
 /* Configuración */
 
-function cargarConfig() {
+export function cargarConfig() {
   return apiGet("/config");
 }
 
-function actualizarConfig(cambios) {
+export function actualizarConfig(cambios) {
   return apiSend("PATCH", "/config", cambios);
 }
 
 /* Sesión (AUTH) */
 
-const AUTH = {
+export const AUTH = {
   // Inicia sesión en la API. Devuelve el usuario o null.
   async login(username, password) {
     try {

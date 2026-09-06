@@ -1,3 +1,7 @@
+/* Imports (ES modules) */
+import { AUTH, actualizarUsuario, cargarUsuarios, crearUsuario } from "./data.js";
+import { abrirModal, cerrarModal, __activarTab, esc, initTabs, nivelLabel, renderSidebar, rolLabel, showToast } from "./app.js";
+
 
   renderSidebar("usuarios.html");
   initTabs();

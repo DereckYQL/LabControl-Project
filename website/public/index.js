@@ -1,3 +1,7 @@
+/* Imports (ES modules) */
+import { cargarLaboratorios } from "./data.js";
+import { renderDonut, renderLabGrid, renderSidebar, renderStatusList, renderStatCards, showToast } from "./app.js";
+
 
   const sesion = renderSidebar("index.html");
 

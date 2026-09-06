@@ -1,3 +1,7 @@
+/* Imports (ES modules) */
+import { AUTH, ESTADOS_EQUIPO, cargarEquipos, cargarLaboratorios } from "./data.js";
+import { getQueryParam, renderSidebar, showToast } from "./app.js";
+
 
   renderSidebar("equipos.html");
 

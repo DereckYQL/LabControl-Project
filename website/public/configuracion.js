@@ -1,3 +1,17 @@
+/* Imports (ES modules) */
+import { AUTH, ESTADOS, actualizarConfig, actualizarUsuario, apiSend, cargarConfig, cargarEquipos, cargarLaboratorios, cargarSolicitudEspecialidad, cargarSolicitudesEspecialidad, cargarUsuarios, resolverSolicitudEspecialidad, solicitarCambioEspecialidad } from "./data.js";
+import { abrirModal, activarNotificacionesSistema, actualizarIconosLucide, esc, renderSidebar, rolLabel, showToast } from "./app.js";
+
+/* Valores por defecto de configuración (espejo del backend, db.js). */
+const CONFIG_DEFAULT = {
+  sitio: { nombreInstitucion: "Instituto Superior de Comercio", nombreSistema: "LabControl", logo: "", tema: "claro", idioma: "es" },
+  red: { subredLabs: "192.168.10.0/24", servidorDNS: "192.168.1.1", puertaEnlace: "192.168.1.254", wifiHabilitado: true },
+  notificaciones: { emailAdmin: "admin@liceo.cl", alertaFallas: true, alertaDisponibilidad: true, alertaReservas: true, alertaReportes: true, alertaSolicitudes: true, recordatorioReserva: false },
+  seguridad: { sesionTimeout: 30, intentosLoginMax: 5, registroActividad: true },
+  laboratorios: { horaApertura: "07:30", horaCierre: "18:00", permitirReservaExterna: true, anticipacionMaxReserva: 7 },
+  equipos: { habilitarControlRemoto: true, apagadoAutomatico: false, monitoreoTiempoReal: true, intervaloEncendido: 30 }
+};
+
 /* configuracion.js — lógica de la página Configuración. */
 renderSidebar("configuracion.html");
 const esAdmin = AUTH.esAdmin();
@@ -136,16 +150,16 @@ function buildPanel(id) {
         <div class="form-row">
           <div class="form-group">
             <label class="form-label">Nombre</label>
-            <input class="form-input" id="p-nombre" value="${usuario?.nombre ?? ""}" />
+            <input class="form-input" id="p-nombre" value="${usuario?.nombre ?? ""}" required minlength="2" />
           </div>
           <div class="form-group">
             <label class="form-label">Apellido</label>
-            <input class="form-input" id="p-apellido" value="${usuario?.apellido ?? ""}" />
+            <input class="form-input" id="p-apellido" value="${usuario?.apellido ?? ""}" required minlength="2" />
           </div>
         </div>
         <div class="form-group">
           <label class="form-label">Correo institucional</label>
-          <input class="form-input" id="p-email" type="email" value="${usuario?.email ?? ""}" />
+          <input class="form-input" id="p-email" type="email" value="${usuario?.email ?? ""}" required />
         </div>
         <div class="form-row area-especialidad">
           ${esAdmin ? `
@@ -404,7 +418,7 @@ function buildPanel(id) {
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:20px">
           <div class="cfg-sys-card">
             <div class="cfg-sys-card__label">Versión del sistema</div>
-            <div class="cfg-sys-card__value">LabControl v3.2</div>
+            <div class="cfg-sys-card__value">LabControl v3.3</div>
           </div>
           <div class="cfg-sys-card">
             <div class="cfg-sys-card__label">Total laboratorios</div>
@@ -806,7 +820,7 @@ function contenidoAcerca() {
       <div style="font-size:.85rem;color:var(--color-text-muted)">Sistema de control y supervisión de los laboratorios de computación del liceo.</div>
       <div class="cfg-sys-card" style="margin:18px auto 0;max-width:260px">
         <div class="cfg-sys-card__label">Versión del sistema</div>
-        <div class="cfg-sys-card__value">LabControl v3.2</div>
+        <div class="cfg-sys-card__value">LabControl v3.3</div>
       </div>
       <div class="cfg-sys-card" style="margin:10px auto 0;max-width:260px">
         <div class="cfg-sys-card__label">Institución</div>

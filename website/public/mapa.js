@@ -1,3 +1,7 @@
+/* Imports (ES modules) */
+import { ESTADOS, cargarLaboratorios } from "./data.js";
+import { renderSidebar, showToast } from "./app.js";
+
 
   renderSidebar("mapa.html");
 

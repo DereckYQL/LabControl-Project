@@ -1,5 +1,11 @@
 /* app.js — funciones compartidas por todas las páginas. */
 
+import {
+  AUTH, ESTADOS,
+  cargarAgenda, cargarConfig, cargarNotificaciones, cargarSolicitudEspecialidad,
+  marcarNotificacionLeida, marcarTodasNotificaciones, resolverSolicitudEspecialidad
+} from "./data.js";
+
 /* Navegación (según rol) */
 
 const NAV_ITEMS_ALL = [
@@ -15,7 +21,7 @@ const NAV_ITEMS_ALL = [
 
 let __iconsObserver = null;
 let __sidebarListenersAdded = false;
-function actualizarIconosLucide() {
+export function actualizarIconosLucide() {
   if (!window.lucide || typeof window.lucide.createIcons !== "function") return;
   try {
     // quito el atributo para que lucide no reconvierta los mismos iconos en cada pasada
@@ -36,7 +42,7 @@ function actualizarIconosLucide() {
 }
 
 // Arma el sidebar; si la página exige login y no hay sesión, redirige.
-function renderSidebar(activeHref, requireAuth = true) {
+export function renderSidebar(activeHref, requireAuth = true) {
   const sesion = AUTH.getSesion();
 
   if (requireAuth && !sesion) {
@@ -220,7 +226,7 @@ async function registrarServiceWorker() {
   }
 }
 
-async function activarNotificacionesSistema() {
+export async function activarNotificacionesSistema() {
   if (!("Notification" in window)) {
     showToast("Este navegador no soporta notificaciones del sistema.", "error");
     return false;
@@ -273,7 +279,7 @@ function destinoNotificacion(n) {
   return "";
 }
 
-async function refrescarNotificaciones() {
+export async function refrescarNotificaciones() {
   const sesion = AUTH.getSesion();
   if (!sesion || typeof cargarNotificaciones !== "function") return;
   try {
@@ -475,7 +481,7 @@ async function mostrarModalSolicitud(id) {
 
 /* Tarjetas de resumen */
 
-function renderStatCards(labs, containerId) {
+export function renderStatCards(labs, containerId) {
   const el = document.getElementById(containerId);
   if (!el) return;
   const totalEquipos = labs.reduce((a, l) => a + l.equipos, 0);
@@ -529,7 +535,7 @@ function renderStatCards(labs, containerId) {
 
 /* Estado en tiempo real */
 
-function renderStatusList(labs, containerId) {
+export function renderStatusList(labs, containerId) {
   const el = document.getElementById(containerId);
   if (!el) return;
   el.innerHTML = labs.map((lab) => {
@@ -555,7 +561,7 @@ function renderStatusList(labs, containerId) {
 
 /* Donut de distribución de equipos */
 
-function renderDonut(labs, containerId) {
+export function renderDonut(labs, containerId) {
   const el = document.getElementById(containerId);
   if (!el) return;
   const palette = ["#2f6fed", "#16a34a", "#ef4444", "#f59e0b", "#8b5cf6"];
@@ -594,7 +600,7 @@ function renderDonut(labs, containerId) {
 
 /* Cuadrícula de laboratorios */
 
-function renderLabGrid(labs, containerId, { linkTo = "laboratorios.html" } = {}) {
+export function renderLabGrid(labs, containerId, { linkTo = "laboratorios.html" } = {}) {
   const el = document.getElementById(containerId);
   if (!el) return;
   el.innerHTML = labs.map((lab) => {
@@ -618,27 +624,27 @@ function renderLabGrid(labs, containerId, { linkTo = "laboratorios.html" } = {})
 
 /* Utilidades */
 
-function getQueryParam(name) {
+export function getQueryParam(name) {
   return new URLSearchParams(window.location.search).get(name);
 }
 
-function formatFecha(fechaStr) {
+export function formatFecha(fechaStr) {
   if (!fechaStr) return "—";
   const [y, m, d] = fechaStr.split("-");
   return `${d}/${m}/${y}`;
 }
 
-function rolLabel(rol) {
+export function rolLabel(rol) {
   const labels = { admin: "Administrador", programacion: "Prof. Programación", otro_area: "Profesor área" };
   return labels[rol] ?? rol;
 }
 
-function nivelLabel(nivel) {
+export function nivelLabel(nivel) {
   const labels = { total: "Acceso total", tecnico: "Acceso técnico", basico: "Acceso básico" };
   return labels[nivel] ?? nivel;
 }
 
-function showToast(mensaje, tipo = "success") {
+export function showToast(mensaje, tipo = "success") {
   let container = document.getElementById("toast-container");
   if (!container) {
     container = document.createElement("div");
@@ -656,7 +662,7 @@ function showToast(mensaje, tipo = "success") {
   }, 3200);
 }
 
-function esc(str) {
+export function esc(str) {
   if (str === null || str === undefined) return "";
   const div = document.createElement("div");
   div.textContent = str;
@@ -692,7 +698,7 @@ function __instalarARIAEnTabs(scope) {
   });
 }
 
-function __activarTab(btn, moverFoco) {
+export function __activarTab(btn, moverFoco) {
   const group = btn.closest(".tabs");
   if (!group) return;
   group.querySelectorAll(".tab-btn").forEach((b) => {
@@ -710,7 +716,7 @@ function __activarTab(btn, moverFoco) {
   if (moverFoco && typeof btn.focus === "function") btn.focus();
 }
 
-function initTabs(container = document) {
+export function initTabs(container = document) {
   __instalarARIAEnTabs(container);
   container.addEventListener("click", (e) => {
     const btn = e.target.closest(".tab-btn");
@@ -737,7 +743,7 @@ function initTabs(container = document) {
 
 /* Accesibilidad: modales y toggles por teclado */
 
-function obtenerFocusables(overlay) {
+export function obtenerFocusables(overlay) {
   const selector = [
     "a[href]",
     "button:not([disabled])",
@@ -749,19 +755,23 @@ function obtenerFocusables(overlay) {
   return Array.from(overlay.querySelectorAll(selector)).filter((el) => el.offsetParent !== null);
 }
 
-function cerrarModal(overlay, ultimoFoco) {
+export function cerrarModal(overlay, ultimoFoco) {
   overlay.style.display = "none";
   if (ultimoFoco && typeof ultimoFoco.focus === "function") ultimoFoco.focus();
 }
 
 // Abre el modal, enfoca el primer control, atrapa Tab y cierra con Escape.
-function abrirModal(overlayId, closeSelector = ".modal__close") {
+export function abrirModal(overlayId, closeSelector = ".modal__close") {
   const overlay = document.getElementById(overlayId);
   if (!overlay) return;
   overlay.style.display = "flex";
   const ultimoFoco = document.activeElement;
   const focusables = obtenerFocusables(overlay);
-  if (focusables.length) focusables[0].focus();
+  if (focusables.length) {
+    let primero = focusables[0];
+    if (primero.matches?.(".modal__close") && focusables.length > 1) primero = focusables[1];
+    primero.focus();
+  }
 
   const close = (e) => {
     if (e && e.type === "keydown" && e.key !== "Escape") return;
@@ -794,7 +804,7 @@ function abrirModal(overlayId, closeSelector = ".modal__close") {
   document.addEventListener("click", onCierre);
 }
 
-function initKeyboardToggles(root = document) {
+export function initKeyboardToggles(root = document) {
   root.querySelectorAll(".toggle[role='switch']").forEach((toggle) => {
     if (toggle.dataset.keyInit) return;
     toggle.dataset.keyInit = "1";

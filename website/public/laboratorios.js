@@ -1,3 +1,7 @@
+/* Imports (ES modules) */
+import { AUTH, ESTADOS, actualizarEstadoLaboratorio, cargarAgenda, cargarLaboratorios, cargarUsuarios } from "./data.js";
+import { abrirModal, cerrarModal, esc, formatFecha, getQueryParam, initTabs, renderLabGrid, renderSidebar, showToast } from "./app.js";
+
 
   renderSidebar("laboratorios.html");
   initTabs();

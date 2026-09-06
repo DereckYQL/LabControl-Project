@@ -2,6 +2,9 @@ import globals from "globals";
 
 export default [
   {
+    ignores: ["**/public/lucide.min.js"]
+  },
+  {
     files: ["**/*.{js,mjs}"],
     rules: {
       "no-dupe-keys": "error",
@@ -35,19 +38,15 @@ export default [
     }
   },
   {
-    // Los JS del frontend son scripts clásicos compartidos entre archivos
-    // (app.js usa variables definidas en data.js, etc.). Por eso no
-    // activamos no-undef: las referencias cruzadas no son errores aquí,
-    // solo se controlan reglas que no dependen del orden de carga.
+    // Frontend en ES modules (import/export entre data.js, app.js y las
+    // páginas). no-undef detecta referencias sin import.
     files: ["website/public/*.js"],
     languageOptions: {
-      sourceType: "script",
+      sourceType: "module",
       globals: { ...globals.browser, ...globals.serviceworker }
     },
     rules: {
-      // Las funciones se comparten entre archivos y se usan además desde
-      // handlers inline (onclick="...") generados en plantillas de texto,
-      // por lo que no-unused-vars produce falsos positivos aquí.
+      "no-undef": "error",
       "no-unused-vars": "off"
     }
   },

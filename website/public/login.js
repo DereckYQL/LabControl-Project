@@ -1,3 +1,6 @@
+/* Imports (ES modules) */
+import { AUTH } from "./data.js";
+
 // Si ya hay sesión activa, redirigir al inicio
 if (AUTH.getSesion()) {
   window.location.href = "index.html";

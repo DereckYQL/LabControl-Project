@@ -1,3 +1,7 @@
+/* Imports (ES modules) */
+import { AUTH, ESTADOS, actualizarEstadoLaboratorio, cargarAgenda, cargarLaboratorios, cargarUsuarios, crearReserva, eliminarReserva } from "./data.js";
+import { abrirModal, cerrarModal, esc, formatFecha, renderSidebar, showToast } from "./app.js";
+
 
   renderSidebar("disponibilidad.html");
   const sesion = AUTH.getSesion();

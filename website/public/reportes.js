@@ -1,3 +1,7 @@
+/* Imports (ES modules) */
+import { AUTH, actualizarReporte, cargarReportes, cargarUsuarios, crearReporte, eliminarReporte } from "./data.js";
+import { abrirModal, cerrarModal, formatFecha, getQueryParam, refrescarNotificaciones, renderSidebar, showToast } from "./app.js";
+
 
   renderSidebar("reportes.html");
 

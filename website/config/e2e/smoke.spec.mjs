@@ -20,13 +20,13 @@ test("configuracion.html muestra la versión v3.1", async ({ page }) => {
   await login(page, "INSUCO", "Insuco1336");
 
   await page.goto("/configuracion.html");
-  await expect(page.locator("body")).toContainText("LabControl v3.2", { timeout: 8000 });
+  await expect(page.locator("body")).toContainText("LabControl v3.3", { timeout: 8000 });
 
   // El panel visible muestra la versión y el conteo en vivo de laboratorios/equipos.
   await page.click('#cfg-sidenav button[data-section="sistema"]');
   const panel = page.locator("#panel-sistema");
   await expect(panel).toBeVisible();
-  await expect(panel).toContainText("LabControl v3.2");
+  await expect(panel).toContainText("LabControl v3.3");
   await expect(panel).toContainText("Total laboratorios");
   await expect(panel).toContainText("Total equipos");
 });
@@ -178,24 +178,68 @@ test("modo offline: el SW sirve el shell y los assets desde caché y degrada a d
   await context.setOffline(true);
   const offline = await page.evaluate(async () => {
     const resultados = {};
-    for (const r of ["index.html", "style.css?v=3.2", "app.js?v=3.2"]) {
+    for (const r of ["index.html", "style.css?v=3.3", "app.js?v=3.3"]) {
       try { resultados[r] = (await fetch(r)).ok; }
       catch { resultados[r] = false; }
     }
     return resultados;
   });
   expect(offline["index.html"]).toBe(true);
-  expect(offline["style.css?v=3.2"]).toBe(true);
-  expect(offline["app.js?v=3.2"]).toBe(true);
+  expect(offline["style.css?v=3.3"]).toBe(true);
+  expect(offline["app.js?v=3.3"]).toBe(true);
 
-  const degradacion = await page.evaluate(() =>
-    window.cargarLaboratorios().then(
+  const degradacion = await page.evaluate(async () => {
+    const mod = await import("./data.js");
+    return mod.cargarLaboratorios().then(
       () => "datos",
       () => "error-capturado"
-    )
-  );
+    );
+  });
   expect(degradacion).toBe("error-capturado");
   await context.setOffline(false);
 
   expect(errores).toEqual([]);
+});
+
+test("accesibilidad: el enlace 'saltar al contenido' mueve el foco a main", async ({ page }) => {
+  await page.goto("/login.html");
+  await page.keyboard.press("Tab");
+  const skip = page.locator(".skip-nav");
+  await expect(skip).toBeFocused();
+  await page.keyboard.press("Enter");
+  await expect(page.locator("#main-content")).toBeFocused();
+});
+
+test("accesibilidad: foco atrapado en el modal y restaurado al cerrar", async ({ page }) => {
+  await login(page, "INSUCO", "Insuco1336");
+  await page.goto("/usuarios.html");
+  const btn = page.locator("#btn-nuevo-usuario");
+  await expect(btn).toBeVisible();
+  await btn.click();
+  await expect(page.locator("#modal-usuario")).toBeVisible();
+  await expect(page.locator("#usr-nombre")).toBeFocused();
+
+  await page.keyboard.press("Shift+Tab");
+  const enModoYEnModal = await page.evaluate(() => {
+    const ace = document.activeElement;
+    return !!ace && ace.id === "modal-usuario" ? "#modal-usuario" : (ace?.closest ? ace.closest("#modal-usuario")?.id ?? null : null);
+  });
+  expect(enModoYEnModal).toBe("modal-usuario");
+
+  await page.keyboard.press("Escape");
+  await expect(page.locator("#modal-usuario")).not.toBeVisible();
+  await expect(btn).toBeFocused();
+});
+
+test("accesibilidad: interruptores (switch) operables con teclado", async ({ page }) => {
+  await login(page, "INSUCO", "Insuco1336");
+  await page.goto("/configuracion.html");
+  await page.click('#cfg-sidenav button[data-section="notificaciones"]');
+  const tog = page.locator('.toggle[role="switch"]').first();
+  await expect(tog).toBeVisible();
+  await tog.focus();
+  const antes = await tog.getAttribute("aria-checked");
+  await page.keyboard.press("Space");
+  const despues = await tog.getAttribute("aria-checked");
+  expect(despues).not.toBe(antes);
 });

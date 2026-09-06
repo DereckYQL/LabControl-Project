@@ -16,6 +16,12 @@ Solo el **Administrador** puede gestionar usuarios y acceder a la configuración
 
 ## Cambios
 
+> **v3.3** — **Accesibilidad (P3) y migración del frontend a ES Modules (P4)**:
+> > - **Accesibilidad completa (prioridad P3)**: enlace "Saltar al contenido" al inicio de sesión y en las 9 páginas, foco gestionado con `tabindex="-1"` en el contenido principal, foco atrapado en los modales y restaurado al cerrar, interruptores (switch) operables con teclado (espacio/enter), formularios con atributos `required`/`minlength` correctos y contraste de `.login-hint code` corregido en el tema claro. Acreditado con 3 pruebas e2e nuevas de accesibilidad (teclado, foco y skip-nav).
+> > - **Frontend migrado a ES Modules (prioridad P4)**: `data.js`, `app.js` y los 9 scripts de página usan `import`/`export` reales (módulos, `type="module"`), eliminando la dependencia implícita del orden de carga y los globales; `theme.js` y `lucide.min.js` siguen como scripts clásicos para evitar el flash de tema. El Service Worker precachea las rutas de módulos (con y sin versión) y la degradación sin conexión se verificó recargando el módulo desde la caché.
+> > - **Bug corregido**: `restablecerConfiguración` en Configuración fallaba porque `CONFIG_DEFAULT` no estaba definido en el frontend; ahora se define espejando el seed del backend (antes habría lanzado un error en tiempo de ejecución).
+> > - **Verificación completa en v3.3**: lint 0 errores, typecheck OK, suite backend 30/30 y e2e 15/15 incluyendo los nuevos tests de accesibilidad.
+
 > **v3.2** — **Sesiones seguras con refresh tokens y estabilidad general**:
 > > - **Renovación automática de sesión (refresh tokens)**: al expirar el token de acceso (2 h), la aplicación renueva la sesión sola mediante un token de larga duración (30 días) con **rotación**: cada renovación invalida el token anterior, reutilizar un token ya usado es rechazado, y cerrar sesión o cambiar la contraseña revocan todos los tokens al instante. Verificado con una prueba e2e real que expira el token mientras se usa la web y confirma que la sesión se mantiene.
 > > - **Peticiones resilientes**: la renovación es single-flight (las peticiones paralelas comparten un único refresco) y las peticiones que fallaron por token vencido se reintentan automáticamente.
