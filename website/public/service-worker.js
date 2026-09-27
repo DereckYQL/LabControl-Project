@@ -1,6 +1,6 @@
 /* service-worker.js — caché offline: red para la API, caché para estáticos. */
 
-const CACHE_NAME = "labcontrol-v3.6.1";
+const CACHE_NAME = "labcontrol-v3.6.2";
 const PRECACHE_URLS = [
   "./",
   "index.html",
@@ -12,19 +12,19 @@ const PRECACHE_URLS = [
   "usuarios.html",
   "reportes.html",
   "configuracion.html",
-  "style.css?v=3.6.1",
-  "theme.js?v=3.6.1",
-  "app.js?v=3.6.1",
-  "data.js?v=3.6.1",
-  "index.js?v=3.6.1",
-  "login.js?v=3.6.1",
-  "laboratorios.js?v=3.6.1",
-  "equipos.js?v=3.6.1",
-  "disponibilidad.js?v=3.6.1",
-  "mapa.js?v=3.6.1",
-  "reportes.js?v=3.6.1",
-  "usuarios.js?v=3.6.1",
-  "configuracion.js?v=3.6.1",
+  "style.css?v=3.6.2",
+  "theme.js?v=3.6.2",
+  "app.js?v=3.6.2",
+  "data.js?v=3.6.2",
+  "index.js?v=3.6.2",
+  "login.js?v=3.6.2",
+  "laboratorios.js?v=3.6.2",
+  "equipos.js?v=3.6.2",
+  "disponibilidad.js?v=3.6.2",
+  "mapa.js?v=3.6.2",
+  "reportes.js?v=3.6.2",
+  "usuarios.js?v=3.6.2",
+  "configuracion.js?v=3.6.2",
   "app.js",
   "data.js",
   "index.js",
@@ -37,7 +37,7 @@ const PRECACHE_URLS = [
   "usuarios.js",
   "configuracion.js",
   "datos-demo.js",
-  "lucide.min.js?v=3.6.1",
+  "lucide.min.js?v=3.6.2",
   "manifest.webmanifest",
   "img/logo-insuco.png",
   "img/icon-192.png",
@@ -51,7 +51,11 @@ const PRECACHE_URLS = [
 self.addEventListener("install", (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME)
-      .then((cache) => cache.addAll(PRECACHE_URLS))
+      .then((cache) =>
+        // `cache: "reload"` evita la caché del navegador: la precarga siempre
+        // descarga la versión más reciente del servidor, no la que quedó guardada.
+        cache.addAll(PRECACHE_URLS.map((url) => new Request(url, { cache: "reload" })))
+      )
       .then(() => self.skipWaiting())
   );
 });

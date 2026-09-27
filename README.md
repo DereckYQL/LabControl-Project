@@ -24,7 +24,7 @@ Solo el **Administrador** puede gestionar usuarios y acceder a la configuración
 > > - **Escritorio sin cambios**: por encima de 860 px la barra lateral se mantiene igual (usuario al pie, campana arriba a la derecha); el reparto se ajusta solo al cambiar el tamaño de la ventana o girar el celular.
 > > - **Registro en 2 columnas**: el formulario "Crear cuenta" (nombre, apellido, usuario, correo, área y especialidad) se reparte en dos columnas en escritorio y vuelve a una sola columna en el celular.
 > > - **Textos legales para adultos**: se eliminaron la línea de consentimiento de menores del formulario de registro y la sección "Menores de edad" de la Política de privacidad; Términos de uso y Política de privacidad ahora aclaran que la aplicación está reservada a personas adultas y se opera bajo la supervisión del establecimiento.
-> > - **Caché renovada en `3.6.1`**: todos los assets (CSS y JS) y el `service-worker` cambian su versión para forzar la descarga en los navegadores y evitar páginas con archivos viejos.
+> > - **Caché renovada en `3.6.2`**: todos los assets (CSS y JS) y el `service-worker` cambian su versión para forzar la descarga en los navegadores y evitar páginas con archivos viejos. Además, la precarga del service-worker ahora ignora la caché del navegador (`cache: "reload"`), de modo que al desplegar una versión nueva el móvil descarga siempre los archivos frescos.
 > > - **Verificación completa en v3.6**: lint 0 errores, typecheck OK, sintaxis OK, suite backend 38/38 y e2e 27/27.
 
 > **v3.5** — **Registro de cuentas, recuperación de contraseña e inicio con Google en el login**:
