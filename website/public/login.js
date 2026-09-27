@@ -305,7 +305,7 @@ const CONTENIDO_TERMINOS = [
   "Términos de uso",
   `<p class="terminos-lead">Estos Términos de uso regulan tu acceso y uso de <strong>Insuco LabControl</strong>, el sistema de gestión de laboratorios del Liceo INSUCO. Al crear una cuenta, celebrar un acuerdo legal vinculante con el establecimiento.</p>
    <h3>1. Registro</h3>
-   <p>Debes proporcionar datos institucionales reales y verificables para acceder al sistema.</p>
+   <p>Insuco LabControl está reservado a personas adultas y se opera bajo la supervisión del establecimiento. Debes proporcionar datos institucionales reales y verificables para acceder al sistema.</p>
    <h3>2. Credenciales y seguridad</h3>
    <p>Eres responsable de mantener confidenciales tu usuario y contraseña, y de todas las actividades realizadas con tu cuenta. Compártelas solo con el personal autorizado del establecimiento.</p>
    <h3>3. Uso aceptable</h3>
@@ -320,7 +320,7 @@ const CONTENIDO_TERMINOS = [
 
 const CONTENIDO_PRIVACIDAD = [
   "Política de privacidad",
-  `<p class="terminos-lead">En el Liceo INSUCO respetamos tu privacidad. Esta Política de privacidad explica qué información personal tratamos al usar <strong>Insuco LabControl</strong>.</p>
+  `<p class="terminos-lead">En el Liceo INSUCO respetamos tu privacidad. Esta Política de privacidad explica qué información personal tratamos al usar <strong>Insuco LabControl</strong>, una aplicación reservada a personas adultas que se opera bajo la supervisión del establecimiento.</p>
    <h3>1. Información que recopilamos</h3>
    <p>Datos de identificación (nombre, apellido), correo institucional, rol, área y especialidad, e información de uso como reservas, solicitudes y reportes de los laboratorios.</p>
    <h3>2. Cómo usamos la información</h3>
