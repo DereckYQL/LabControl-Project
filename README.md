@@ -16,6 +16,13 @@ Solo el **Administrador** puede gestionar usuarios y acceder a la configuración
 
 ## Cambios
 
+> **v3.6** — **Formulario de registro en dos columnas y textos legales más simples**:
+> > - **Registro en 2 columnas**: el formulario "Crear cuenta" (nombre, apellido, usuario, correo, área y especialidad) se reparte ahora en dos columnas en pantalla de escritorio, lo que ahorra espacio vertical y deja los botones y los avisos a lo ancho. En el celular vuelve a una sola columna, así que no cambia nada en el móvil.
+> > - **Términos y privacidad sin el bloque de menores**: se retiraron las cláusulas de consentimiento de menores de edad (la sección "1. Registro y requisitos de edad" pasa a ser "1. Registro" y se elimina "6. Menores de edad"), y con ellas la línea de consentimiento que aparecía bajo los botones del registro. Los documentos quedan más cortos y más fáciles de leer.
+> > - **Renumeración de la privacidad**: la sección "Tus derechos" pasa a ser la 6, manteniendo la numeración correlativa tras quitar la sección de menores.
+> > - **Caché renovada en `3.6.1`**: todos los assets (CSS y JS) y el `service-worker` cambian su versión para forzar la descarga en los navegadores y evitar páginas con archivos viejos.
+> > - **Verificación completa en v3.6**: lint 0 errores, typecheck OK, sintaxis OK, suite backend 38/38 y e2e 23/23.
+
 > **v3.5** — **Registro de cuentas, recuperación de contraseña e inicio con Google en el login**:
 > > - **Login como en la vida real**: bajo el botón "Ingresar" ahora hay dos enlaces pequeños — *¿Olvidaste tu contraseña?* y *Crear cuenta* — y, debajo, un divisor con el botón **Continuar con Google**. El texto legal del registro está adaptado al estilo Roblox (Términos de uso, Política de privacidad y consentimiento de menores), y ambos documentos se muestran en un modal accesible directamente desde el formulario.
 > > - **Crear cuenta (funcional)**: formulario con nombre, apellido, usuario, correo, área y especialidad. La cuenta se crea al instante con rol *otra área* y nivel de acceso básico, ya puede iniciar sesión, rechaza usuarios o correos duplicados (409) y notifica a los administradores con el nuevo aviso *"Nuevos usuarios registrados"* (*Configuración → Notificaciones*). El mismo comportamiento está replicado en modo demo y verificado con tests de API.

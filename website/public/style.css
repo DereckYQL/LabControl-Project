@@ -726,6 +726,25 @@ h1 + p { margin: 4px 0 0; color: var(--color-text-muted); font-size: .9rem; }
   margin: 4px 2px 0;
 }
 
+/* Formulario de registro: 2 columnas en escritorio, 1 en celular */
+#registro-form {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px 14px;
+}
+#registro-form .form-group { margin: 0; }
+#registro-form .login-check,
+#registro-form .login-aviso-legal,
+#registro-form .login-error,
+#registro-form .login-ok,
+#registro-form .login-submit,
+#registro-form .login-back {
+  grid-column: 1 / -1;
+}
+@media (max-width: 520px) {
+  #registro-form { grid-template-columns: 1fr; }
+}
+
 /* Cuerpo del modal de términos / privacidad */
 .terminos-cuerpo {
   max-height: 58vh;

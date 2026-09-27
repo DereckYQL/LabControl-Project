@@ -16,17 +16,17 @@ test("login como INSUCO y el dashboard carga los datos", async ({ page }) => {
   await expect(page.locator(".sidebar__user .name")).not.toBeEmpty();
 });
 
-test("configuracion.html muestra la versión v3.5", async ({ page }) => {
+test("configuracion.html muestra la versión v3.6", async ({ page }) => {
   await login(page, "INSUCO", "Insuco1336");
 
   await page.goto("/configuracion.html");
-  await expect(page.locator("body")).toContainText("LabControl v3.5", { timeout: 8000 });
+  await expect(page.locator("body")).toContainText("LabControl v3.6", { timeout: 8000 });
 
   // El panel visible muestra la versión y el conteo en vivo de laboratorios/equipos.
   await page.click('#cfg-sidenav button[data-section="sistema"]');
   const panel = page.locator("#panel-sistema");
   await expect(panel).toBeVisible();
-  await expect(panel).toContainText("LabControl v3.5");
+  await expect(panel).toContainText("LabControl v3.6");
   await expect(panel).toContainText("Total laboratorios");
   await expect(panel).toContainText("Total equipos");
 });
@@ -215,15 +215,15 @@ test("modo offline: el SW sirve el shell y los assets desde caché y degrada a d
   await context.setOffline(true);
   const offline = await page.evaluate(async () => {
     const resultados = {};
-    for (const r of ["index.html", "style.css?v=3.5", "app.js?v=3.5"]) {
+    for (const r of ["index.html", "style.css?v=3.6.1", "app.js?v=3.6.1"]) {
       try { resultados[r] = (await fetch(r)).ok; }
       catch { resultados[r] = false; }
     }
     return resultados;
   });
   expect(offline["index.html"]).toBe(true);
-  expect(offline["style.css?v=3.5"]).toBe(true);
-  expect(offline["app.js?v=3.5"]).toBe(true);
+  expect(offline["style.css?v=3.6.1"]).toBe(true);
+  expect(offline["app.js?v=3.6.1"]).toBe(true);
 
   const degradacion = await page.evaluate(async () => {
     const mod = await import("./data.js");

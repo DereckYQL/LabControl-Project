@@ -304,8 +304,8 @@ const modalCuerpo = $("modal-terminos-cuerpo");
 const CONTENIDO_TERMINOS = [
   "Términos de uso",
   `<p class="terminos-lead">Estos Términos de uso regulan tu acceso y uso de <strong>Insuco LabControl</strong>, el sistema de gestión de laboratorios del Liceo INSUCO. Al crear una cuenta, celebrar un acuerdo legal vinculante con el establecimiento.</p>
-   <h3>1. Registro y requisitos de edad</h3>
-   <p>Debes proporcionar datos institucionales reales y verificables. Si eres menor de 18 años, declaras que tu padre, madre o tutor legal te permite crear esta cuenta y acepta estos Términos de uso.</p>
+   <h3>1. Registro</h3>
+   <p>Debes proporcionar datos institucionales reales y verificables para acceder al sistema.</p>
    <h3>2. Credenciales y seguridad</h3>
    <p>Eres responsable de mantener confidenciales tu usuario y contraseña, y de todas las actividades realizadas con tu cuenta. Compártelas solo con el personal autorizado del establecimiento.</p>
    <h3>3. Uso aceptable</h3>
@@ -331,9 +331,7 @@ const CONTENIDO_PRIVACIDAD = [
    <p>Conservamos tus datos mientras mantengas una cuenta activa. Puedes solicitar su corrección o eliminación contactando al administrador del liceo.</p>
    <h3>5. Seguridad</h3>
    <p>Las contraseñas se almacenan protegidas con cifrado y los accesos quedan registrados para auditoría. Ningún sistema es infalible, por lo que también te pedimos proteger tus propias credenciales.</p>
-   <h3>6. Menores de edad</h3>
-   <p>Si eres menor de 18 años, la creación de tu cuenta requiere la autorización de tu padre, madre o tutor legal, quien podrá solicitar el acceso o la eliminación de tus datos en cualquier momento.</p>
-   <h3>7. Tus derechos</h3>
+   <h3>6. Tus derechos</h3>
    <p>Tienes derecho a acceder, rectificar y suprimir tus datos, así como a solicitar mayor información al administrador: <strong>admin@liceo.cl</strong>.</p>`
 ];
 
