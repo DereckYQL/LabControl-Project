@@ -16,6 +16,15 @@ Solo el **Administrador** puede gestionar usuarios y acceder a la configuración
 
 ## Cambios
 
+> **v3.7** — **Los laboratorios ahora tienen los datos reales del inventario**:
+> > - **Ficha real de los 5 laboratorios**: se reemplazó la información de ejemplo por la del documento de inventario. Sistema operativo: LAB 1, 2 y 4 en **Windows 11 Pro**, LAB 3 en **Linux Mint** y LAB 5 en **Linux Mint y Windows 10**.
+> > - **Cantidad de equipos correcta**: LAB 1 con 30, LAB 2 con 27, LAB 3 con 23, LAB 4 con 28 y LAB 5 con 30 equipos (138 en total, antes 145). La lista de equipos de cada laboratorio se ajustó a la nueva cantidad: se quitaron los que sobraban y se agregaron los que faltaban.
+> > - **Servicios por laboratorio**: cada laboratorio muestra solo los servicios que tiene. LAB 1 (Pizarra, Proyectos), LAB 2 (Pizarra, Proyector), LAB 3 (Pizarra), LAB 4 (Pizarra) y LAB 5 (Pizarra, Proyector). Se eliminaron los servicios de ejemplo (Internet, Impresora de red, Pizarra digital y Rack de servidores).
+> > - **El "Laboratorio de Redes" pasa a ser el "Laboratorio 5"**: el nombre, la descripción y el plano (*Mapa*) se actualizaron. Sala, ubicación, hardware, responsable y horario se conservan tal como estaban.
+> > - **Se aplica automáticamente a las bases existentes**: migración 9 (`schema_migrations`) actualiza los laboratorios, sincroniza el sistema operativo de cada equipo y corrige los reportes de ejemplo al abrir el programa, sin perder datos.
+> > - **Caché renovada en `3.7.0`**: todos los assets (CSS y JS) y el `service-worker` cambian su versión para forzar la descarga en los navegadores.
+> > - **Verificación completa en v3.7**: lint 0 errores, typecheck OK, sintaxis OK, suite backend 39/39 y e2e 27/27.
+
 > **v3.6** — **Menú del celular con el usuario y las notificaciones dentro, registro en 2 columnas y textos legales para adultos**:
 > > - **Barra superior minimalista**: en la vista del celular la barra deja de mostrar el usuario y la campana, y queda solo el botón de menú junto al logo. Ambos elementos se movieron al desplegable, que se abre al pulsar ese botón.
 > > - **Cabecera del menú con la foto, el nombre y el correo**: arriba del menú, con una línea divisoria sutil que lo separa del resto de botones, aparece el avatar junto al nombre del usuario y su correo institucional, y a un lado el botón de notificaciones.

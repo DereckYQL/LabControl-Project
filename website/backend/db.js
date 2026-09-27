@@ -145,6 +145,87 @@ const CONFIG_DEFAULT = {
   equipos: { habilitarControlRemoto: true, apagadoAutomatico: false, monitoreoTiempoReal: true, intervaloEncendido: 30 }
 };
 
+/* Ficha de los laboratorios (única fuente de verdad) */
+
+// `so`, `equipos` y `servicios` provienen del documento de inventario de
+// laboratorios. Sala, ubicación, hardware, responsable y horario se conservan
+// tal como estaban.
+const LABORATORIOS = [
+  {
+    id: 1, nombre: "Laboratorio 1", sala: "Sala B-201", ubicacion: "Segundo piso, ala B",
+    equipos: 30, estado: "disponible", so: "Windows 11 Pro", procesador: "Intel Core i5-10400",
+    ram: "8 GB DDR4", almacenamiento: "512 GB SSD", red: "Conectado a la red interna (VLAN 10)",
+    responsable: "Juan Pérez", responsableId: "prof_juan", horario: "07:30 - 18:00",
+    servicios: ["Pizarra", "Proyectos"],
+    descripcion: "Laboratorio equipado para clases de informática, programación, ofimática y navegación segura.",
+    foto: "assets/lab-generico.svg", posicion: { x: 20, y: 60, w: 180, h: 120 }
+  },
+  {
+    id: 2, nombre: "Laboratorio 2", sala: "Sala B-202", ubicacion: "Segundo piso, ala B",
+    equipos: 27, estado: "disponible", so: "Windows 11 Pro", procesador: "Intel Core i5-10400",
+    ram: "8 GB DDR4", almacenamiento: "512 GB SSD", red: "Conectado a la red interna (VLAN 10)",
+    responsable: "Ana López", responsableId: "prof_ana", horario: "07:30 - 18:00",
+    servicios: ["Pizarra", "Proyector"],
+    descripcion: "Laboratorio de uso general para asignaturas de la carrera de Programación.",
+    foto: "assets/lab-generico.svg", posicion: { x: 220, y: 60, w: 180, h: 120 }
+  },
+  {
+    id: 3, nombre: "Laboratorio 3", sala: "Sala B-203", ubicacion: "Segundo piso, ala B",
+    equipos: 23, estado: "ocupado", so: "Linux Mint", procesador: "Intel Core i5-10400",
+    ram: "8 GB DDR4", almacenamiento: "256 GB SSD", red: "Conectado a la red interna (VLAN 10)",
+    responsable: "Diego Rojas", responsableId: "prof_diego", horario: "08:00 - 17:00",
+    servicios: ["Pizarra"],
+    descripcion: "Laboratorio orientado a programación y entornos Linux.",
+    foto: "assets/lab-generico.svg", posicion: { x: 420, y: 60, w: 180, h: 120 }
+  },
+  {
+    id: 4, nombre: "Laboratorio 4", sala: "Sala B-205", ubicacion: "Segundo piso, ala B",
+    equipos: 28, estado: "mantencion", so: "Windows 11 Pro", procesador: "Intel Core i3-10100",
+    ram: "8 GB DDR4", almacenamiento: "256 GB SSD", red: "Conectado a la red interna (VLAN 10)",
+    responsable: "Camila Soto", responsableId: "prof_camila", horario: "07:30 - 18:00",
+    servicios: ["Pizarra"],
+    descripcion: "Laboratorio de apoyo para talleres y evaluaciones prácticas.",
+    foto: "assets/lab-generico.svg", posicion: { x: 620, y: 60, w: 150, h: 120 }
+  },
+  {
+    id: 5, nombre: "Laboratorio 5", sala: "Sala B-204", ubicacion: "Segundo piso, ala B",
+    equipos: 30, estado: "disponible", so: "Linux Mint y Windows 10", procesador: "Intel Core i7-10700",
+    ram: "16 GB DDR4", almacenamiento: "1 TB SSD NVMe", red: "Rack de switches y patch panel propio",
+    responsable: "Juan Pérez", responsableId: "prof_juan", horario: "07:30 - 18:00",
+    servicios: ["Pizarra", "Proyector"],
+    descripcion: "Laboratorio con doble sistema operativo (Linux Mint y Windows 10) para clases de informática, ofimática y navegación segura.",
+    foto: "assets/lab-generico.svg", posicion: { x: 220, y: 220, w: 180, h: 120 }
+  }
+];
+
+// Proyección de la ficha para poder aplicarla también sobre bases que ya existían.
+const DATOS_INVENTARIO = LABORATORIOS.map((l) => ({
+  id: l.id, nombre: l.nombre, equipos: l.equipos, so: l.so, servicios: l.servicios
+}));
+
+const TOTAL_EQUIPOS_INVENTARIO = LABORATORIOS.reduce((n, l) => n + l.equipos, 0);
+
+// Desglose que usan los reportes de inventario de ejemplo (no son datos reales).
+const INVENTARIO_EJEMPLO = { enFalla: 3, enMantencion: 1 };
+
+// Fila de un equipo del laboratorio l, numerado desde 1 (PC-101, PC-102, …).
+function datosEquipo(l, i) {
+  const n = String(i).padStart(2, "0");
+  return {
+    id: `${l.id}-PC${n}`, lab_id: l.id, nombre: `PC-${l.id}${n}`,
+    tipo: "Desktop", fabricante: "HP",
+    modelo: i <= 10 ? "ProDesk 400 G7" : "EliteDesk 800 G6",
+    serie: `SN${l.id}${String(1000 + i)}`,
+    procesador: l.procesador, ram: l.ram, almacenamiento: l.almacenamiento, so: l.so,
+    ip: `192.168.${10 + l.id}.${100 + i}`,
+    mac: `AA:BB:CC:${String(l.id).padStart(2, "0")}:${n}:FF`,
+    monitor: '22" Full HD', teclado: "USB estándar", mouse: "USB óptico",
+    estado: i === 3 && l.id === 4 ? "falla" : l.estado === "mantencion" ? "mantencion" : "activo",
+    ultimo_encendido: "2026-08-20 08:15",
+    observaciones: i === 3 && l.id === 4 ? "Disco duro con sectores defectuosos" : ""
+  };
+}
+
 const MIGRACIONES = [
   {
     version: 2,
@@ -268,6 +349,71 @@ const MIGRACIONES = [
         )
       `);
     }
+  },
+  {
+    version: 9,
+    nombre: "ficha real de laboratorios (sistema operativo, cantidad de equipos y servicios)",
+    migrar(d) {
+      const updLab = d.prepare(`
+        UPDATE laboratorios
+        SET nombre = @nombre, equipos = @equipos, so = @so, servicios = @servicios
+        WHERE id = @id
+      `);
+      const updSo = d.prepare("UPDATE equipos SET so = ? WHERE lab_id = ?");
+      // El id sigue el patrón "<labId>-PC<NN>", así que los 2 últimos caracteres
+      // son el número del equipo. El LIKE evita tocar equipos con otro id.
+      const borrarSobrantes = d.prepare(`
+        DELETE FROM equipos
+        WHERE lab_id = ? AND id LIKE ?
+          AND CAST(SUBSTR(id, LENGTH(id) - 1) AS INTEGER) > ?
+      `);
+      const existeEquipo = d.prepare("SELECT 1 AS ok FROM equipos WHERE id = ?");
+      const hayLab = d.prepare("SELECT equipos FROM laboratorios WHERE id = ?");
+      const insertEq = d.prepare(`
+        INSERT INTO equipos (id,lab_id,nombre,tipo,fabricante,modelo,serie,procesador,ram,almacenamiento,so,ip,mac,monitor,teclado,mouse,estado,ultimo_encendido,observaciones)
+        VALUES (@id,@lab_id,@nombre,@tipo,@fabricante,@modelo,@serie,@procesador,@ram,@almacenamiento,@so,@ip,@mac,@monitor,@teclado,@mouse,@estado,@ultimo_encendido,@observaciones)
+      `);
+
+      for (const l of DATOS_INVENTARIO) {
+        if (!hayLab.get(l.id)) continue; // esa base no tiene ese laboratorio
+        updLab.run({
+          id: l.id, nombre: l.nombre, equipos: l.equipos, so: l.so,
+          servicios: JSON.stringify(l.servicios)
+        });
+        updSo.run(l.so, l.id);
+        borrarSobrantes.run(l.id, `${l.id}-PC%`, l.equipos);
+        const completo = LABORATORIOS.find((x) => x.id === l.id);
+        for (let i = 1; i <= l.equipos; i++) {
+          const eq = datosEquipo(completo, i);
+          if (!existeEquipo.get(eq.id)) insertEq.run(eq);
+        }
+      }
+
+      // Reportes de ejemplo que citan el nombre y el total de la ficha anterior.
+      const updReporte = d.prepare("UPDATE reportes SET datos = ? WHERE id = ?");
+      for (const id of ["rep_001", "rep_003"]) {
+        const fila = d.prepare("SELECT datos FROM reportes WHERE id = ?").get(id);
+        if (!fila) continue;
+        let datos = {};
+        try { datos = JSON.parse(fila.datos || "{}"); } catch (e) { continue; }
+        if (!Array.isArray(datos.labels)) continue;
+        datos.labels = datos.labels.map((x) => (x === "Lab Redes" ? "Lab 5" : x));
+        updReporte.run(JSON.stringify(datos), id);
+      }
+      const inv = d.prepare("SELECT datos FROM reportes WHERE id = 'rep_004'").get();
+      if (inv) {
+        let datos = {};
+        try { datos = JSON.parse(inv.datos || "{}"); } catch (e) { datos = {}; }
+        if (typeof datos.total === "number") {
+          datos.total = TOTAL_EQUIPOS_INVENTARIO;
+          if (typeof datos.activos === "number") {
+            datos.activos = TOTAL_EQUIPOS_INVENTARIO
+              - INVENTARIO_EJEMPLO.enFalla - INVENTARIO_EJEMPLO.enMantencion;
+          }
+          updReporte.run(JSON.stringify(datos), "rep_004");
+        }
+      }
+    }
   }
 ];
 
@@ -310,54 +456,6 @@ if (esNueva) {
 }
 
 function seed() {
-  const LABORATORIOS = [
-    {
-      id: 1, nombre: "Laboratorio 1", sala: "Sala B-201", ubicacion: "Segundo piso, ala B",
-      equipos: 30, estado: "disponible", so: "Windows 11", procesador: "Intel Core i5-10400",
-      ram: "8 GB DDR4", almacenamiento: "512 GB SSD", red: "Conectado a la red interna (VLAN 10)",
-      responsable: "Juan Pérez", responsableId: "prof_juan", horario: "07:30 - 18:00",
-      servicios: ["Internet", "Impresora de red", "Proyector", "Pizarra digital"],
-      descripcion: "Laboratorio equipado para clases de informática, programación, ofimática y navegación segura.",
-      foto: "assets/lab-generico.svg", posicion: { x: 20, y: 60, w: 180, h: 120 }
-    },
-    {
-      id: 2, nombre: "Laboratorio 2", sala: "Sala B-202", ubicacion: "Segundo piso, ala B",
-      equipos: 30, estado: "disponible", so: "Windows 11", procesador: "Intel Core i5-10400",
-      ram: "8 GB DDR4", almacenamiento: "512 GB SSD", red: "Conectado a la red interna (VLAN 10)",
-      responsable: "Ana López", responsableId: "prof_ana", horario: "07:30 - 18:00",
-      servicios: ["Internet", "Impresora de red", "Proyector"],
-      descripcion: "Laboratorio de uso general para asignaturas de la carrera de Programación.",
-      foto: "assets/lab-generico.svg", posicion: { x: 220, y: 60, w: 180, h: 120 }
-    },
-    {
-      id: 3, nombre: "Laboratorio 3", sala: "Sala B-203", ubicacion: "Segundo piso, ala B",
-      equipos: 30, estado: "ocupado", so: "Ubuntu 22.04 LTS", procesador: "Intel Core i5-10400",
-      ram: "8 GB DDR4", almacenamiento: "256 GB SSD", red: "Conectado a la red interna (VLAN 10)",
-      responsable: "Diego Rojas", responsableId: "prof_diego", horario: "08:00 - 17:00",
-      servicios: ["Internet", "Proyector"],
-      descripcion: "Laboratorio orientado a programación y entornos Linux.",
-      foto: "assets/lab-generico.svg", posicion: { x: 420, y: 60, w: 180, h: 120 }
-    },
-    {
-      id: 4, nombre: "Laboratorio 4", sala: "Sala B-205", ubicacion: "Segundo piso, ala B",
-      equipos: 25, estado: "mantencion", so: "Windows 11", procesador: "Intel Core i3-10100",
-      ram: "8 GB DDR4", almacenamiento: "256 GB SSD", red: "Conectado a la red interna (VLAN 10)",
-      responsable: "Camila Soto", responsableId: "prof_camila", horario: "07:30 - 18:00",
-      servicios: ["Internet", "Proyector"],
-      descripcion: "Laboratorio de apoyo para talleres y evaluaciones prácticas.",
-      foto: "assets/lab-generico.svg", posicion: { x: 620, y: 60, w: 150, h: 120 }
-    },
-    {
-      id: 5, nombre: "Laboratorio de Redes", sala: "Sala B-204", ubicacion: "Segundo piso, ala B",
-      equipos: 30, estado: "disponible", so: "Windows Server 2022", procesador: "Intel Core i7-10700",
-      ram: "16 GB DDR4", almacenamiento: "1 TB SSD NVMe", red: "Rack de switches y patch panel propio",
-      responsable: "Juan Pérez", responsableId: "prof_juan", horario: "07:30 - 18:00",
-      servicios: ["Internet", "Rack de servidores", "Proyector"],
-      descripcion: "Laboratorio especializado en redes: cableado estructurado, switches y servidores.",
-      foto: "assets/lab-generico.svg", posicion: { x: 220, y: 220, w: 180, h: 120 }
-    }
-  ];
-
   const USUARIOS = [
     { id: "INSUCO", nombre: "Administrador", apellido: "Sistema", iniciales: "AD", email: "admin@liceo.cl", password: "Insuco1336", rol: "admin", area: "Administración", especialidad: "Gestión de sistemas y redes", nivelAcceso: "total" },
     { id: "prof_juan", nombre: "Juan", apellido: "Pérez", iniciales: "JP", email: "jperez@liceo.cl", password: "juan123", rol: "programacion", area: "Programación", especialidad: "Desarrollo Web y Redes", nivelAcceso: "tecnico" },
@@ -373,7 +471,7 @@ function seed() {
     { id: "res_002", labId: 2, usuarioId: "prof_camila", fecha: "2026-08-25", horaInicio: "10:30", horaFin: "12:00", motivo: "Taller de Estadística aplicada", estado: "confirmada" },
     { id: "res_003", labId: 3, usuarioId: "prof_diego", fecha: "2026-08-22", horaInicio: "08:00", horaFin: "12:00", motivo: "Clase de Sistemas Operativos Linux", estado: "confirmada" },
     { id: "res_004", labId: 1, usuarioId: "prof_marcos", fecha: "2026-08-26", horaInicio: "14:00", horaFin: "16:00", motivo: "Laboratorio de Física computacional", estado: "pendiente" },
-    { id: "res_005", labId: 5, usuarioId: "prof_juan", fecha: "2026-08-27", horaInicio: "09:00", horaFin: "11:00", motivo: "Práctica de cableado estructurado", estado: "confirmada" }
+    { id: "res_005", labId: 5, usuarioId: "prof_juan", fecha: "2026-08-27", horaInicio: "09:00", horaFin: "11:00", motivo: "Clase de ofimática y navegación segura", estado: "confirmada" }
   ];
 
   const REPORTES = [
@@ -381,7 +479,7 @@ function seed() {
       id: "rep_001", tipo: "uso", titulo: "Uso mensual de laboratorios",
       descripcion: "Reporte de horas de uso por laboratorio en el mes de julio 2026.",
       fecha: "2026-07-31", generadoPor: "INSUCO",
-      datos: { labels: ["Lab 1", "Lab 2", "Lab 3", "Lab 4", "Lab Redes"], valores: [72, 68, 55, 20, 80] }
+      datos: { labels: ["Lab 1", "Lab 2", "Lab 3", "Lab 4", "Lab 5"], valores: [72, 68, 55, 20, 80] }
     },
     {
       id: "rep_002", tipo: "fallas", titulo: "Registro de fallas de equipos",
@@ -397,13 +495,18 @@ function seed() {
       id: "rep_003", tipo: "disponibilidad", titulo: "Disponibilidad semanal",
       descripcion: "Porcentaje de disponibilidad por laboratorio — semana del 17 al 21 de agosto 2026.",
       fecha: "2026-08-21", generadoPor: "INSUCO",
-      datos: { labels: ["Lab 1", "Lab 2", "Lab 3", "Lab 4", "Lab Redes"], valores: [85, 90, 60, 0, 95] }
+      datos: { labels: ["Lab 1", "Lab 2", "Lab 3", "Lab 4", "Lab 5"], valores: [85, 90, 60, 0, 95] }
     },
     {
       id: "rep_004", tipo: "inventario", titulo: "Inventario de equipos actualizado",
       descripcion: "Listado completo del estado de todos los equipos en los laboratorios.",
       fecha: "2026-08-20", generadoPor: "INSUCO",
-      datos: { total: 145, activos: 141, enFalla: 3, enMantencion: 1 }
+      datos: {
+        total: TOTAL_EQUIPOS_INVENTARIO,
+        activos: TOTAL_EQUIPOS_INVENTARIO - INVENTARIO_EJEMPLO.enFalla - INVENTARIO_EJEMPLO.enMantencion,
+        enFalla: INVENTARIO_EJEMPLO.enFalla,
+        enMantencion: INVENTARIO_EJEMPLO.enMantencion
+      }
     }
   ];
 
@@ -441,20 +544,7 @@ function seed() {
       });
 
       for (let i = 1; i <= l.equipos; i++) {
-        const idEq = `${l.id}-PC${String(i).padStart(2, "0")}`;
-        insertEquipo.run({
-          id: idEq, lab_id: l.id, nombre: `PC-${l.id}${String(i).padStart(2, "0")}`,
-          tipo: "Desktop", fabricante: "HP",
-          modelo: i <= 10 ? "ProDesk 400 G7" : "EliteDesk 800 G6",
-          serie: `SN${l.id}${String(1000 + i)}`,
-          procesador: l.procesador, ram: l.ram, almacenamiento: l.almacenamiento, so: l.so,
-          ip: `192.168.${10 + l.id}.${100 + i}`,
-          mac: `AA:BB:CC:${String(l.id).padStart(2, "0")}:${String(i).padStart(2, "0")}:FF`,
-          monitor: '22" Full HD', teclado: "USB estándar", mouse: "USB óptico",
-          estado: i === 3 && l.id === 4 ? "falla" : l.estado === "mantencion" ? "mantencion" : "activo",
-          ultimo_encendido: "2026-08-20 08:15",
-          observaciones: i === 3 && l.id === 4 ? "Disco duro con sectores defectuosos" : ""
-        });
+        insertEquipo.run(datosEquipo(l, i));
       }
     }
 
@@ -489,7 +579,7 @@ function seed() {
     throw err;
   }
 
-  console.log("Datos de ejemplo cargados: 5 laboratorios, equipos, 7 usuarios, agenda y reportes.");
+  console.log(`Datos de ejemplo cargados: ${LABORATORIOS.length} laboratorios, ${TOTAL_EQUIPOS_INVENTARIO} equipos, ${USUARIOS.length} usuarios, agenda y reportes.`);
 }
 
 export { DB_PATH, DB_DIR, db, abrirConexion };

@@ -398,14 +398,14 @@ import { abrirModal, cerrarModal, formatFecha, getQueryParam, refrescarNotificac
     if (tipo === "otro") return {};
     if (tipo === "uso" || tipo === "disponibilidad") {
       return {
-        labels:  ["Lab 1","Lab 2","Lab 3","Lab 4","Lab Redes"],
+        labels:  ["Lab 1","Lab 2","Lab 3","Lab 4","Lab 5"],
         valores: [70,65,50,15,85].map((v) => v + Math.floor(Math.random() * 15))
       };
     }
     if (tipo === "fallas") {
       return { fallas: [{ equipo:"PC-nuevo", lab:"Lab 1", descripcion:"Falla simulada", estado:"pendiente" }] };
     }
-    return { total:145, activos:141, enFalla:3, enMantencion:1 };
+    return { total:138, activos:134, enFalla:3, enMantencion:1 };
   }
 
   function buildReporteHTML(rep) {

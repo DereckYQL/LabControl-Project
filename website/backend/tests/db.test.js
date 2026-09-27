@@ -26,7 +26,7 @@ test("BD nueva: crea esquema, aplica migraciones y hace seed", async () => {
     .prepare("SELECT version FROM schema_migrations ORDER BY version")
     .all()
     .map((r) => r.version);
-  expect(versiones).toEqual([2, 3, 4, 5, 6, 7, 8]);
+  expect(versiones).toEqual([2, 3, 4, 5, 6, 7, 8, 9]);
 
   const columnas = db
     .prepare("PRAGMA table_info(reportes)")
@@ -79,8 +79,44 @@ test("es idempotente: reabrir la misma BD no re-aplica migraciones", async () =>
     .prepare("SELECT version FROM schema_migrations ORDER BY version")
     .all()
     .map((r) => r.version);
-  expect(versiones).toEqual([2, 3, 4, 5, 6, 7, 8]);
+  expect(versiones).toEqual([2, 3, 4, 5, 6, 7, 8, 9]);
 
   const admin = db.prepare("SELECT password FROM usuarios WHERE id = 'INSUCO'").get();
   expect(String(admin.password)).toMatch(/^\$2[ab]\$/);
+});
+
+test("los laboratorios tienen la ficha real de inventario", async () => {
+  const { default: db } = await import(`../db.js?v=${Date.now()}`);
+
+  const labs = db
+    .prepare("SELECT id, nombre, equipos, so, servicios FROM laboratorios ORDER BY id")
+    .all()
+    .map((l) => ({
+      id: l.id,
+      nombre: l.nombre,
+      equipos: l.equipos,
+      so: l.so,
+      servicios: JSON.parse(l.servicios || "[]"),
+    }));
+
+  expect(labs).toEqual([
+    { id: 1, nombre: "Laboratorio 1", equipos: 30, so: "Windows 11 Pro", servicios: ["Pizarra", "Proyectos"] },
+    { id: 2, nombre: "Laboratorio 2", equipos: 27, so: "Windows 11 Pro", servicios: ["Pizarra", "Proyector"] },
+    { id: 3, nombre: "Laboratorio 3", equipos: 23, so: "Linux Mint", servicios: ["Pizarra"] },
+    { id: 4, nombre: "Laboratorio 4", equipos: 28, so: "Windows 11 Pro", servicios: ["Pizarra"] },
+    { id: 5, nombre: "Laboratorio 5", equipos: 30, so: "Linux Mint y Windows 10", servicios: ["Pizarra", "Proyector"] },
+  ]);
+
+  // La lista de equipos debe cuadrar con la cantidad declarada por laboratorio.
+  for (const l of labs) {
+    const n = db
+      .prepare("SELECT COUNT(*) AS n FROM equipos WHERE lab_id = ?")
+      .get(l.id).n;
+    expect(Number(n)).toBe(l.equipos);
+  }
+
+  const soDistintos = db
+    .prepare("SELECT COUNT(DISTINCT so) AS n FROM equipos")
+    .get().n;
+  expect(Number(soDistintos)).toBeGreaterThan(1);
 });

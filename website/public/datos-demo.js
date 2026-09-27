@@ -11,43 +11,43 @@
   const LABORATORIOS = [
     {
       id: 1, nombre: "Laboratorio 1", sala: "Sala B-201", ubicacion: "Segundo piso, ala B",
-      equipos: 30, estado: "disponible", so: "Windows 11", procesador: "Intel Core i5-10400",
+      equipos: 30, estado: "disponible", so: "Windows 11 Pro", procesador: "Intel Core i5-10400",
       ram: "8 GB DDR4", almacenamiento: "512 GB SSD", red: "Conectado a la red interna (VLAN 10)",
       responsable: "Juan Pérez", responsableId: "prof_juan", horario: "07:30 - 18:00",
-      servicios: ["Internet", "Impresora de red", "Proyector", "Pizarra digital"],
+      servicios: ["Pizarra", "Proyectos"],
       descripcion: "Laboratorio equipado para clases de informática, programación, ofimática y navegación segura."
     },
     {
       id: 2, nombre: "Laboratorio 2", sala: "Sala B-202", ubicacion: "Segundo piso, ala B",
-      equipos: 30, estado: "disponible", so: "Windows 11", procesador: "Intel Core i5-10400",
+      equipos: 27, estado: "disponible", so: "Windows 11 Pro", procesador: "Intel Core i5-10400",
       ram: "8 GB DDR4", almacenamiento: "512 GB SSD", red: "Conectado a la red interna (VLAN 10)",
       responsable: "Ana López", responsableId: "prof_ana", horario: "07:30 - 18:00",
-      servicios: ["Internet", "Impresora de red", "Proyector"],
+      servicios: ["Pizarra", "Proyector"],
       descripcion: "Laboratorio de uso general para asignaturas de la carrera de Programación."
     },
     {
       id: 3, nombre: "Laboratorio 3", sala: "Sala B-203", ubicacion: "Segundo piso, ala B",
-      equipos: 30, estado: "ocupado", so: "Ubuntu 22.04 LTS", procesador: "Intel Core i5-10400",
+      equipos: 23, estado: "ocupado", so: "Linux Mint", procesador: "Intel Core i5-10400",
       ram: "8 GB DDR4", almacenamiento: "256 GB SSD", red: "Conectado a la red interna (VLAN 10)",
       responsable: "Diego Rojas", responsableId: "prof_diego", horario: "08:00 - 17:00",
-      servicios: ["Internet", "Proyector"],
+      servicios: ["Pizarra"],
       descripcion: "Laboratorio orientado a programación y entornos Linux."
     },
     {
       id: 4, nombre: "Laboratorio 4", sala: "Sala B-205", ubicacion: "Segundo piso, ala B",
-      equipos: 25, estado: "mantencion", so: "Windows 11", procesador: "Intel Core i3-10100",
+      equipos: 28, estado: "mantencion", so: "Windows 11 Pro", procesador: "Intel Core i3-10100",
       ram: "8 GB DDR4", almacenamiento: "256 GB SSD", red: "Conectado a la red interna (VLAN 10)",
       responsable: "Camila Soto", responsableId: "prof_camila", horario: "07:30 - 18:00",
-      servicios: ["Internet", "Proyector"],
+      servicios: ["Pizarra"],
       descripcion: "Laboratorio de apoyo para talleres y evaluaciones prácticas."
     },
     {
-      id: 5, nombre: "Laboratorio de Redes", sala: "Sala B-204", ubicacion: "Segundo piso, ala B",
-      equipos: 30, estado: "disponible", so: "Windows Server 2022", procesador: "Intel Core i7-10700",
+      id: 5, nombre: "Laboratorio 5", sala: "Sala B-204", ubicacion: "Segundo piso, ala B",
+      equipos: 30, estado: "disponible", so: "Linux Mint y Windows 10", procesador: "Intel Core i7-10700",
       ram: "16 GB DDR4", almacenamiento: "1 TB SSD NVMe", red: "Rack de switches y patch panel propio",
       responsable: "Juan Pérez", responsableId: "prof_juan", horario: "07:30 - 18:00",
-      servicios: ["Internet", "Rack de servidores", "Proyector"],
-      descripcion: "Laboratorio especializado en redes: cableado estructurado, switches y servidores."
+      servicios: ["Pizarra", "Proyector"],
+      descripcion: "Laboratorio con doble sistema operativo (Linux Mint y Windows 10) para clases de informática, ofimática y navegación segura."
     }
   ];
 
@@ -66,7 +66,7 @@
     { id: "res_002", labId: 2, usuarioId: "prof_camila", fecha: "2026-08-25", horaInicio: "10:30", horaFin: "12:00", motivo: "Taller de Estadística aplicada", estado: "confirmada" },
     { id: "res_003", labId: 3, usuarioId: "prof_diego", fecha: "2026-08-22", horaInicio: "08:00", horaFin: "12:00", motivo: "Clase de Sistemas Operativos Linux", estado: "confirmada" },
     { id: "res_004", labId: 1, usuarioId: "prof_marcos", fecha: "2026-08-26", horaInicio: "14:00", horaFin: "16:00", motivo: "Laboratorio de Física computacional", estado: "pendiente" },
-    { id: "res_005", labId: 5, usuarioId: "prof_juan", fecha: "2026-08-27", horaInicio: "09:00", horaFin: "11:00", motivo: "Práctica de cableado estructurado", estado: "confirmada" }
+    { id: "res_005", labId: 5, usuarioId: "prof_juan", fecha: "2026-08-27", horaInicio: "09:00", horaFin: "11:00", motivo: "Clase de ofimática y navegación segura", estado: "confirmada" }
   ];
 
   const REPORTES = [
@@ -74,7 +74,7 @@
       id: "rep_001", tipo: "uso", titulo: "Uso mensual de laboratorios",
       descripcion: "Reporte de horas de uso por laboratorio en el mes de julio 2026.",
       fecha: "2026-07-31", generadoPor: "INSUCO",
-      datos: { labels: ["Lab 1", "Lab 2", "Lab 3", "Lab 4", "Lab Redes"], valores: [72, 68, 55, 20, 80] }
+      datos: { labels: ["Lab 1", "Lab 2", "Lab 3", "Lab 4", "Lab 5"], valores: [72, 68, 55, 20, 80] }
     },
     {
       id: "rep_002", tipo: "fallas", titulo: "Registro de fallas de equipos",
@@ -90,13 +90,13 @@
       id: "rep_003", tipo: "disponibilidad", titulo: "Disponibilidad semanal",
       descripcion: "Porcentaje de disponibilidad por laboratorio — semana del 17 al 21 de agosto 2026.",
       fecha: "2026-08-21", generadoPor: "INSUCO",
-      datos: { labels: ["Lab 1", "Lab 2", "Lab 3", "Lab 4", "Lab Redes"], valores: [85, 90, 60, 0, 95] }
+      datos: { labels: ["Lab 1", "Lab 2", "Lab 3", "Lab 4", "Lab 5"], valores: [85, 90, 60, 0, 95] }
     },
     {
       id: "rep_004", tipo: "inventario", titulo: "Inventario de equipos actualizado",
       descripcion: "Listado completo del estado de todos los equipos en los laboratorios.",
       fecha: "2026-08-20", generadoPor: "INSUCO",
-      datos: { total: 145, activos: 141, enFalla: 3, enMantencion: 1 }
+      datos: { total: 138, activos: 134, enFalla: 3, enMantencion: 1 }
     }
   ];
 
