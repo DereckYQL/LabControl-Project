@@ -630,7 +630,8 @@ document.getElementById("btn-guardar-cfg").addEventListener("click", () => {
         if (prev) {
           localStorage.setItem("lc_sesion", JSON.stringify({
             ...prev, token: res.token,
-            nombre: res.nombre, apellido: res.apellido, iniciales: res.iniciales
+            nombre: res.nombre, apellido: res.apellido, iniciales: res.iniciales,
+            email: res.email ?? prev.email
           }));
         }
       }

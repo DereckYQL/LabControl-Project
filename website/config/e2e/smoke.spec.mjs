@@ -399,3 +399,77 @@ test("2FA: el admin activa, verifica y desactiva en Configuración", async ({ pa
     }
   }
 });
+
+test.describe("celular: el usuario y las notificaciones viven dentro del menú", () => {
+  test.use({ viewport: { width: 390, height: 844 } });
+
+  test("la barra superior queda solo con el botón de menú", async ({ page }) => {
+    await login(page, "INSUCO", "Insuco1336");
+
+    // Con el menú plegado, ni el usuario ni la campana ocupan la barra superior.
+    await expect(page.locator(".sidebar__toggle")).toBeVisible();
+    await expect(page.locator(".sidebar__user")).toBeHidden();
+    await expect(page.locator(".notif-btn")).toBeHidden();
+
+    const barra = await page.locator(".sidebar").boundingBox();
+    const ancho = await page.evaluate(() => document.documentElement.clientWidth);
+    expect(barra.width).toBe(ancho);
+  });
+
+  test("el menú muestra foto, nombre, correo y la campana a un lado", async ({ page }) => {
+    await login(page, "INSUCO", "Insuco1336");
+
+    await page.click(".sidebar__toggle");
+
+    const cabecera = page.locator(".sidebar__me");
+    await expect(cabecera).toBeVisible();
+    await expect(cabecera.locator(".avatar")).toHaveText("AD");
+    await expect(cabecera.locator(".name")).toHaveText("Administrador Sistema");
+    await expect(cabecera.locator(".email")).toHaveText("admin@liceo.cl");
+
+    // La campana está en la cabecera, a un lado del usuario, y no en la barra.
+    const campana = cabecera.locator(".notif-btn");
+    await expect(campana).toBeVisible();
+    const avatar = await cabecera.locator(".avatar").boundingBox();
+    const boton = await campana.boundingBox();
+    expect(boton.x).toBeGreaterThan(avatar.x + avatar.width);
+
+    // Separación entre la info del usuario y el resto de botones del menú.
+    const separacion = await cabecera.evaluate((el) => getComputedStyle(el).borderBottomWidth);
+    expect(Number.parseFloat(separacion)).toBeGreaterThan(0);
+    const ultimoEnlace = await page.locator(".sidebar__link").last().boundingBox();
+    const cabeceraBox = await cabecera.boundingBox();
+    expect(cabeceraBox.y + cabeceraBox.height).toBeLessThan(ultimoEnlace.y);
+  });
+
+  test("las notificaciones se abren dentro del menú y se cierran al plegarlo", async ({ page }) => {
+    await login(page, "INSUCO", "Insuco1336");
+
+    await page.click(".sidebar__toggle");
+    const panel = page.locator(".sidebar__me .notif-panel");
+    await expect(panel).toBeHidden();
+
+    await page.click(".sidebar__me .notif-btn");
+    await expect(panel).toBeVisible();
+
+    // Plegar el menú también cierra la ventana de notificaciones.
+    await page.click(".sidebar__toggle");
+    await expect(page.locator(".sidebar__me")).toBeHidden();
+    await page.click(".sidebar__toggle");
+    await expect(panel).toBeHidden();
+  });
+
+  test("al volver a escritorio el usuario y la campana salen del menú", async ({ page }) => {
+    await login(page, "INSUCO", "Insuco1336");
+
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await expect(page.locator(".sidebar__me")).toBeHidden();
+    await expect(page.locator(".sidebar__user")).toBeVisible();
+    await expect(page.locator(".notif-btn")).toBeVisible();
+
+    // Y al plegar de nuevo, el menú vuelve a armar la cabecera del desplegable.
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.click(".sidebar__toggle");
+    await expect(page.locator(".sidebar__me .sidebar__user")).toBeVisible();
+  });
+});

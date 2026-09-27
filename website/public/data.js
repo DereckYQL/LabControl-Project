@@ -810,6 +810,7 @@ export const AUTH = {
         nombre: data.usuario.nombre,
         apellido: data.usuario.apellido,
         iniciales: data.usuario.iniciales,
+        email: data.usuario.email,
         nivelAcceso: data.usuario.nivelAcceso
       };
       localStorage.setItem("lc_sesion", JSON.stringify(sesion));
@@ -832,6 +833,7 @@ export const AUTH = {
           nombre: data.usuario.nombre,
           apellido: data.usuario.apellido,
           iniciales: data.usuario.iniciales,
+          email: data.usuario.email,
           nivelAcceso: data.usuario.nivelAcceso
         };
         localStorage.setItem("lc_sesion", JSON.stringify(sesion));
@@ -856,6 +858,7 @@ export const AUTH = {
         nombre: data.usuario.nombre,
         apellido: data.usuario.apellido,
         iniciales: data.usuario.iniciales,
+        email: data.usuario.email,
         nivelAcceso: data.usuario.nivelAcceso
       };
       localStorage.setItem("lc_sesion", JSON.stringify(sesion));

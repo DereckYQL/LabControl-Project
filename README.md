@@ -16,12 +16,16 @@ Solo el **Administrador** puede gestionar usuarios y acceder a la configuración
 
 ## Cambios
 
-> **v3.6** — **Formulario de registro en dos columnas y textos legales más simples**:
-> > - **Registro en 2 columnas**: el formulario "Crear cuenta" (nombre, apellido, usuario, correo, área y especialidad) se reparte ahora en dos columnas en pantalla de escritorio, lo que ahorra espacio vertical y deja los botones y los avisos a lo ancho. En el celular vuelve a una sola columna, así que no cambia nada en el móvil.
-> > - **Términos y privacidad sin el bloque de menores**: se retiraron las cláusulas de consentimiento de menores de edad (la sección "1. Registro y requisitos de edad" pasa a ser "1. Registro" y se elimina "6. Menores de edad"), y con ellas la línea de consentimiento que aparecía bajo los botones del registro. Los documentos quedan más cortos y más fáciles de leer.
-> > - **Renumeración de la privacidad**: la sección "Tus derechos" pasa a ser la 6, manteniendo la numeración correlativa tras quitar la sección de menores.
+> **v3.6** — **Menú del celular con el usuario y las notificaciones dentro, registro en 2 columnas y textos legales para adultos**:
+> > - **Barra superior minimalista**: en la vista del celular la barra deja de mostrar el usuario y la campana, y queda solo el botón de menú junto al logo. Ambos elementos se movieron al desplegable, que se abre al pulsar ese botón.
+> > - **Cabecera del menú con la foto, el nombre y el correo**: arriba del menú, con una línea divisoria sutil que lo separa del resto de botones, aparece el avatar junto al nombre del usuario y su correo institucional, y a un lado el botón de notificaciones.
+> > - **Notificaciones dentro del menú**: la ventana de notificaciones se despliega a lo ancho del menú, debajo de los datos del usuario, y se cierra sola al plegar el menú.
+> > - **El correo ahora viaja con la sesión**: se guarda al iniciar sesión (y al guardar el perfil) y, si vienes de una versión anterior, se recupera una sola vez desde el servidor.
+> > - **Escritorio sin cambios**: por encima de 860 px la barra lateral se mantiene igual (usuario al pie, campana arriba a la derecha); el reparto se ajusta solo al cambiar el tamaño de la ventana o girar el celular.
+> > - **Registro en 2 columnas**: el formulario "Crear cuenta" (nombre, apellido, usuario, correo, área y especialidad) se reparte en dos columnas en escritorio y vuelve a una sola columna en el celular.
+> > - **Textos legales para adultos**: se eliminaron la línea de consentimiento de menores del formulario de registro y la sección "Menores de edad" de la Política de privacidad; Términos de uso y Política de privacidad ahora aclaran que la aplicación está reservada a personas adultas y se opera bajo la supervisión del establecimiento.
 > > - **Caché renovada en `3.6.1`**: todos los assets (CSS y JS) y el `service-worker` cambian su versión para forzar la descarga en los navegadores y evitar páginas con archivos viejos.
-> > - **Verificación completa en v3.6**: lint 0 errores, typecheck OK, sintaxis OK, suite backend 38/38 y e2e 23/23.
+> > - **Verificación completa en v3.6**: lint 0 errores, typecheck OK, sintaxis OK, suite backend 38/38 y e2e 27/27.
 
 > **v3.5** — **Registro de cuentas, recuperación de contraseña e inicio con Google en el login**:
 > > - **Login como en la vida real**: bajo el botón "Ingresar" ahora hay dos enlaces pequeños — *¿Olvidaste tu contraseña?* y *Crear cuenta* — y, debajo, un divisor con el botón **Continuar con Google**. El texto legal del registro está adaptado al estilo Roblox (Términos de uso, Política de privacidad y consentimiento de menores), y ambos documentos se muestran en un modal accesible directamente desde el formulario.

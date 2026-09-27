@@ -3,7 +3,8 @@
 import {
   AUTH, ESTADOS,
   cargarAgenda, cargarConfig, cargarNotificaciones, cargarSolicitudEspecialidad,
-  marcarNotificacionLeida, marcarTodasNotificaciones, resolverSolicitudEspecialidad
+  marcarNotificacionLeida, marcarTodasNotificaciones, obtenerUsuarioPorId,
+  resolverSolicitudEspecialidad
 } from "./data.js";
 
 /* Navegación (según rol) */
@@ -21,6 +22,13 @@ const NAV_ITEMS_ALL = [
 
 let __iconsObserver = null;
 let __sidebarListenersAdded = false;
+
+/* En el celular la barra lateral se convierte en una barra con solo el botón de
+   menú: el bloque de usuario y la campana de notificaciones se muestran dentro
+   del desplegable. El corte es el mismo que usa el CSS (860px). */
+const MQ_MOVIL = window.matchMedia("(max-width: 860px)");
+let __bloqueUsuario = null;
+
 export function actualizarIconosLucide() {
   if (!window.lucide || typeof window.lucide.createIcons !== "function") return;
   try {
@@ -39,6 +47,99 @@ export function actualizarIconosLucide() {
       __iconsObserver.observe(document.body, { childList: true, subtree: true });
     }
   } catch (e) {}
+}
+
+// Pinta avatar, nombre, rol y correo del usuario en la barra lateral, y deja
+// listo el botón de cerrar sesión.
+function pintarUsuario(sesion) {
+  const userEl = document.querySelector(".sidebar__user");
+  if (!userEl || !sesion) return;
+
+  const avatarEl = userEl.querySelector(".avatar");
+  const nameEl   = userEl.querySelector(".name");
+  const roleEl   = userEl.querySelector(".role");
+
+  if (avatarEl) avatarEl.textContent = sesion.iniciales ?? (sesion.nombre?.slice(0, 2) ?? "??").toUpperCase();
+  if (nameEl)   nameEl.textContent   = `${sesion.nombre} ${sesion.apellido ?? ""}`.trim();
+  if (roleEl) {
+    const labels = { admin: "Administrador", programacion: "Prof. Programación", otro_area: "Profesor" };
+    roleEl.textContent = labels[sesion.rol] ?? sesion.rol;
+  }
+
+  // El correo acompaña al nombre en el menú del celular.
+  let emailEl = userEl.querySelector(".email");
+  if (!emailEl) {
+    const contenedor = roleEl?.parentElement;
+    if (contenedor) {
+      emailEl = document.createElement("div");
+      emailEl.className = "email";
+      contenedor.appendChild(emailEl);
+    }
+  }
+  if (emailEl) emailEl.textContent = sesion.email ?? "";
+
+  if (!userEl.querySelector(".logout-btn")) {
+    const btn = document.createElement("button");
+    btn.className = "logout-btn";
+    btn.title = "Cerrar sesión";
+    btn.innerHTML = '<i data-lucide="log-out"></i>';
+    btn.addEventListener("click", () => AUTH.logout());
+    userEl.appendChild(btn);
+  }
+}
+
+// La sesión guarda el correo; si viene de una versión anterior que no lo
+// guardaba, se pide una vez al servidor y se conserva para el resto de páginas.
+async function completarCorreoSesion(sesion) {
+  if (!sesion || sesion.email) return;
+  try {
+    const usuario = await obtenerUsuarioPorId(sesion.id);
+    if (!usuario?.email) return;
+    const actual = AUTH.getSesion();
+    if (actual) {
+      localStorage.setItem("lc_sesion", JSON.stringify({ ...actual, email: usuario.email }));
+    }
+    pintarUsuario({ ...sesion, email: usuario.email });
+  } catch {}
+}
+
+// Agrupa el bloque de usuario con la campana de notificaciones. En escritorio
+// el contenedor no genera caja (CSS `display: contents`) y todo queda igual
+// que antes: usuario al pie de la barra lateral y campana en su esquina.
+function ubicarBloqueUsuario() {
+  const sidebar = document.querySelector(".sidebar");
+  const nav = document.getElementById("sidebar-nav");
+  const userEl = document.querySelector(".sidebar__user");
+  if (!sidebar || !nav || !userEl) return;
+
+  if (!__bloqueUsuario) {
+    __bloqueUsuario = document.createElement("div");
+    __bloqueUsuario.className = "sidebar__me";
+  }
+
+  const wrap = sidebar.querySelector(".notif-wrap");
+
+  if (MQ_MOVIL.matches) {
+    // Arriba del menú desplegable, por delante de los enlaces de navegación.
+    if (__bloqueUsuario.parentElement !== nav) nav.insertBefore(__bloqueUsuario, nav.firstChild);
+    if (userEl.parentElement !== __bloqueUsuario) __bloqueUsuario.appendChild(userEl);
+    if (wrap && wrap.parentElement !== __bloqueUsuario) __bloqueUsuario.appendChild(wrap);
+  } else {
+    if (__bloqueUsuario.parentElement) __bloqueUsuario.remove();
+    if (userEl.parentElement !== sidebar) sidebar.appendChild(userEl);
+    if (wrap && wrap.parentElement !== sidebar) sidebar.appendChild(wrap);
+  }
+}
+
+MQ_MOVIL.addEventListener("change", ubicarBloqueUsuario);
+
+// Cierra la ventana de notificaciones (al plegar el menú móvil o al pulsar
+// fuera de ella).
+function cerrarNotificaciones() {
+  const panel = document.querySelector(".notif-panel");
+  const btn = document.querySelector(".notif-btn");
+  if (panel) panel.style.display = "none";
+  if (btn) btn.setAttribute("aria-expanded", "false");
 }
 
 // Arma el sidebar; si la página exige login y no hay sesión, redirige.
@@ -66,26 +167,10 @@ export function renderSidebar(activeHref, requireAuth = true) {
   actualizarIconosLucide();
 
   if (sesion) {
-    const avatarEl  = document.querySelector(".sidebar__user .avatar");
-    const nameEl    = document.querySelector(".sidebar__user .name");
-    const roleEl    = document.querySelector(".sidebar__user .role");
-    if (avatarEl) avatarEl.textContent = sesion.iniciales ?? (sesion.nombre?.slice(0, 2) ?? "??").toUpperCase();
-    if (nameEl)   nameEl.textContent   = `${sesion.nombre} ${sesion.apellido ?? ""}`.trim();
-    if (roleEl) {
-      const labels = { admin: "Administrador", programacion: "Prof. Programación", otro_area: "Profesor" };
-      roleEl.textContent = labels[rol] ?? rol;
-    }
-
-    const userEl = document.querySelector(".sidebar__user");
-    if (userEl && !userEl.querySelector(".logout-btn")) {
-      const btn = document.createElement("button");
-      btn.className = "logout-btn";
-      btn.title = "Cerrar sesión";
-      btn.innerHTML = '<i data-lucide="log-out"></i>';
-      btn.addEventListener("click", () => AUTH.logout());
-      userEl.appendChild(btn);
-    }
+    pintarUsuario(sesion);
+    completarCorreoSesion(sesion);
   }
+  ubicarBloqueUsuario();
 
   const sidebar = document.querySelector(".sidebar");
   if (sidebar && !sidebar.querySelector(".sidebar__toggle")) {
@@ -100,6 +185,7 @@ export function renderSidebar(activeHref, requireAuth = true) {
       sidebar.classList.toggle("nav-open", open);
       toggle.setAttribute("aria-expanded", String(open));
       toggle.innerHTML = open ? '<i data-lucide="x"></i>' : '<i data-lucide="menu"></i>';
+      if (!open) cerrarNotificaciones();
     };
 
     toggle.addEventListener("click", () =>
@@ -120,6 +206,7 @@ export function renderSidebar(activeHref, requireAuth = true) {
             t.setAttribute("aria-expanded", "false");
             t.innerHTML = '<i data-lucide="menu"></i>';
           }
+          cerrarNotificaciones();
         }
       });
       __sidebarListenersAdded = true;
@@ -168,6 +255,7 @@ function inicializarNotificaciones() {
     </div>
   `;
   sidebar.appendChild(wrap);
+  ubicarBloqueUsuario();
 
   const btn   = wrap.querySelector(".notif-btn");
   const panel = wrap.querySelector(".notif-panel");
@@ -182,8 +270,7 @@ function inicializarNotificaciones() {
 
   document.addEventListener("click", (e) => {
     if (panel.style.display === "block" && !panel.contains(e.target)) {
-      panel.style.display = "none";
-      btn.setAttribute("aria-expanded", "false");
+      cerrarNotificaciones();
     }
   });
 

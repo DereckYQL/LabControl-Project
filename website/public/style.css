@@ -359,6 +359,12 @@ h1 + p { margin: 4px 0 0; color: var(--color-text-muted); font-size: .9rem; }
   stroke-width: 2;
 }
 
+/* Agrupa el bloque de usuario con la campana de notificaciones. En escritorio
+   no genera caja (`display: contents`): el usuario sigue al pie de la barra
+   lateral y la campana en su esquina. En el celular se convierte en la
+   cabecera del menú desplegable (ver @media max-width: 860px). */
+.sidebar__me { display: contents; }
+
 .sidebar__user {
   display: flex;
   align-items: center;
@@ -386,7 +392,11 @@ h1 + p { margin: 4px 0 0; color: var(--color-text-muted); font-size: .9rem; }
 }
 .sidebar__user .name { font-size: .84rem; color: #fff; font-weight: 700; line-height: 1.25; }
 .sidebar__user .role { font-size: .71rem; opacity: .8; }
-.sidebar__user > div:last-child { min-width: 0; }
+/* El correo solo se muestra en el menú del celular. */
+.sidebar__user .email { display: none; }
+/* Columna de texto (nombre, rol y correo): puede encogerse para que el
+  ipsis se aplique y no empuje el botón de cerrar sesión. */
+.sidebar__user > div:not(.avatar) { min-width: 0; }
 
 .logout-btn {
   margin-left: auto;
@@ -1812,25 +1822,48 @@ tbody tr:hover { background: var(--row-hover); }
   .sidebar__brand img { width: 48px; height: 48px; }
   .sidebar__brand-name { font-size: .84rem; letter-spacing: .07em; margin-top: 0; }
 
-  /* Usuario al lado del logo */
-  .sidebar__user {
-    border-top: none;
-    margin: 0;
-    padding: 5px 9px;
-    gap: 8px;
+  /* La barra superior se queda solo con el logo y el botón de menú: el usuario
+     y la campana de notificaciones pasan al desplegable (cabecera de .sidebar__me). */
+  .sidebar__me {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 10px;
+    padding: 2px 4px 12px;
+    margin: 0 0 4px;
+    border-bottom: 1px solid rgba(255, 255, 255, .16);
+  }
+  .sidebar__me .sidebar__user {
+    flex: 1 1 auto;
     min-width: 0;
+    margin: 0;
+    padding: 0;
+    gap: 10px;
     background: transparent;
     border: none;
   }
-  .sidebar__user > div:last-child { min-width: 0; }
-  .sidebar__user .name {
-    font-size: .76rem;
+  .sidebar__me .sidebar__user > div:not(.avatar) { min-width: 0; }
+  .sidebar__me .sidebar__user .name {
+    font-size: .82rem;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
   }
-  .sidebar__user .role { display: none; }
-  .logout-btn { padding: 4px; }
+  .sidebar__me .sidebar__user .role { display: none; }
+  .sidebar__me .sidebar__user .email {
+    display: block;
+    font-size: .7rem;
+    line-height: 1.3;
+    color: rgba(255, 255, 255, .72);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .sidebar__me .logout-btn { padding: 5px; }
+
+  /* La campana acompaña al usuario; su panel se despliega dentro del menú */
+  .sidebar__me .notif-wrap { display: contents; position: static; }
+  .sidebar__me .notif-btn { order: 2; }
 
   /* Botón hamburguesa */
   .sidebar__toggle {
@@ -1892,7 +1925,6 @@ tbody tr:hover { background: var(--row-hover); }
   .sidebar { gap: 4px; padding: 5px 8px; }
   .sidebar__brand img { width: 42px; height: 42px; }
   .avatar { width: 32px; height: 32px; font-size: .72rem; }
-  .sidebar__user { padding: 4px 7px; }
 }
 
 /* IMPRESIÓN (reportes) */
@@ -2308,6 +2340,17 @@ textarea.form-input { resize: vertical; min-height: 90px; }
     left: auto;
     right: 0;
     width: min(330px, calc(100vw - 70px));
+  }
+  /* Dentro del menú móvil la ventana deja de flotar y ocupa el ancho completo
+     del desplegable, justo debajo de los datos del usuario. */
+  .sidebar__me .notif-panel {
+    order: 3;
+    flex: 1 0 100%;
+    position: static;
+    left: auto;
+    right: auto;
+    width: auto;
+    max-height: 46vh;
   }
 }
 
