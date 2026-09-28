@@ -220,6 +220,7 @@ function labFromRow(row) {
     responsable: row.responsable, responsableId: row.responsable_id,
     horario: row.horario, servicios: JSON.parse(row.servicios || "[]"),
     descripcion: row.descripcion, foto: row.foto,
+    imagenes: JSON.parse(row.imagenes || "[]"),
     posicion: { x: row.pos_x, y: row.pos_y, w: row.pos_w, h: row.pos_h }
   };
 }

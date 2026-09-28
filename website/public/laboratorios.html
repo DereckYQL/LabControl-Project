@@ -160,6 +160,18 @@
   </div>
 </div>
 
+<!-- Lightbox de imágenes del laboratorio -->
+<div id="lightbox-lab" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:2000;align-items:center;justify-content:center;cursor:zoom-out" role="dialog" aria-modal="true" aria-label="Galería de imágenes del laboratorio">
+  <button id="lightbox-lab-close" style="position:absolute;top:20px;right:24px;background:rgba(255,255,255,.15);border:none;border-radius:50%;width:40px;height:40px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:#fff;font-size:20px;z-index:2001">✕</button>
+  <button id="lightbox-lab-prev" style="position:absolute;left:20px;top:50%;transform:translateY(-50%);background:rgba(255,255,255,.15);border:none;border-radius:50%;width:48px;height:48px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:#fff;font-size:24px;z-index:2001">‹</button>
+  <button id="lightbox-lab-next" style="position:absolute;right:20px;top:50%;transform:translateY(-50%);background:rgba(255,255,255,.15);border:none;border-radius:50%;width:48px;height:48px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:#fff;font-size:24px;z-index:2001">›</button>
+  <div style="display:flex;flex-direction:column;align-items:center;gap:12px;max-width:90vw;max-height:90vh">
+    <img id="lightbox-lab-img" src="" alt="" style="max-width:min(1100px,88vw);max-height:78vh;border-radius:12px;box-shadow:0 20px 60px rgba(0,0,0,.6)" />
+    <div id="lightbox-lab-counter" style="color:rgba(255,255,255,.85);font-size:0.9rem"></div>
+    <div id="lightbox-lab-thumbs" style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center"></div>
+  </div>
+</div>
+
 <script type="module" src="data.js?v=3.7.0"></script>
 <script src="lucide.min.js?v=3.7.0"></script>
 <script type="module" src="app.js?v=3.7.0"></script>

@@ -56,6 +56,7 @@ CREATE TABLE IF NOT EXISTS laboratorios (
   servicios       TEXT DEFAULT '[]',
   descripcion     TEXT,
   foto            TEXT,
+  imagenes        TEXT DEFAULT '[]',
   pos_x INTEGER, pos_y INTEGER, pos_w INTEGER, pos_h INTEGER
 );
 
@@ -158,7 +159,8 @@ const LABORATORIOS = [
     responsable: "Juan Pérez", responsableId: "prof_juan", horario: "07:30 - 18:00",
     servicios: ["Pizarra", "Proyectos"],
     descripcion: "Laboratorio equipado para clases de informática, programación, ofimática y navegación segura.",
-    foto: "assets/lab-generico.svg", posicion: { x: 20, y: 60, w: 180, h: 120 }
+    foto: "assets/lab-generico.svg", posicion: { x: 20, y: 60, w: 180, h: 120 },
+    imagenes: ["img/labs/Trasera_lab1.jpg", "img/labs/Frontal_lab1.jpg"]
   },
   {
     id: 2, nombre: "Laboratorio 2", sala: "Sala B-202", ubicacion: "Segundo piso, ala B",
@@ -167,7 +169,8 @@ const LABORATORIOS = [
     responsable: "Ana López", responsableId: "prof_ana", horario: "07:30 - 18:00",
     servicios: ["Pizarra", "Proyector"],
     descripcion: "Laboratorio de uso general para asignaturas de la carrera de Programación.",
-    foto: "assets/lab-generico.svg", posicion: { x: 220, y: 60, w: 180, h: 120 }
+    foto: "assets/lab-generico.svg", posicion: { x: 220, y: 60, w: 180, h: 120 },
+    imagenes: ["img/labs/Trasero Derecho_lab2.png", "img/labs/Frontal Derecho_lab2.png"]
   },
   {
     id: 3, nombre: "Laboratorio 3", sala: "Sala B-203", ubicacion: "Segundo piso, ala B",
@@ -176,7 +179,8 @@ const LABORATORIOS = [
     responsable: "Diego Rojas", responsableId: "prof_diego", horario: "08:00 - 17:00",
     servicios: ["Pizarra"],
     descripcion: "Laboratorio orientado a programación y entornos Linux.",
-    foto: "assets/lab-generico.svg", posicion: { x: 420, y: 60, w: 180, h: 120 }
+    foto: "assets/lab-generico.svg", posicion: { x: 420, y: 60, w: 180, h: 120 },
+    imagenes: ["img/labs/Trasera_lab3.jpg", "img/labs/Frontal_lab3.jpg"]
   },
   {
     id: 4, nombre: "Laboratorio 4", sala: "Sala B-205", ubicacion: "Segundo piso, ala B",
@@ -185,7 +189,8 @@ const LABORATORIOS = [
     responsable: "Camila Soto", responsableId: "prof_camila", horario: "07:30 - 18:00",
     servicios: ["Pizarra"],
     descripcion: "Laboratorio de apoyo para talleres y evaluaciones prácticas.",
-    foto: "assets/lab-generico.svg", posicion: { x: 620, y: 60, w: 150, h: 120 }
+    foto: "assets/lab-generico.svg", posicion: { x: 620, y: 60, w: 150, h: 120 },
+    imagenes: ["img/labs/Trasera_lab4.jpg", "img/labs/Frontal_lab4.jpg"]
   },
   {
     id: 5, nombre: "Laboratorio 5", sala: "Sala B-204", ubicacion: "Segundo piso, ala B",
@@ -194,7 +199,8 @@ const LABORATORIOS = [
     responsable: "Juan Pérez", responsableId: "prof_juan", horario: "07:30 - 18:00",
     servicios: ["Pizarra", "Proyector"],
     descripcion: "Laboratorio con doble sistema operativo (Linux Mint y Windows 10) para clases de informática, ofimática y navegación segura.",
-    foto: "assets/lab-generico.svg", posicion: { x: 220, y: 220, w: 180, h: 120 }
+    foto: "assets/lab-generico.svg", posicion: { x: 220, y: 220, w: 180, h: 120 },
+    imagenes: ["img/labs/Trasera_lab5.jpg", "img/labs/Frontal_lab5.jpg"]
   }
 ];
 
@@ -511,8 +517,8 @@ function seed() {
   ];
 
   const insertLab = db.prepare(`
-    INSERT INTO laboratorios (id,nombre,sala,ubicacion,equipos,estado,so,procesador,ram,almacenamiento,red,responsable,responsable_id,horario,servicios,descripcion,foto,pos_x,pos_y,pos_w,pos_h)
-    VALUES (@id,@nombre,@sala,@ubicacion,@equipos,@estado,@so,@procesador,@ram,@almacenamiento,@red,@responsable,@responsable_id,@horario,@servicios,@descripcion,@foto,@pos_x,@pos_y,@pos_w,@pos_h)
+    INSERT INTO laboratorios (id,nombre,sala,ubicacion,equipos,estado,so,procesador,ram,almacenamiento,red,responsable,responsable_id,horario,servicios,descripcion,foto,imagenes,pos_x,pos_y,pos_w,pos_h)
+    VALUES (@id,@nombre,@sala,@ubicacion,@equipos,@estado,@so,@procesador,@ram,@almacenamiento,@red,@responsable,@responsable_id,@horario,@servicios,@descripcion,@foto,@imagenes,@pos_x,@pos_y,@pos_w,@pos_h)
   `);
   const insertUsr = db.prepare(`
     INSERT INTO usuarios (id,nombre,apellido,iniciales,email,password,rol,area,especialidad,nivel_acceso,activo)
@@ -540,6 +546,7 @@ function seed() {
         almacenamiento: l.almacenamiento, red: l.red, responsable: l.responsable,
         responsable_id: l.responsableId, horario: l.horario, servicios: JSON.stringify(l.servicios),
         descripcion: l.descripcion, foto: l.foto,
+        imagenes: JSON.stringify(l.imagenes || []),
         pos_x: l.posicion.x, pos_y: l.posicion.y, pos_w: l.posicion.w, pos_h: l.posicion.h
       });
 

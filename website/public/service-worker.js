@@ -1,6 +1,6 @@
 /* service-worker.js — caché offline: red para la API, caché para estáticos. */
 
-const CACHE_NAME = "labcontrol-v3.7.0";
+const CACHE_NAME = "labcontrol-v3.7.1";
 const PRECACHE_URLS = [
   "./",
   "index.html",
@@ -43,7 +43,17 @@ const PRECACHE_URLS = [
   "img/icon-192.png",
   "img/icon-512.png",
   "img/bg-tech.svg",
-  "img/bg-tech-light.svg"
+  "img/bg-tech-light.svg",
+  "img/labs/Trasera_lab1.jpg",
+  "img/labs/Frontal_lab1.jpg",
+  "img/labs/Trasero Derecho_lab2.png",
+  "img/labs/Frontal Derecho_lab2.png",
+  "img/labs/Trasera_lab3.jpg",
+  "img/labs/Frontal_lab3.jpg",
+  "img/labs/Trasera_lab4.jpg",
+  "img/labs/Frontal_lab4.jpg",
+  "img/labs/Trasera_lab5.jpg",
+  "img/labs/Frontal_lab5.jpg"
 ];
 
 // Precarga de estáticos

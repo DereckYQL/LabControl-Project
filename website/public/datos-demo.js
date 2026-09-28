@@ -15,7 +15,8 @@
       ram: "8 GB DDR4", almacenamiento: "512 GB SSD", red: "Conectado a la red interna (VLAN 10)",
       responsable: "Juan Pérez", responsableId: "prof_juan", horario: "07:30 - 18:00",
       servicios: ["Pizarra", "Proyectos"],
-      descripcion: "Laboratorio equipado para clases de informática, programación, ofimática y navegación segura."
+      descripcion: "Laboratorio equipado para clases de informática, programación, ofimática y navegación segura.",
+      imagenes: ["img/labs/Trasera_lab1.jpg", "img/labs/Frontal_lab1.jpg"]
     },
     {
       id: 2, nombre: "Laboratorio 2", sala: "Sala B-202", ubicacion: "Segundo piso, ala B",
@@ -23,7 +24,8 @@
       ram: "8 GB DDR4", almacenamiento: "512 GB SSD", red: "Conectado a la red interna (VLAN 10)",
       responsable: "Ana López", responsableId: "prof_ana", horario: "07:30 - 18:00",
       servicios: ["Pizarra", "Proyector"],
-      descripcion: "Laboratorio de uso general para asignaturas de la carrera de Programación."
+      descripcion: "Laboratorio de uso general para asignaturas de la carrera de Programación.",
+      imagenes: ["img/labs/Trasero Derecho_lab2.png", "img/labs/Frontal Derecho_lab2.png"]
     },
     {
       id: 3, nombre: "Laboratorio 3", sala: "Sala B-203", ubicacion: "Segundo piso, ala B",
@@ -31,7 +33,8 @@
       ram: "8 GB DDR4", almacenamiento: "256 GB SSD", red: "Conectado a la red interna (VLAN 10)",
       responsable: "Diego Rojas", responsableId: "prof_diego", horario: "08:00 - 17:00",
       servicios: ["Pizarra"],
-      descripcion: "Laboratorio orientado a programación y entornos Linux."
+      descripcion: "Laboratorio orientado a programación y entornos Linux.",
+      imagenes: ["img/labs/Trasera_lab3.jpg", "img/labs/Frontal_lab3.jpg"]
     },
     {
       id: 4, nombre: "Laboratorio 4", sala: "Sala B-205", ubicacion: "Segundo piso, ala B",
@@ -39,7 +42,8 @@
       ram: "8 GB DDR4", almacenamiento: "256 GB SSD", red: "Conectado a la red interna (VLAN 10)",
       responsable: "Camila Soto", responsableId: "prof_camila", horario: "07:30 - 18:00",
       servicios: ["Pizarra"],
-      descripcion: "Laboratorio de apoyo para talleres y evaluaciones prácticas."
+      descripcion: "Laboratorio de apoyo para talleres y evaluaciones prácticas.",
+      imagenes: ["img/labs/Trasera_lab4.jpg", "img/labs/Frontal_lab4.jpg"]
     },
     {
       id: 5, nombre: "Laboratorio 5", sala: "Sala B-204", ubicacion: "Segundo piso, ala B",
@@ -47,7 +51,8 @@
       ram: "16 GB DDR4", almacenamiento: "1 TB SSD NVMe", red: "Rack de switches y patch panel propio",
       responsable: "Juan Pérez", responsableId: "prof_juan", horario: "07:30 - 18:00",
       servicios: ["Pizarra", "Proyector"],
-      descripcion: "Laboratorio con doble sistema operativo (Linux Mint y Windows 10) para clases de informática, ofimática y navegación segura."
+      descripcion: "Laboratorio con doble sistema operativo (Linux Mint y Windows 10) para clases de informática, ofimática y navegación segura.",
+      imagenes: ["img/labs/Trasera_lab5.jpg", "img/labs/Frontal_lab5.jpg"]
     }
   ];
 

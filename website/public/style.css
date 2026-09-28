@@ -1206,6 +1206,7 @@ tbody tr:hover { background: var(--row-hover); }
   align-items: center;
   justify-content: center;
   position: relative;
+  overflow: hidden;
 }
 .lab-card__photo::after {
   content: "";
@@ -1215,6 +1216,16 @@ tbody tr:hover { background: var(--row-hover); }
     linear-gradient(rgba(255, 255, 255, .07) 1px, transparent 1px),
     linear-gradient(90deg, rgba(255, 255, 255, .07) 1px, transparent 1px);
   background-size: 26px 26px;
+  pointer-events: none;
+}
+.lab-card__img {
+  position: absolute;
+  inset: 0;
+  object-fit: cover;
+  transition: transform .3s ease;
+}
+.lab-card__img:hover {
+  transform: scale(1.05);
 }
 
 .lab-card__body {

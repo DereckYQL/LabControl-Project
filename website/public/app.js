@@ -692,10 +692,13 @@ export function renderLabGrid(labs, containerId, { linkTo = "laboratorios.html" 
   if (!el) return;
   el.innerHTML = labs.map((lab) => {
     const estado = ESTADOS[lab.estado];
+    const imagenTrasera = lab.imagenes && lab.imagenes.length > 0
+      ? `<img src="${lab.imagenes[0]}" alt="${esc(lab.nombre)}" class="lab-card__img" data-lab-id="${lab.id}" style="width:100%;height:100%;object-fit:cover;cursor:pointer" />`
+      : `<span class="photo-icon"><i data-lucide="monitor"></i></span>`;
     return `
       <div class="card lab-card">
         <div class="lab-card__photo">
-          <span class="photo-icon"><i data-lucide="monitor"></i></span>
+          ${imagenTrasera}
         </div>
         <div class="lab-card__body">
           <div class="lab-card__title">${esc(lab.nombre)}</div>
@@ -707,6 +710,7 @@ export function renderLabGrid(labs, containerId, { linkTo = "laboratorios.html" 
       </div>
     `;
   }).join("");
+  if (window.lucide) window.lucide.createIcons();
 }
 
 /* Utilidades */
