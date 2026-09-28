@@ -1,6 +1,6 @@
 /* Imports (ES modules) */
 import { AUTH, actualizarReporte, cargarReportes, cargarUsuarios, crearReporte, eliminarReporte } from "./data.js";
-import { abrirModal, cerrarModal, formatFecha, getQueryParam, refrescarNotificaciones, renderSidebar, showToast } from "./app.js";
+import { abrirModal, cerrarModal, esc, formatFecha, getQueryParam, refrescarNotificaciones, renderSidebar, showToast } from "./app.js";
 
 
   renderSidebar("reportes.html");
@@ -502,12 +502,6 @@ import { abrirModal, cerrarModal, formatFecha, getQueryParam, refrescarNotificac
   /* ======================================================
      UTILIDADES
      ====================================================== */
-
-  function esc(texto) {
-    return String(texto ?? "").replace(/[&<>"']/g, (c) => ({
-      "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
-    }[c]));
-  }
 
   function formatoBytes(n) {
     if (!n && n !== 0) return "";

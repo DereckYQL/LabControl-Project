@@ -504,7 +504,7 @@ test("2FA: al estar activo, el login pide el código y solo se autentica con él
 
   // Habilitar el 2FA del admin directamente por BD (independiente del test anterior).
   const { abrirConexion } = await import(`../db.js?v=${Date.now()}`);
-  const cone = abrirConexion();
+  const cone = await abrirConexion();
   const secreto = "ABCDEFGHIJKLMNOPQRSTUV";
   cone.prepare("UPDATE usuarios SET totp_secreto = ?, totp_habilitado = 1 WHERE id = 'INSUCO'").run(secreto);
   cone.close();
@@ -544,7 +544,7 @@ test("2FA: al estar activo, el login pide el código y solo se autentica con él
   expect(reuso.status).toBe(401);
 
   // Y se deja el estado original para no afectar al resto de la suite.
-  const cone2 = abrirConexion();
+  const cone2 = await abrirConexion();
   cone2.prepare("UPDATE usuarios SET totp_secreto = NULL, totp_habilitado = 0 WHERE id = 'INSUCO'").run();
   cone2.close();
 });
@@ -555,7 +555,7 @@ test("2FA: desactivar exige el código y queda reflejado", async () => {
 
   // Habilitar por BD para probar solo la desactivación.
   const { abrirConexion } = await import(`../db.js?v=${Date.now()}`);
-  const cone = abrirConexion();
+  const cone = await abrirConexion();
   const secreto = "ABCDEFGHIJKLMNOPQRSTUV";
   cone.prepare("UPDATE usuarios SET totp_secreto = ?, totp_habilitado = 1 WHERE id = 'INSUCO'").run(secreto);
   cone.close();
@@ -657,6 +657,59 @@ test("backups: solo admin, exporta una BD válida y restaura cambiando datos", a
   expect(estado.status).toBe(200);
 });
 
+test("backups: un respaldo que no es una base de LabControl se rechaza y la BD sigue en pie", async () => {
+  const tokenAdmin = await login();
+
+  // Una cabecera SQLite válida pero sin las tablas del sistema: la validación
+  // tiene que mirar el esquema, no solo los primeros 16 bytes.
+  const { DatabaseSync } = await import("node:sqlite");
+  const vacia = path.join(dir, "ajena.db");
+  const d = new DatabaseSync(vacia);
+  d.exec("CREATE TABLE lo_que_sea (id INTEGER PRIMARY KEY)");
+  d.close();
+  const bufferAjeno = fs.readFileSync(vacia);
+
+  const res = await request(app)
+    .post("/api/backups/restaurar")
+    .set("Authorization", `Bearer ${tokenAdmin}`)
+    .set("Content-Type", "application/octet-stream")
+    .send(bufferAjeno);
+  expect(res.status).toBe(400);
+  expect(String(res.body.error)).toMatch(/tablas/);
+
+  // Tras el rechazo el sistema sigue respondiendo con normalidad.
+  const labs = await request(app).get("/api/laboratorios").set("Authorization", `Bearer ${tokenAdmin}`);
+  expect(labs.status).toBe(200);
+  const lista = Array.isArray(labs.body) ? labs.body : labs.body.data;
+  expect(lista.length).toBeGreaterThan(0);
+
+  // Y no quedan temporales de la restauración fallida en la carpeta de datos.
+  const sobrantes = fs.readdirSync(dir).filter((n) => n.startsWith(".labcontrol-temporal-"));
+  expect(sobrantes).toEqual([]);
+});
+
+test("backups: restaurar un respaldo válido deja la API operativa y sin temporales", async () => {
+  const tokenAdmin = await login();
+
+  const exportado = await request(app)
+    .get("/api/backups/exportar")
+    .set("Authorization", `Bearer ${tokenAdmin}`);
+  expect(exportado.status).toBe(200);
+
+  const restaurado = await request(app)
+    .post("/api/backups/restaurar")
+    .set("Authorization", `Bearer ${tokenAdmin}`)
+    .set("Content-Type", "application/octet-stream")
+    .send(exportado.body);
+  expect(restaurado.status).toBe(200);
+
+  // La API sigue viva y con el esquema al día después del intercambio.
+  const estado = await request(app).get("/api/2fa/estado").set("Authorization", `Bearer ${tokenAdmin}`);
+  expect(estado.status).toBe(200);
+  const labs = await request(app).get("/api/laboratorios").set("Authorization", `Bearer ${tokenAdmin}`);
+  expect(labs.status).toBe(200);
+});
+
 /* ===== Registro autónomo y recuperación de contraseña ===== */
 
 test("registro: crea cuenta con rol otro_area, sin password y permite iniciar sesión", async () => {
@@ -707,7 +760,7 @@ test("recuperación: solicitud genérica, token de 30 min, nuevo login y refresh
   expect(solicitud.status).toBe(200);
   expect(solicitud.body.ok).toBe(true);
 
-  const cone = abrirConexion();
+  const cone = await abrirConexion();
   const fila = cone.prepare("SELECT token, expira_en FROM contrasena_resets WHERE usuario_id = 'prof_camila' ORDER BY rowid DESC LIMIT 1").get();
   cone.close();
   expect(fila).toBeTruthy();
@@ -742,4 +795,188 @@ test("recuperación: solicitud genérica, token de 30 min, nuevo login y refresh
     .set("Authorization", `Bearer ${login.body.token}`)
     .send({ currentPassword: "camilaNueva99", newPassword: "camila123" });
   expect(restaura.status).toBe(200);
+});
+
+/* Regresiones de seguridad (auditoría de la sección 2 del informe) */
+// Nota: se reutiliza la sesión cacheada de admin porque el rate limit de login
+// (10/15 min) deja poco margen en una suite completa.
+
+test("seguridad: un usuario desactivado pierde el acceso aunque su JWT siga vigente", async () => {
+  const alta = await request(app).post("/api/usuarios").set("Authorization", `Bearer ${await login()}`).send({
+    id: "prof_baja", nombre: "Profesor", apellido: "Baja", email: "baja@liceo.cl", password: "claveSegura1"
+  });
+  expect(alta.status).toBe(201);
+
+  const sesion = (await request(app).post("/api/login").send({ usuario: "prof_baja", password: "claveSegura1" })).body;
+  const antes = await request(app).get("/api/laboratorios").set("Authorization", `Bearer ${sesion.token}`);
+  expect(antes.status).toBe(200);
+
+  const baja = await request(app)
+    .patch("/api/usuarios/prof_baja")
+    .set("Authorization", `Bearer ${await login()}`)
+    .send({ activo: false });
+  expect(baja.status).toBe(200);
+
+  // El token no vence solo: la baja surte efecto de inmediato.
+  const despues = await request(app).get("/api/laboratorios").set("Authorization", `Bearer ${sesion.token}`);
+  expect(despues.status).toBe(401);
+
+  // Tampoco renueva sesión.
+  const refresco = await request(app).post("/api/refresh").send({ refreshToken: sesion.refreshToken });
+  expect(refresco.status).toBe(401);
+});
+
+test("seguridad: cambiar el rol de un usuario surte efecto inmediato (deja de ser admin)", async () => {
+  const alta = await request(app).post("/api/usuarios").set("Authorization", `Bearer ${await login()}`).send({
+    id: "prof_promo", nombre: "Profe", apellido: "Promo", email: "promo@liceo.cl",
+    password: "claveSegura1", rol: "admin"
+  });
+  expect(alta.status).toBe(201);
+
+  const sesion = (await request(app).post("/api/login").send({ usuario: "prof_promo", password: "claveSegura1" })).body;
+  const comoAdmin = await request(app).get("/api/auditoria").set("Authorization", `Bearer ${sesion.token}`);
+  expect(comoAdmin.status).toBe(200);
+
+  const degrada = await request(app)
+    .patch("/api/usuarios/prof_promo")
+    .set("Authorization", `Bearer ${await login()}`)
+    .send({ rol: "otro_area" });
+  expect(degrada.status).toBe(200);
+
+  // El JWT aún dice admin, pero la base manda: ya no accede al panel de admin.
+  const degradado = await request(app).get("/api/auditoria").set("Authorization", `Bearer ${sesion.token}`);
+  expect(degradado.status).toBe(403);
+});
+
+test("seguridad: reutilizar un refresh token rotado revoca toda la familia de sesiones", async () => {
+  const primera = await sesionNueva();
+  const renovada = await request(app).post("/api/refresh").send({ refreshToken: primera.refreshToken });
+  expect(renovada.status).toBe(200);
+  const tokenNuevo = renovada.body.token;
+  const refreshNuevo = renovada.body.refreshToken;
+
+  // Reutilización del token ya rotado: señal de token robado.
+  const reuso = await request(app).post("/api/refresh").send({ refreshToken: primera.refreshToken });
+  expect(reuso.status).toBe(401);
+
+  // La familia queda cerrada: el atacante no puede renovar más sesiones.
+  const nuevoTrasRevocar = await request(app).post("/api/refresh").send({ refreshToken: refreshNuevo });
+  expect(nuevoTrasRevocar.status).toBe(401);
+  // El access token ya emitido sigue siendo válido hasta expirar (por diseño:
+  // es de vida corta); lo que se corta es la renovación indefinida.
+  const apiConAccessViejo = await request(app).get("/api/laboratorios").set("Authorization", `Bearer ${tokenNuevo}`);
+  expect(apiConAccessViejo.status).toBe(200);
+});
+
+test("seguridad: los códigos 2FA tienen límite de intentos (429)", async () => {
+  let limite = null;
+  for (let i = 0; i < 14; i++) {
+    const res = await request(app)
+      .post("/api/2fa/verificar")
+      .set("Authorization", `Bearer ${await login()}`)
+      .send({ codigo: "000000" });
+    if (res.status === 429) { limite = res; break; }
+  }
+  expect(limite).not.toBeNull();
+  expect(limite.body.error).toBeTruthy();
+});
+
+test("seguridad: contraseña de menos de 8 caracteres se rechaza en todos los caminos", async () => {
+  const registro = await request(app).post("/api/registro").send({
+    id: "prof_corta", nombre: "Corta", apellido: "Clave", email: "corta@liceo.cl", password: "corta12"
+  });
+  expect(registro.status).toBe(400);
+
+  const alta = await request(app).post("/api/usuarios").set("Authorization", `Bearer ${await login()}`).send({
+    id: "prof_corta2", nombre: "Corta", apellido: "Clave", email: "corta2@liceo.cl", password: "1234567"
+  });
+  expect(alta.status).toBe(400);
+
+  const cambio = await request(app)
+    .post("/api/change-password")
+    .set("Authorization", `Bearer ${await loginCamila()}`)
+    .send({ currentPassword: "camila123", newPassword: "corta12" });
+  expect(cambio.status).toBe(400);
+});
+
+test("seguridad: un no-admin no obtiene el email de terceros en el padrón", async () => {
+  const admin = await request(app).get("/api/usuarios").set("Authorization", `Bearer ${await login()}`);
+  expect(admin.status).toBe(200);
+  const juanAdmin = admin.body.find((u) => u.id === "prof_juan");
+  expect(juanAdmin.email).toBeTruthy();
+
+  const camila = await request(app).get("/api/usuarios").set("Authorization", `Bearer ${await loginCamila()}`);
+  expect(camila.status).toBe(200);
+  const juan = camila.body.find((u) => u.id === "prof_juan");
+  const ella = camila.body.find((u) => u.id === "prof_camila");
+  expect(juan.email).toBeUndefined();
+  expect(juan.nombre).toBeTruthy();
+  // Su propio email sí está disponible.
+  expect(ella.email).toBeTruthy();
+});
+
+test("seguridad: la agenda ignora el estado enviado por el cliente (nace pendiente)", async () => {
+  const token = await loginCamila();
+  // Mañana (dentro de la anticipación máxima) y en un horario sin reservas.
+  const manana = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
+  const reserva = await request(app).post("/api/agenda").set("Authorization", `Bearer ${token}`).send({
+    labId: 3, fecha: manana, horaInicio: "04:00", horaFin: "05:00",
+    motivo: "Prueba de estado", estado: "confirmada"
+  });
+  expect(reserva.status).toBe(201);
+  expect(reserva.body.estado).toBe("pendiente");
+});
+
+test("seguridad: el contenido del reporte tiene un tope de tamaño (400)", async () => {
+  const enorme = { blob: "x".repeat(300 * 1024) };
+  const res = await request(app)
+    .post("/api/reportes")
+    .set("Authorization", `Bearer ${await login()}`)
+    .send({ tipo: "general", titulo: "Reporte gigante", descripcion: "Prueba de tope", datos: enorme });
+  expect(res.status).toBe(400);
+});
+
+test("seguridad: los eventos de seguridad se auditan aunque se desactive el registro", async () => {
+  const token = await login();
+
+  // Se parte de 2FA apagado para que /2fa/setup sea el camino feliz.
+  const { abrirConexion } = await import(`../db.js?v=${Date.now()}`);
+  const cone = await abrirConexion();
+  cone.prepare("UPDATE usuarios SET totp_habilitado = 0, totp_secreto = NULL WHERE id = 'INSUCO'").run();
+  cone.close();
+
+  const off = await request(app).patch("/api/config").set("Authorization", `Bearer ${token}`).send({ seguridad: { registroActividad: false } });
+  expect(off.status).toBe(200);
+
+  // Evento de seguridad posterior al apagado del interruptor (no requiere login).
+  const evento = await request(app).post("/api/2fa/setup").set("Authorization", `Bearer ${token}`);
+  expect(evento.status).toBe(200);
+
+  const traza = await request(app).get("/api/auditoria").set("Authorization", `Bearer ${token}`);
+  expect(traza.status).toBe(200);
+  const lista = Array.isArray(traza.body) ? traza.body : traza.body.data;
+  expect(lista.some((a) => a.accion === "2fa_configuracion_iniciada")).toBe(true);
+
+  await request(app).patch("/api/config").set("Authorization", `Bearer ${token}`).send({ seguridad: { registroActividad: true } });
+});
+
+test("configuración: un no-admin no recibe red, equipos, seguridad ni email del administrador", async () => {
+  const res = await request(app).get("/api/config").set("Authorization", `Bearer ${await loginCamila()}`);
+  expect(res.status).toBe(200);
+  expect(res.body.red).toBeUndefined();
+  expect(res.body.seguridad).toBeUndefined();
+  expect(res.body.equipos).toBeUndefined();
+  expect(res.body.laboratorios).toBeUndefined();
+  expect(res.body.notificaciones?.emailAdmin).toBeUndefined();
+  // Lo mínimo que la interfaz de cualquier rol necesita: tema del sitio y avisos.
+  expect(res.body.sitio).toBeTruthy();
+  expect(res.body.notificaciones).toBeTruthy();
+});
+
+test("configuración: el administrador sí recibe la configuración completa", async () => {
+  const res = await request(app).get("/api/config").set("Authorization", `Bearer ${await login()}`);
+  expect(res.status).toBe(200);
+  expect(res.body.red?.subredLabs).toBeTruthy();
+  expect(res.body.seguridad?.sesionTimeout).toBeTruthy();
+  expect(res.body.notificaciones?.emailAdmin).toBeTruthy();
 });

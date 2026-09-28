@@ -1,6 +1,6 @@
 /* Imports (ES modules) */
 import { cargarLaboratorios } from "./data.js";
-import { renderDonut, renderLabGrid, renderSidebar, renderStatusList, renderStatCards, showToast } from "./app.js";
+import { esc, renderDonut, renderLabGrid, renderSidebar, renderStatusList, renderStatCards, showToast } from "./app.js";
 
 
   const sesion = renderSidebar("index.html");
@@ -49,7 +49,7 @@ import { renderDonut, renderLabGrid, renderSidebar, renderStatusList, renderStat
     lightboxImg.src = src;
     lightboxCounter.textContent = `${lightboxIndex + 1} / ${lightboxImages.length}`;
     lightboxThumbs.innerHTML = lightboxImages.map((img, i) =>
-      `<img src="${img}" alt="" style="width:64px;height:48px;object-fit:cover;border-radius:6px;cursor:pointer;opacity:${i === lightboxIndex ? 1 : 0.5};border:2px solid ${i === lightboxIndex ? "#ffc300" : "transparent"}" data-index="${i}" />`
+      `<img src="${esc(img)}" alt="" style="width:64px;height:48px;object-fit:cover;border-radius:6px;cursor:pointer;opacity:${i === lightboxIndex ? 1 : 0.5};border:2px solid ${i === lightboxIndex ? "#ffc300" : "transparent"}" data-index="${i}" />`
     ).join("");
     lightboxThumbs.querySelectorAll("img").forEach((thumb) => {
       thumb.addEventListener("click", () => {

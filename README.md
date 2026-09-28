@@ -14,7 +14,28 @@ Los profesores de **Programación** (y el Administrador) pueden además ver la i
 
 Solo el **Administrador** puede gestionar usuarios y acceder a la configuración avanzada del sitio.
 
+## Cuentas de prueba
+
+| Usuario | Contraseña | Rol |
+|---|---|---|
+| **INSUCO** | `Insuco1336` | Administrador (`admin@liceo.cl`) |
+| prof_juan | juan123 | Programación |
+| prof_camila | camila123 | Otra área |
+
 ## Cambios
+
+> **v3.8** — **Migraciones reversibles, semilla versionada y respaldos que no pueden dejar el sistema sin base**:
+> > - **Las migraciones ahora se pueden deshacer**: cada migración declara su paso de vuelta, y hay un comando `npm run db:rollback <n>` que baja el esquema a la versión que se le pida. Si un paso falla a medias, se deshacen también los que ya habían salido, así que nunca queda el esquema a medias. Cuatro migraciones (3, 4, 9 y 10) son **irreversibles** de verdad: no se puede recuperar lo que sobrescribieron, y el programa lo dice con el motivo en lugar de fingir que sí. El comando hace una copia de seguridad antes de tocar nada.
+> > - **Base a salvo de una migración a medias**: la creación del esquema va en transacción (antes, una tabla que fallaba dejaba la base con medio esquema) y cada migración se aplica en su propio *savepoint*. El motor ya no se fía solo del número más alto: si falta una migración en el registro, la completa en vez de saltársela entera, y si la base es de una versión **más nueva** que el programa, se niega a arrancar con un mensaje claro en vez de escribir encima.
+> > - **Las bases ya en uso se reparan solas**: `CREATE TABLE` no añade columnas a una tabla que ya existe, y eso tumbaba el arranque (la base real del proyecto tenía la migración al día pero le faltaba `laboratorios.imagenes`, y la semilla la escribe). La migración 10 (*alinear_columnas_con_el_esquema*) compara cada tabla con el esquema canónico y añade las columnas que falten, así que cualquier base que haya arrastrado esa deriva se arregla al abrir el programa sin intervención.
+> > - **La semilla de ejemplo se puede actualizar**: era de una sola vez, así que una versión nueva nunca podía añadir datos a una base que ya existía. Ahora es un proceso versionado e idempotente: solo inserta lo que falta, **nunca pisa lo que el administrador editó**, no reactiva cuentas dadas de baja y no toca la configuración. Se registra en `seed_history` y se puede reaplicar a mano con `npm run db:semillar`.
+> > - **Restaurar un respaldo ya no puede dejar el sistema sin base**: antes solo se miraban los primeros bytes del archivo. Ahora se abre una **copia** del respaldo y se le pide `quick_check` y la lista de tablas antes de tocar nada, con la base en servicio todavía abierta. La base anterior se conserva en un `.prev`, y si el intercambio falla se revalida esa copia antes de reabrir. Mientras dura la operación la API responde *503* en vez de fingir que funciona, y al terminar se revocan las sesiones y se purgan los desafíos 2FA que quedaban en memoria de la base anterior.
+> > - **Las tablas que crecían sin límite ahora se podan**: auditoría, notificaciones, sesiones, enlaces de reseteo y solicitudes de especialidad no tenían tope y crecían para siempre. Ahora hay una limpieza periódica (cada 6 horas) que conserva 5.000 registros de auditoría, las 20.000 notificaciones más recientes, 200 enlaces de reseteo vivos y 1.000 solicitudes resueltas (100 por usuario). **Las solicitudes pendientes nunca se borran**, que es lo que hay que mirar. También se puede forzar a mano con `npm run db:podar`, y el estado del esquema se consulta con `npm run db:estado`.
+> > - **TOTP más acotado**: la ventana de verificación del código 2FA ya no admite un valor absurdo que la convertía en un barrido de millones de Intentos, y el tamaño del secreto se normaliza en vez de lanzar. Con 13 pruebas nuevas que incluyen los vectores oficiales de base32 de RFC 4648.
+> > - **28 pruebas nuevas** (80 en total) sobre migraciones, rollback, semilla, poda, TOTP y reparación de bases, más dos de respaldos en la suite de API. Escribirlas destapó cinco fallos reales del código nuevo, y al verificar el CLI contra la base real del proyecto se destapó un sexto (bases al día pero con columnas perdidas, corregido con la migración 10): todos documentados en las secciones 11 y 12 del `informe-analisis.txt`.
+> > - **Análisis completo de las secciones 3 y 4** del informe (`informe-analisis.txt`, secciones 10, 11 y 12): los 62 ítems de "problemas entre versiones" y los 72 de "malas prácticas" revisados uno a uno. La mayor parte de la sección 4 ya estaba resuelta en la 3.7, y los tres que se dejan sin cambio (desafíos 2FA en memoria, sin CAPTCHA en el registro y en la recuperación) se cierran como **decisión documentada** con su motivo.
+> > - **Caché renovada en `3.8.0`**: todos los assets (CSS y JS) y el `service-worker` cambian su versión para forzar la descarga en los navegadores.
+> > - **Verificación completa en v3.8**: lint 0 errores, typecheck OK, sintaxis OK, suite backend 80/80 y e2e 27/27.
 
 > **v3.7** — **Los laboratorios ahora tienen los datos reales del inventario**:
 > > - **Ficha real de los 5 laboratorios**: se reemplazó la información de ejemplo por la del documento de inventario. Sistema operativo: LAB 1, 2 y 4 en **Windows 11 Pro**, LAB 3 en **Linux Mint** y LAB 5 en **Linux Mint y Windows 10**.
@@ -223,7 +244,11 @@ labcontrol/
     │   └── celular.js                 Muestra el código QR para abrir la web desde el celular
     └── backend/                       Servidor + base de datos
         ├── server.js                  API REST (Express) — también sirve el sitio de public/
-        ├── db.js                      Conexión SQLite + creación de tablas + datos de ejemplo
+        ├── db.js                      Conexión SQLite + esquema, migraciones y semilla de ejemplo
+        ├── totp.mjs                   Códigos TOTP de la verificación en dos pasos (sin dependencias)
+        ├── scripts/
+        │   ├── syntax-check.mjs       Comprueba la sintaxis de todos los .js del proyecto
+        │   └── migraciones.js         CLI del esquema: estado, rollback, semillar, podar
         ├── package.json
         └── database/
             └── labcontrol.db          (se crea solo la primera vez que se ejecuta el servidor)

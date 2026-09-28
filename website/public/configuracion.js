@@ -146,46 +146,46 @@ function buildPanel(id) {
       <h2 class="cfg-panel__title">Mi perfil</h2>
       <div class="cfg-section">
         <div style="display:flex;gap:16px;align-items:center;margin-bottom:20px">
-          <div class="usr-avatar-lg" style="font-size:1.6rem">${usuario?.iniciales ?? "??"}</div>
+          <div class="usr-avatar-lg" style="font-size:1.6rem">${esc(usuario?.iniciales) || "??"}</div>
           <div>
-            <div style="font-weight:700;font-size:1rem">${usuario ? `${usuario.nombre} ${usuario.apellido}` : "—"}</div>
-            <div style="color:var(--color-text-muted);font-size:.85rem">${usuario?.email ?? "—"}</div>
-            <span class="badge" style="margin-top:6px">${rolLabel(sesion?.rol)}</span>
+            <div style="font-weight:700;font-size:1rem">${usuario ? esc(`${usuario.nombre} ${usuario.apellido}`) : "—"}</div>
+            <div style="color:var(--color-text-muted);font-size:.85rem">${esc(usuario?.email) || "—"}</div>
+            <span class="badge" style="margin-top:6px">${esc(rolLabel(sesion?.rol))}</span>
           </div>
         </div>
         <div class="form-row">
           <div class="form-group">
             <label class="form-label">Nombre</label>
-            <input class="form-input" id="p-nombre" value="${usuario?.nombre ?? ""}" required minlength="2" />
+            <input class="form-input" id="p-nombre" value="${esc(usuario?.nombre)}" required minlength="2" />
           </div>
           <div class="form-group">
             <label class="form-label">Apellido</label>
-            <input class="form-input" id="p-apellido" value="${usuario?.apellido ?? ""}" required minlength="2" />
+            <input class="form-input" id="p-apellido" value="${esc(usuario?.apellido)}" required minlength="2" />
           </div>
         </div>
         <div class="form-group">
           <label class="form-label">Correo institucional</label>
-          <input class="form-input" id="p-email" type="email" value="${usuario?.email ?? ""}" required />
+          <input class="form-input" id="p-email" type="email" value="${esc(usuario?.email)}" required />
         </div>
         <div class="form-row area-especialidad">
           ${esAdmin ? `
             <div class="form-group">
               <label class="form-label">Área / Departamento</label>
-              <input class="form-input" id="p-area" value="${usuario?.area ?? ""}" />
+              <input class="form-input" id="p-area" value="${esc(usuario?.area)}" />
             </div>
             <div class="form-group">
               <label class="form-label">Especialidad</label>
-              <input class="form-input" id="p-especialidad" value="${usuario?.especialidad ?? ""}" />
+              <input class="form-input" id="p-especialidad" value="${esc(usuario?.especialidad)}" />
             </div>
           ` : `
             <div class="form-group">
               <label class="form-label">Área / Departamento</label>
-              <input class="form-input" id="p-area" value="${usuario?.area ?? ""}" disabled />
+              <input class="form-input" id="p-area" value="${esc(usuario?.area)}" disabled />
               <span class="form-hint" id="p-area-hint"></span>
             </div>
             <div class="form-group">
               <label class="form-label">Especialidad</label>
-              <input class="form-input" id="p-especialidad" value="${usuario?.especialidad ?? ""}" />
+              <input class="form-input" id="p-especialidad" value="${esc(usuario?.especialidad)}" />
               <span class="form-hint" id="p-especialidad-hint"></span>
             </div>
           `}
@@ -267,11 +267,11 @@ function buildPanel(id) {
         </div>
         <div class="form-group">
           <label class="form-label">Nueva contraseña</label>
-          <input class="form-input" id="s-pass-nueva" type="password" placeholder="Mínimo 6 caracteres" style="max-width:280px" required minlength="6" />
+          <input class="form-input" id="s-pass-nueva" type="password" placeholder="Mínimo 8 caracteres" style="max-width:280px" required minlength="8" />
         </div>
         <div class="form-group">
           <label class="form-label">Confirmar contraseña</label>
-          <input class="form-input" id="s-pass-confirm" type="password" placeholder="Repite la nueva contraseña" style="max-width:280px" required minlength="6" />
+          <input class="form-input" id="s-pass-confirm" type="password" placeholder="Repite la nueva contraseña" style="max-width:280px" required minlength="8" />
         </div>
         <button class="btn btn--primary" id="btn-cambiar-contrasena" style="margin-top:4px">Cambiar contraseña</button>
         <hr style="margin:24px 0;border-color:var(--color-border)">
@@ -295,11 +295,11 @@ function buildPanel(id) {
       <div class="cfg-section">
         <div class="form-group">
           <label class="form-label">Nombre de la institución</label>
-          <input class="form-input" id="cfg-inst" value="${config.sitio.nombreInstitucion}" />
+            <input class="form-input" id="cfg-inst" value="${esc(config.sitio.nombreInstitucion)}" />
         </div>
         <div class="form-group">
           <label class="form-label">Nombre del sistema</label>
-          <input class="form-input" id="cfg-sistema" value="${config.sitio.nombreSistema}" />
+            <input class="form-input" id="cfg-sistema" value="${esc(config.sitio.nombreSistema)}" />
         </div>
         <div class="form-group">
           <label class="form-label">Idioma</label>
@@ -319,11 +319,11 @@ function buildPanel(id) {
         <div class="form-row">
           <div class="form-group">
             <label class="form-label">Hora de apertura</label>
-            <input class="form-input" type="time" id="cfg-apertura" value="${config.laboratorios.horaApertura}" />
+            <input class="form-input" type="time" id="cfg-apertura" value="${esc(config.laboratorios.horaApertura)}" />
           </div>
           <div class="form-group">
             <label class="form-label">Hora de cierre</label>
-            <input class="form-input" type="time" id="cfg-cierre" value="${config.laboratorios.horaCierre}" />
+            <input class="form-input" type="time" id="cfg-cierre" value="${esc(config.laboratorios.horaCierre)}" />
           </div>
         </div>
         <div class="form-group">
@@ -377,15 +377,15 @@ function buildPanel(id) {
       <div class="cfg-section">
         <div class="form-group">
           <label class="form-label">Subred de laboratorios</label>
-          <input class="form-input" id="cfg-subred" value="${config.red.subredLabs}" />
+            <input class="form-input" id="cfg-subred" value="${esc(config.red.subredLabs)}" />
         </div>
         <div class="form-group">
           <label class="form-label">Servidor DNS</label>
-          <input class="form-input" id="cfg-dns" value="${config.red.servidorDNS}" />
+            <input class="form-input" id="cfg-dns" value="${esc(config.red.servidorDNS)}" />
         </div>
         <div class="form-group">
           <label class="form-label">Puerta de enlace</label>
-          <input class="form-input" id="cfg-gateway" value="${config.red.puertaEnlace}" />
+            <input class="form-input" id="cfg-gateway" value="${esc(config.red.puertaEnlace)}" />
         </div>
         <div class="toggle-row">
           <span>Red WiFi habilitada en laboratorios</span>
@@ -404,7 +404,7 @@ function buildPanel(id) {
       <div class="cfg-section">
         <div class="form-group">
           <label class="form-label">Correo del administrador</label>
-          <input class="form-input" id="cfg-email-admin" type="email" value="${config.notificaciones.emailAdmin}" />
+            <input class="form-input" id="cfg-email-admin" type="email" value="${esc(config.notificaciones.emailAdmin)}" />
         </div>
         <div class="form-group">
           <label class="form-label">Tiempo de inactividad para cierre de sesión (minutos)</label>
@@ -421,6 +421,7 @@ function buildPanel(id) {
             <div class="toggle__knob"></div>
           </button>
         </div>
+        <span class="form-hint">Al desactivarlo se deja de registrar la actividad administrativa. Los eventos de seguridad (accesos, 2FA, contraseñas, respaldos) siempre se registran.</span>
       </div>
     `;
 
@@ -486,7 +487,7 @@ function buildPanel(id) {
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:20px">
           <div class="cfg-sys-card">
             <div class="cfg-sys-card__label">Versión del sistema</div>
-            <div class="cfg-sys-card__value">LabControl v3.7</div>
+            <div class="cfg-sys-card__value">LabControl v3.8</div>
           </div>
           <div class="cfg-sys-card">
             <div class="cfg-sys-card__label">Total laboratorios</div>
@@ -890,7 +891,7 @@ function contenidoAcerca() {
       <div style="font-size:.85rem;color:var(--color-text-muted)">Sistema de control y supervisión de los laboratorios de computación del liceo.</div>
       <div class="cfg-sys-card" style="margin:18px auto 0;max-width:260px">
         <div class="cfg-sys-card__label">Versión del sistema</div>
-        <div class="cfg-sys-card__value">LabControl v3.7</div>
+        <div class="cfg-sys-card__value">LabControl v3.8</div>
       </div>
       <div class="cfg-sys-card" style="margin:10px auto 0;max-width:260px">
         <div class="cfg-sys-card__label">Institución</div>

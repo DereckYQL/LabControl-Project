@@ -47,15 +47,15 @@ import { abrirModal, cerrarModal, esc, formatFecha, renderSidebar, showToast } f
           <td>${esc(lab.horario)}</td>
           <td>${esc(lab.responsable)}</td>
           <td style="display:flex;gap:6px;flex-wrap:wrap">
-            <button class="btn btn--sm" data-estado="${esc(lab.id)}">Cambiar estado</button>
+            <button class="btn btn--sm" data-lab-id="${esc(lab.id)}">Cambiar estado</button>
             <a class="btn btn--sm" href="laboratorios.html?id=${esc(lab.id)}">Ver detalles</a>
           </td>
         </tr>
       `;
     }).join("");
 
-    tbody.querySelectorAll("[data-estado]").forEach((btn) => {
-      btn.addEventListener("click", () => abrirModalEstado(Number(btn.dataset.estado)));
+    tbody.querySelectorAll("[data-lab-id]").forEach((btn) => {
+      btn.addEventListener("click", () => abrirModalEstado(Number(btn.dataset.labId)));
     });
   }
 

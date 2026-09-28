@@ -20,13 +20,13 @@ test("configuracion.html muestra la versión v3.7", async ({ page }) => {
   await login(page, "INSUCO", "Insuco1336");
 
   await page.goto("/configuracion.html");
-  await expect(page.locator("body")).toContainText("LabControl v3.7", { timeout: 8000 });
+  await expect(page.locator("body")).toContainText("LabControl v3.8", { timeout: 8000 });
 
   // El panel visible muestra la versión y el conteo en vivo de laboratorios/equipos.
   await page.click('#cfg-sidenav button[data-section="sistema"]');
   const panel = page.locator("#panel-sistema");
   await expect(panel).toBeVisible();
-  await expect(panel).toContainText("LabControl v3.7");
+  await expect(panel).toContainText("LabControl v3.8");
   await expect(panel).toContainText("Total laboratorios");
   await expect(panel).toContainText("Total equipos");
 });
@@ -212,18 +212,40 @@ test("modo offline: el SW sirve el shell y los assets desde caché y degrada a d
   expect(cache).toContain("style.css");
   expect(cache).toContain("app.js");
 
+  // La versión se lee del propio index.html y se cruza con la del service worker.
+  // Si cambia un asset hay que subir a la vez el `?v=` de las páginas y el
+  // CACHE_NAME del SW; si no, quien ya visitó la web sigue con la copia cacheada
+  // anterior y no recibe los arreglos de seguridad.
+  const version = await page.evaluate(() => {
+    const src = [...document.querySelectorAll("script[src]")]
+      .map((s) => s.getAttribute("src"))
+      .find((s) => s && s.includes("app.js"));
+    return src ? new URL(src, location.href).searchParams.get("v") : null;
+  });
+  expect(version).toBeTruthy();
+
+  const swCache = await page.evaluate(async (v) => {
+    const claves = await caches.keys();
+    const nombre = claves.find((k) => k.startsWith("labcontrol"));
+    const guardada = await caches.open(nombre);
+    const urls = (await guardada.keys()).map((r) => r.url);
+    return { nombre, versionado: urls.some((u) => u.endsWith(`app.js?v=${v}`)) };
+  }, version);
+  expect(swCache.versionado).toBe(true);
+  expect(swCache.nombre.endsWith(version)).toBe(true);
+
   await context.setOffline(true);
-  const offline = await page.evaluate(async () => {
+  const offline = await page.evaluate(async (v) => {
     const resultados = {};
-    for (const r of ["index.html", "style.css?v=3.7.0", "app.js?v=3.7.0"]) {
+    for (const r of ["index.html", `style.css?v=${v}`, `app.js?v=${v}`]) {
       try { resultados[r] = (await fetch(r)).ok; }
       catch { resultados[r] = false; }
     }
     return resultados;
-  });
+  }, version);
   expect(offline["index.html"]).toBe(true);
-  expect(offline["style.css?v=3.7.0"]).toBe(true);
-  expect(offline["app.js?v=3.7.0"]).toBe(true);
+  expect(offline[`style.css?v=${version}`]).toBe(true);
+  expect(offline[`app.js?v=${version}`]).toBe(true);
 
   const degradacion = await page.evaluate(async () => {
     const mod = await import("./data.js");

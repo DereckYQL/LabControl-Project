@@ -445,7 +445,7 @@ function demoRequest(metodo, ruta, cuerpo) {
       const u = cuerpo ?? {};
       const id = String(u.id ?? "").trim();
       const email = String(u.email ?? "").trim().toLowerCase();
-      if (!/[a-zA-Z0-9_]{1,80}/.test(id)) throw new Error("El usuario solo puede contener letras, números y guion bajo");
+      if (!/^[a-zA-Z0-9_]{1,80}$/.test(id)) throw new Error("El usuario solo puede contener letras, números y guion bajo");
       if (D.usuarios.some((x) => x.id === id)) throw new Error("Ya existe una cuenta con ese usuario");
       if (D.usuarios.some((x) => String(x.email).toLowerCase() === email)) throw new Error("El correo ya está en uso por otra cuenta");
       const nuevo = {
@@ -542,7 +542,12 @@ async function pedirRefresh() {
 
 async function pedir(ruta, opciones = {}, _reintentado = false) {
   const metodo = opciones.method ?? "GET";
-  const cuerpo = opciones.body ? JSON.parse(opciones.body) : undefined;
+  let cuerpo;
+  try {
+    cuerpo = opciones.body ? JSON.parse(opciones.body) : undefined;
+  } catch {
+    cuerpo = undefined;
+  }
 
   if (!MODO_DEMO) {
     try {
@@ -903,7 +908,8 @@ export const AUTH = {
 
   getSesion() {
     try {
-      return JSON.parse(localStorage.getItem("lc_sesion"));
+      const sesion = JSON.parse(localStorage.getItem("lc_sesion"));
+      return sesion && typeof sesion === "object" && !Array.isArray(sesion) ? sesion : null;
     } catch {
       return null;
     }

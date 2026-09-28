@@ -134,7 +134,7 @@ import { abrirModal, cerrarModal, __activarTab, esc, initTabs, nivelLabel, rende
     avatarEl.style.color      = `var(--color-${color === "danger" ? "danger" : color === "success" ? "success" : "primary"})`;
 
     document.getElementById("det-nombre").textContent = `${u.nombre} ${u.apellido}`;
-    document.getElementById("det-email").textContent  = u.email;
+    document.getElementById("det-email").textContent  = u.email ?? "—";
 
     const rolBadge  = document.getElementById("det-rol-badge");
     rolBadge.innerHTML = `<i data-lucide="${ROL_ICON[u.rol]}"></i> ${rolLabel(u.rol)}`;
@@ -162,7 +162,7 @@ import { abrirModal, cerrarModal, __activarTab, esc, initTabs, nivelLabel, rende
     document.getElementById("det-info-grid").innerHTML = `
       <div><dt>Nombre completo</dt><dd>${esc(u.nombre)} ${esc(u.apellido)}</dd></div>
       <div><dt>ID usuario</dt><dd>${esc(u.id)}</dd></div>
-      <div><dt>Correo</dt><dd>${esc(u.email)}</dd></div>
+          <div><dt>Correo</dt><dd>${esc(u.email ?? "—")}</dd></div>
       <div><dt>Área</dt><dd>${esc(u.area)}</dd></div>
       <div><dt>Especialidad</dt><dd>${esc(u.especialidad)}</dd></div>
       <div><dt>Rol</dt><dd>${esc(rolLabel(u.rol))}</dd></div>
@@ -248,7 +248,7 @@ import { abrirModal, cerrarModal, __activarTab, esc, initTabs, nivelLabel, rende
     inputId.disabled = editar;
     inputId.readOnly  = editar;
     inputPass.required = !editar;
-    inputPass.placeholder = editar ? "Dejar en blanco para no cambiar" : "Mínimo 6 caracteres";
+    inputPass.placeholder = editar ? "Dejar en blanco para no cambiar" : "Mínimo 8 caracteres";
     document.getElementById("usr-rol").value = editar ? "" : "programacion";
     document.getElementById("usr-nivel").value = editar ? "" : "basico";
     usuarioEditandoId = null;

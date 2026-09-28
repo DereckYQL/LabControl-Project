@@ -13,7 +13,7 @@ import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
 import QRCode from "qrcode";
 import { body, validationResult } from "express-validator";
-import { db, DB_PATH, reemplazarBaseDesdeBuffer } from "./db.js";
+import { db, DB_PATH, DB_DIR, reemplazarBaseDesdeBuffer, alRestaurar, baseDisponible, podarTablas } from "./db.js";
 import { generaSecreto, verificarCodigo } from "./totp.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -21,19 +21,44 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Clave JWT — en producción usar variable de entorno; si no existe, se genera
-// una aleatoria por arranque (las sesiones se invalidan al reiniciar).
-const JWT_SECRET = process.env.JWT_SECRET || randomBytes(48).toString("hex");
-// En producción los access tokens viven 2h; los tests e2e pueden acortarlo
-// con LC_JWT_EXPIRES para ejercitar la renovación automática.
-const JWT_EXPIRES = process.env.LC_JWT_EXPIRES || "2h";
+// Clave JWT — en producción usar variable de entorno; si no existe se usa una
+// clave persistente guardada en la carpeta de datos, de modo que las sesiones
+// sobrevivan a los reinicios del servidor (no una aleatoria por arranque).
+function cargarJwtSecret() {
+  if (process.env.JWT_SECRET) return process.env.JWT_SECRET;
+  const archivo = path.join(DB_DIR, ".jwt-secret");
+  try {
+    const existente = fs.readFileSync(archivo, "utf8").trim();
+    if (existente) return existente;
+  } catch { /* aún no existe */ }
+  const generado = randomBytes(48).toString("hex");
+  try {
+    fs.mkdirSync(DB_DIR, { recursive: true });
+    fs.writeFileSync(archivo, generado);
+  } catch { /* sin persistencia: se descarta al reiniciar */ }
+  return generado;
+}
+const JWT_SECRET = cargarJwtSecret();
 const JWT_REFRESH_EXPIRES = "30d";
 const REFRESH_TOKEN_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+// Política de contraseñas: longitud mínima única para todos los caminos que
+// fijan una contraseña (registro, alta de usuario, perfil, cambio y reseteo).
+const MIN_PASSWORD = 8;
+const MAX_PASSWORD = 200;
 if (!process.env.JWT_SECRET) {
-  console.warn("  AVISO: JWT_SECRET no está definido. Se generó una clave aleatoria; las sesiones expiran al reiniciar el servidor.");
+  console.log("  INFO: JWT_SECRET no definido; se usa (o se crea) una clave persistente en la carpeta de datos.");
+  console.log("  INFO: Las sesiones sobreviven a los reinicios; en producción define JWT_SECRET como variable de entorno.");
 }
 
 /* Seguridad */
+
+// Proxy inverso: sin esto, `req.ip` (rate limiting y auditoría) y `req.protocol`
+// son los del proxy y no los del cliente real. Define LC_TRUST_PROXY=1 (o el
+// número de saltos de la cadena) solo cuando la app está detrás de un proxy.
+if (process.env.LC_TRUST_PROXY) {
+  const saltos = Number(process.env.LC_TRUST_PROXY);
+  app.set("trust proxy", Number.isInteger(saltos) && saltos > 0 ? saltos : true);
+}
 
 // Headers de seguridad (CSP, X-Frame-Options, HSTS, etc.)
 app.use(helmet({
@@ -71,6 +96,16 @@ app.use("/api", (req, res, next) => {
   next();
 });
 
+// Mientras se restaura un respaldo la conexión se cierra un instante. En esa
+// ventana se responde 503 (reintentable) en lugar de dejar que la consulta
+// reviente con un 500 por "database is not open".
+app.use("/api", (req, res, next) => {
+  if (!baseDisponible()) {
+    return res.status(503).json({ error: "La base de datos se está restaurando. Intenta de nuevo en un momento." });
+  }
+  next();
+});
+
 // CORS — permitir mismo origen (frontend servido por el mismo server)
 app.use(cors({
   origin: process.env.ORIGIN ? process.env.ORIGIN.split(",") : false,
@@ -79,8 +114,9 @@ app.use(cors({
   allowedHeaders: ["Content-Type", "Authorization"]
 }));
 
-// Límite de body (reportes con adjuntos base64)
-app.use(express.json({ limit: "10mb" }));
+// Límite de body (reportes con adjuntos base64). Acotado para evitar que un
+// body gigante agote la memoria del proceso; el backup se recibe aparte (raw).
+app.use(express.json({ limit: "8mb" }));
 
 // Rate limiting general (los tests e2e pueden ampliarlo con LC_API_LIMIT).
 const generalLimiter = rateLimit({
@@ -110,7 +146,7 @@ const loginLimiter = rateLimit({
   max: Number(process.env.LC_LOGIN_LIMIT) || 10,
   standardHeaders: true,
   legacyHeaders: false,
-  keyGenerator: (req) => `${req.ip}|${String(req.body?.loginId ?? req.body?.usuario ?? "").toLowerCase().trim().slice(0, 24)}`,
+  keyGenerator: (req) => `${req.ip}|${String(req.body?.usuario ?? "").toLowerCase().trim().slice(0, 24)}`,
   validate: false,
   message: { error: "Demasiados intentos de inicio de sesión. Espera 15 minutos." }
 });
@@ -131,7 +167,7 @@ const resetLimiter = rateLimit({
   max: Number(process.env.LC_RESET_LIMIT) || 5,
   standardHeaders: true,
   legacyHeaders: false,
-  keyGenerator: (req) => `${req.ip}|${String(req.body?.email ?? req.params?.token ?? "").toLowerCase().trim().slice(0, 80)}`,
+  keyGenerator: (req) => `${req.ip}|${String(req.body?.email ?? "").toLowerCase().trim().slice(0, 80)}`,
   validate: false,
   message: { error: "Demasiadas solicitudes de recuperación de contraseña. Espera 1 hora." }
 });
@@ -146,6 +182,20 @@ const refreshLimiter = rateLimit({
   message: { error: "Demasiadas renovaciones de sesión. Intenta de nuevo en 15 minutos." }
 });
 
+// Confirmación de secretos: códigos TOTP del 2FA y contraseña actual del cambio
+// de contraseña. Son la última barrera cuando el atacante ya tiene un token
+// válido, así que admiten muy pocos intentos por cuenta (un TOTP de 6 dígitos
+// se fuerza en minutos sin este límite). LC_SENSIBLES_LIMIT lo amplía en tests.
+const sensiblesLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: Number(process.env.LC_SENSIBLES_LIMIT) || 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => `${req.ip}|${String(req.user?.id ?? req.body?.usuario ?? "").toLowerCase()}`,
+  validate: false,
+  message: { error: "Demasiados intentos de verificación. Espera 15 minutos." }
+});
+
 /* Autenticación y autorización */
 // Verifica el JWT del header y deja el payload en req.user.
 function authenticateToken(req, res, next) {
@@ -153,20 +203,40 @@ function authenticateToken(req, res, next) {
   const token = authHeader && authHeader.split(" ")[1];
   if (!token) return res.status(401).json({ error: "Token de autenticación requerido" });
 
+  let decoded;
   try {
-    const decoded = jwt.verify(token, JWT_SECRET);
-    // Solo los tokens de acceso pasan; un token de refresco jamás autentica.
-    if (decoded.tipo && decoded.tipo !== "access") {
-      return res.status(403).json({ error: "Token inválido" });
-    }
-    req.user = decoded;
-    next();
+    decoded = jwt.verify(token, JWT_SECRET);
   } catch (err) {
     if (err.name === "TokenExpiredError") {
       return res.status(401).json({ error: "Sesión expirada. Inicia sesión nuevamente." });
     }
     return res.status(403).json({ error: "Token inválido" });
   }
+  // Solo los tokens de acceso pasan; un token de refresco jamás autentica.
+  if (decoded.tipo && decoded.tipo !== "access") {
+    return res.status(403).json({ error: "Token inválido" });
+  }
+
+  // El token no es la fuente de verdad: la cuenta se revalida en la base en
+  // cada petición. Así una baja, una desactivación o un cambio de rol surte
+  // efecto de inmediato y un JWT vivo no conserva los permisos que tenía al
+  // emitirse (p. ej. un administrador degradado deja de ser administrador).
+  const cuenta = db.prepare(
+    "SELECT id, nombre, apellido, iniciales, rol, nivel_acceso, activo FROM usuarios WHERE id = ?"
+  ).get(decoded.id);
+  if (!cuenta || Number(cuenta.activo) !== 1) {
+    return res.status(401).json({ error: "La cuenta no está activa. Contacta al administrador." });
+  }
+
+  req.user = {
+    ...decoded,
+    rol: cuenta.rol,
+    nombre: cuenta.nombre,
+    apellido: cuenta.apellido,
+    iniciales: cuenta.iniciales,
+    nivelAcceso: cuenta.nivel_acceso
+  };
+  next();
 }
 
 // Solo admin
@@ -245,6 +315,21 @@ function usrFromRow(row) {
   };
 }
 
+// Vista pública del padrón: sin email. Se usa para los usuarios que no son
+// admin, que solo necesitan nombre/rol/área para resolver referencias y no
+// tienen por qué obtener el correo de terceros (dato personal superfluous).
+function usrPublico(row) {
+  const copia = usrFromRow(row);
+  delete copia.email;
+  return copia;
+}
+
+// ¿Puede este solicitante recibir el email de `row`? Admin siempre; y cada
+// usuario, el suyo propio.
+function puedeVerEmail(req, row) {
+  return req.user?.rol === "admin" || String(req.user?.id) === String(row.id);
+}
+
 // Roles con permiso para ver datos técnicos (hardware / red)
 function esTecnico(rol) {
   return rol === "admin" || rol === "programacion";
@@ -264,6 +349,18 @@ function eqFromRowVisible(row, req) {
   const { procesador, ram, almacenamiento, so, serie, ip, mac, ...visible } = eq;
   void procesador; void ram; void almacenamiento; void so; void serie; void ip; void mac;
   return visible;
+}
+
+// La configuración también se filtra por rol: la interfaz solo muestra las
+// secciones de sistema a los administradores, así que la API tampoco entrega la
+// red interna, los equipos ni los parámetros de sesión a cualquier usuario
+// autenticado. Fuera del panel de administración solo se necesita el nombre del
+// sitio (tema) y los interruptores de avisos.
+function configParaUsuario(config, rol) {
+  if (rol === "admin") return config;
+  const notificaciones = { ...(config?.notificaciones || {}) };
+  delete notificaciones.emailAdmin;
+  return { sitio: config?.sitio || {}, notificaciones };
 }
 
 function agFromRow(row) {
@@ -331,13 +428,23 @@ function crearNotificacion({ toggle, tipo, titulo, mensaje, actorId = null, dest
       solicitudId ?? null,
       fecha
     );
+    // Cota por usuario: se conservan solo las 200 notificaciones recientes
+    // (la interfaz muestra a lo sumo 50), evitando acumulación indefinida.
+    db.prepare(`
+      DELETE FROM notificaciones
+      WHERE usuario_id = ?
+        AND id NOT IN (SELECT id FROM notificaciones WHERE usuario_id = ? ORDER BY id DESC LIMIT 200)
+    `).run(destinatario, destinatario);
   } catch (e) {
     console.error("No se pudo registrar la notificación:", e.message);
   }
 }
 
 /* Auditoría de actividad */
-// Respeta el interruptor config.seguridad.registroActividad; nunca rompe la petición.
+// Respeta el interruptor config.seguridad.registroActividad; nunca rompe la
+// petición. Ese interruptor apaga solo el registro de actividad administrativa:
+// los eventos de seguridad (accesos, 2FA, contraseñas, respaldos, configuración)
+// se guardan siempre para que la Traza no pueda desaparecer.
 
 function audFromRow(row) {
   return {
@@ -346,10 +453,18 @@ function audFromRow(row) {
   };
 }
 
+const ACCIONES_SIEMPRE = new Set([
+  "login_fallido", "login_ok", "login_2fa_pendiente", "login_2fa_codigo_invalido",
+  "2fa_configuracion_iniciada", "2fa_activada", "2fa_desactivada",
+  "password_cambiada", "password_restablecida", "refresh_reutilizado",
+  "backup_descargado", "backup_restaurado", "configuracion_actualizada",
+  "usuario_creado", "usuario_editado", "usuario_registrado"
+]);
+
 function registrarAuditoria(req, accion, detalle = {}, contexto = null) {
   try {
     const cfg = JSON.parse(db.prepare("SELECT data FROM config WHERE id = 1").get()?.data || "{}");
-    if (cfg.seguridad?.registroActividad === false) return;
+    if (cfg.seguridad?.registroActividad === false && !ACCIONES_SIEMPRE.has(accion)) return;
     // Antes del login no hay req.user (aún no hay token); el contexto permite
     // asociar el usuario aunque la sesión aún no exista.
     const origen = contexto ?? req.user ?? null;
@@ -373,6 +488,17 @@ function limpiarDesafiosVencidos() {
   for (const [clave, dato] of DESAFIOS_2FA) if (dato.expira < ahora) DESAFIOS_2FA.delete(clave);
   for (const [clave, dato] of PENDIENTES_2FA) if (dato.expira < ahora) PENDIENTES_2FA.delete(clave);
 }
+
+// El estado en memoria de los desafíos pertenece a la base que está en servicio.
+// Al restaurar un respaldo se purga entero: si no, un desafío emitido antes de
+// la restauración podría validar contra el secreto de otra versión de la base.
+alRestaurar(() => {
+  DESAFIOS_2FA.clear();
+  PENDIENTES_2FA.clear();
+});
+
+// Limpieza periódica de desafíos 2FA vencidos (cada 5 minutos)
+setInterval(limpiarDesafiosVencidos, 5 * 60 * 1000).unref?.();
 
 function notificarATodos(opciones) {
   try {
@@ -458,8 +584,10 @@ function puedeModificarReporte(rep, req) {
   return rep.generado_por === uid;
 }
 
-// Adjuntos: validación estricta por allowlist de tipo MIME y tamaño máximo.
-const MAX_ARCHIVO_ADJUNTO = 6 * 1024 * 1024; // 6 MB por archivo (body total 10 MB)
+// Adjuntos: validación estricta por allowlist de tipo MIME, tamaño máximo y
+// comprobación de la cabecera real del archivo (magic bytes), para que un
+// contenido disfrazado con otro tipo (p. ej. HTML renombrado a PDF) no pase.
+const MAX_ARCHIVO_ADJUNTO = 5 * 1024 * 1024; // 5 MB por archivo (body total 8 MB)
 const MAX_ARCHIVOS = 10;
 const TIPOS_ADJUNTO = new Set([
   "image/png", "image/jpeg", "image/gif", "image/webp",
@@ -469,6 +597,50 @@ const TIPOS_ADJUNTO = new Set([
   "text/plain", "text/csv",
   "application/zip", "application/x-rar-compressed"
 ]);
+
+// Tipo real detectado que se admite para cada tipo declarado. El DOCX
+// (openxml) y el ZIP comparten la cabecera PK (contenedor ZIP/OLE).
+const TIPO_REAL_ADMISIBLE = {
+  "image/png": ["image/png"],
+  "image/jpeg": ["image/jpeg"],
+  "image/gif": ["image/gif"],
+  "image/webp": ["image/webp"],
+  "application/pdf": ["application/pdf"],
+  "application/msword": ["application/msword"],
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document": ["application/zip"],
+  "application/zip": ["application/zip"],
+  "application/x-rar-compressed": ["application/x-rar-compressed"]
+};
+
+// Detecta el tipo real por su cabecera binaria (magic bytes).
+function detectarMimeAdjunto(buf) {
+  if (!buf || buf.length < 4) return null;
+  if (buf[0] === 0x89 && buf[1] === 0x50 && buf[2] === 0x4e && buf[3] === 0x47) return "image/png";
+  if (buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff) return "image/jpeg";
+  if (buf[0] === 0x47 && buf[1] === 0x49 && buf[2] === 0x46 && buf[3] === 0x38) return "image/gif";
+  if (buf[0] === 0x52 && buf[1] === 0x49 && buf[2] === 0x46 && buf[3] === 0x46 &&
+      buf.slice(8, 12).toString("latin1") === "WEBP") return "image/webp";
+  if (buf.slice(0, 4).toString("latin1") === "%PDF") return "application/pdf";
+  if (buf[0] === 0xd0 && buf[1] === 0xcf && buf[2] === 0x11 && buf[3] === 0xe0) return "application/msword";
+  if (buf[0] === 0x50 && buf[1] === 0x4b) return "application/zip";
+  if (buf.slice(0, 7).toString("latin1") === "Rar!\x1a\x07") return "application/x-rar-compressed";
+  return null;
+}
+
+function cuerpoBase64(data) {
+  const coma = data.indexOf(",");
+  return coma < 0 ? "" : data.slice(coma + 1);
+}
+
+// Los textos no tienen cabecera binaria: solo se exige que decodifiquen a
+// UTF-8 sin bytes de control ni NUL (evita archivos binarios camuflados).
+function contenidoTextoValido(t, data) {
+  if (t !== "text/plain" && t !== "text/csv") return false;
+  try {
+    const texto = Buffer.from(cuerpoBase64(data), "base64").toString("utf8");
+    return texto.length > 0 && !/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/.test(texto);
+  } catch { return false; }
+}
 
 function sanitizarAdjuntos(adjuntos) {
   if (!Array.isArray(adjuntos)) return [];
@@ -483,7 +655,10 @@ function sanitizarAdjuntos(adjuntos) {
       Number.isInteger(tamano) && tamano > 0 && tamano <= MAX_ARCHIVO_ADJUNTO &&
       data.length > 0 && data.length <= MAX_ARCHIVO_ADJUNTO &&
       /^data:(image|application|text)\/[a-zA-Z0-9+.-]+;base64,[A-Za-z0-9+/=\r\n]*$/.test(data) &&
-      data.startsWith(`data:${t};base64,`);
+      data.startsWith(`data:${t};base64,`) &&
+      (t === "text/plain" || t === "text/csv"
+        ? contenidoTextoValido(t, data)
+        : TIPO_REAL_ADMISIBLE[t]?.includes(detectarMimeAdjunto(Buffer.from(cuerpoBase64(data), "base64"))));
     if (!valido) continue;
     resultado.push({
       nombre: String(a.nombre ?? "archivo").replace(/[^\w.\- ]/gi, "").slice(0, 120) || "archivo",
@@ -501,6 +676,26 @@ function sanitizarTexto(valor, max = 5000) {
   return String(valor).replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, "").slice(0, max);
 }
 
+// Carga útil en JSON de un reporte: se acota su tamaño para que un reporte no
+// pueda almacenar megabytes en la base (DoS de disco y respuestas lentas).
+const MAX_DATOS_REPORTE = 256 * 1024; // 256 KB serializados
+
+function serializarDatos(datos) {
+  if (datos === undefined || datos === null) return "{}";
+  if (typeof datos !== "object") {
+    const e = new Error("El contenido del reporte debe ser un objeto o una lista");
+    e.status = 400;
+    throw e;
+  }
+  const texto = JSON.stringify(datos);
+  if (texto.length > MAX_DATOS_REPORTE) {
+    const e = new Error(`El contenido del reporte supera el máximo de ${MAX_DATOS_REPORTE / 1024} KB`);
+    e.status = 400;
+    throw e;
+  }
+  return texto;
+}
+
 // Ids generados en cliente: solo se aceptan formatos seguros (evita inyección por atributo).
 function nuevoId(prefijo, sugerido) {
   const candidato = typeof sugerido === "string" ? sugerido.trim() : "";
@@ -510,23 +705,47 @@ function nuevoId(prefijo, sugerido) {
 
 /* Login (con rate limit estricto) */
 
+// Vigencia del access token: respeta `seguridad.sesionTimeout` (Configuración →
+// Seguridad) como techo, de modo que la política configurada sea la que rija y no
+// un valor fijo. LC_JWT_EXPIRES manda cuando está definido (lo usan los tests).
+function ttlAcceso() {
+  if (process.env.LC_JWT_EXPIRES) return process.env.LC_JWT_EXPIRES;
+  const minutos = Number(JSON.parse(
+    db.prepare("SELECT data FROM config WHERE id = 1").get()?.data || "{}"
+  )?.seguridad?.sesionTimeout);
+  const topeMin = Number.isFinite(minutos) && minutos > 0 ? minutos : 30;
+  const segundos = Math.min(Math.max(topeMin, 5) * 60, 2 * 60 * 60);
+  return `${segundos}s`;
+}
+
 // Token de acceso: corto plazo, autentica las peticiones a la API.
 function firmarAcceso(fila) {
   return jwt.sign(
     { tipo: "access", id: fila.id, rol: fila.rol, nombre: fila.nombre, apellido: fila.apellido, iniciales: fila.iniciales, nivelAcceso: fila.nivel_acceso },
     JWT_SECRET,
-    { expiresIn: JWT_EXPIRES }
+    { expiresIn: ttlAcceso() }
   );
 }
 
 // Token de refresco: largo plazo, se guarda en la tabla refresh_tokens y se
 // rota en cada uso. Limpia además los tokens ya vencidos para no acumular filas.
-function emitirRefreshToken(usuarioId) {
+function limpiarTokensVencidos() {
   db.prepare("DELETE FROM refresh_tokens WHERE expira_en < ?").run(Date.now());
+}
+
+function emitirRefreshToken(usuarioId) {
+  limpiarTokensVencidos();
   const id = randomBytes(32).toString("hex");
   const ahora = Date.now();
   db.prepare("INSERT INTO refresh_tokens (id, usuario_id, creado_en, expira_en, revocado) VALUES (?,?,?,?,0)")
     .run(id, usuarioId, ahora, ahora + REFRESH_TOKEN_TTL_MS);
+  // Cota por usuario: se conservan los 5 refresh tokens más recientes y se
+  // podan los revocados más antiguos para no acumular filas para siempre.
+  db.prepare(`
+    DELETE FROM refresh_tokens
+    WHERE usuario_id = ? AND revocado = 1
+      AND id NOT IN (SELECT id FROM refresh_tokens WHERE usuario_id = ? ORDER BY creado_en DESC LIMIT 5)
+  `).run(usuarioId, usuarioId);
   return jwt.sign(
     { tipo: "refresh", id, sub: usuarioId },
     JWT_SECRET,
@@ -534,7 +753,28 @@ function emitirRefreshToken(usuarioId) {
   );
 }
 
-app.post("/api/login", loginLimiter, (req, res) => {
+// Limpieza periódica (cada 15 minutos): tokens vencidos y poda de las tablas
+// que acumulan sin cota (auditoría, notificaciones, solicitudes y enlaces de
+// reseteo) para que la base de datos no crezca indefinidamente.
+// El índice de notificaciones por usuario se crea aquí (idempotente) para que
+// la poda por usuario en crearNotificacion no haga un full-scan.
+db.exec("CREATE INDEX IF NOT EXISTS idx_notificaciones_usuario ON notificaciones(usuario_id, id)");
+// Los temporizadores de limpieza no deben sostener el proceso ni fallar si la
+// base ya se cerró (p. ej. al terminar una suite de pruebas).
+const temporizadorLimpieza = setInterval(() => {
+  try {
+    const podadas = podarTablas();
+    if (podadas) {
+      const total = Object.values(podadas).reduce((a, b) => a + b, 0);
+      console.log(`Limpieza periódica: ${total} registro(s) antiguos eliminados (${Object.keys(podadas).join(", ")}).`);
+    }
+  } catch (err) {
+    console.error("Fallo en la limpieza periódica:", err?.message || err);
+  }
+}, 15 * 60 * 1000);
+temporizadorLimpieza.unref?.();
+
+app.post("/api/login", loginLimiter, async (req, res) => {
   const { usuario, password } = req.body || {};
   if (!usuario || !password) return res.status(400).json({ error: "Faltan credenciales" });
 
@@ -542,7 +782,10 @@ app.post("/api/login", loginLimiter, (req, res) => {
     SELECT * FROM usuarios WHERE (id = ? OR email = ?) AND activo = 1
   `).get(usuario, usuario);
 
-  if (!row || !bcrypt.compareSync(password, row.password)) {
+  // Hash ficticio para prevenir ataques de temporización
+  const hashFicticio = "$2a$10$ejPcmjH1Njlwe/IlvwtMK.3Wjjl5KKIo3LwiNO4kwqGB6ffG.3R2C";
+  const passwordValido = await bcrypt.compare(password, row ? row.password : hashFicticio);
+  if (!row || !passwordValido) {
     registrarAuditoria(req, "login_fallido", { usuario: String(usuario).slice(0, 60) });
     return res.status(401).json({ error: "Usuario o contraseña incorrectos" });
   }
@@ -629,7 +872,7 @@ app.post("/api/2fa/setup", authenticateToken, requireAdmin, async (req, res) => 
 });
 
 // Activa el 2FA tras verificar el código generado con el secreto pendiente.
-app.post("/api/2fa/verificar", authenticateToken, requireAdmin, (req, res) => {
+app.post("/api/2fa/verificar", authenticateToken, requireAdmin, sensiblesLimiter, (req, res) => {
   const { codigo } = req.body || {};
   if (!codigo) return res.status(400).json({ error: "Falta el código de verificación" });
 
@@ -650,7 +893,7 @@ app.post("/api/2fa/verificar", authenticateToken, requireAdmin, (req, res) => {
 });
 
 // Desactiva el 2FA (exige el código actual para confirmar).
-app.post("/api/2fa/desactivar", authenticateToken, requireAdmin, (req, res) => {
+app.post("/api/2fa/desactivar", authenticateToken, requireAdmin, sensiblesLimiter, (req, res) => {
   const { codigo } = req.body || {};
   const fila = db.prepare("SELECT totp_secreto, totp_habilitado FROM usuarios WHERE id = ?").get(req.user.id);
   if (!fila || fila.totp_habilitado !== 1) {
@@ -671,27 +914,49 @@ app.post("/api/2fa/desactivar", authenticateToken, requireAdmin, (req, res) => {
 /* Auditoría de actividad (solo administrador) */
 
 app.get("/api/auditoria", authenticateToken, requireAdmin, (req, res) => {
-  let rows = db.prepare("SELECT * FROM auditoria ORDER BY id DESC").all();
+  // Los filtros se aplican en SQL (no después de un LIMIT) para que la búsqueda
+  // abarque todo el registro y no solo los 1000 eventos más recientes.
+  const condiciones = [];
+  const valores = [];
 
   const q = typeof req.query.q === "string" ? req.query.q.trim().toLowerCase() : "";
-  const usuario = typeof req.query.usuario === "string" ? req.query.usuario.trim() : "";
+  if (q) {
+    condiciones.push("(accion LIKE ? OR IFNULL(usuario_id, '') LIKE ? OR IFNULL(rol, '') LIKE ? OR IFNULL(detalle, '') LIKE ?)");
+    for (let i = 0; i < 4; i++) valores.push(`%${q}%`);
+  }
+  const usuario = typeof req.query.usuario === "string" ? req.query.usuario.trim().slice(0, 80) : "";
+  if (usuario) {
+    condiciones.push("usuario_id = ?");
+    valores.push(usuario);
+  }
   const desde = typeof req.query.desde === "string" ? req.query.desde.trim() : "";
+  if (/^\d{4}-\d{2}-\d{2}$/.test(desde)) {
+    condiciones.push("substr(fecha, 1, 10) >= ?");
+    valores.push(desde);
+  }
   const hasta = typeof req.query.hasta === "string" ? req.query.hasta.trim() : "";
-
-  if (q || usuario || desde || hasta) {
-    rows = rows.filter((r) => {
-      const detalle = JSON.stringify(r.detalle || {});
-      const criterio = `${r.accion} ${r.usuario_id || ""} ${r.rol || ""} ${detalle}`.toLowerCase();
-      if (q && !criterio.includes(q)) return false;
-      if (usuario && r.usuario_id !== usuario) return false;
-      const fecha = (r.fecha || "").slice(0, 10);
-      if (desde && fecha < desde) return false;
-      if (hasta && fecha > hasta) return false;
-      return true;
-    });
+  if (/^\d{4}-\d{2}-\d{2}$/.test(hasta)) {
+    condiciones.push("substr(fecha, 1, 10) <= ?");
+    valores.push(hasta);
   }
 
-  responderLista(req, res, rows.map(audFromRow));
+  const where = condiciones.length ? ` WHERE ${condiciones.join(" AND ")}` : "";
+  const pag = paginacionDe(req);
+  const limite = pag ? pag.limite : 1000;
+  const offset = pag ? (pag.pagina - 1) * pag.limite : 0;
+
+  const total = db.prepare(`SELECT COUNT(*) AS n FROM auditoria${where}`).get(...valores).n;
+  const rows = db.prepare(`SELECT * FROM auditoria${where} ORDER BY id DESC LIMIT ? OFFSET ?`)
+    .all(...valores, limite, offset);
+
+  if (!pag) return res.json(rows.map(audFromRow));
+  res.json({
+    data: rows.map(audFromRow),
+    total,
+    pagina: pag.pagina,
+    totalPaginas: Math.max(1, Math.ceil(total / pag.limite)),
+    limite: pag.limite
+  });
 });
 
 /* Respaldo de la base de datos (solo administrador) */
@@ -712,15 +977,18 @@ app.get("/api/backups/exportar", authenticateToken, requireAdmin, (req, res) => 
 });
 
 // Restaurar: se recibe el archivo .db como binario y se reemplaza la base actual.
+// El respaldo se valida entero (cabecera SQLite, integridad y esquema) sobre una
+// copia temporal antes de tocar nada; si algo falla, la base en servicio sigue
+// intacta y solo queda una copia `.prev` de la anterior.
 app.post("/api/backups/restaurar", authenticateToken, requireAdmin,
   express.raw({ type: ["application/octet-stream", "application/x-sqlite3", "application/vnd.sqlite3"], limit: "60mb" }),
-  (req, res) => {
+  async (req, res) => {
     const buffer = req.body;
     if (!Buffer.isBuffer(buffer) || buffer.length === 0) {
       return res.status(400).json({ error: "No se recibió ningún archivo" });
     }
     try {
-      reemplazarBaseDesdeBuffer(buffer);
+      await reemplazarBaseDesdeBuffer(buffer);
     } catch (err) {
       const status = err?.status || 400;
       return res.status(status).json({
@@ -751,8 +1019,24 @@ app.post("/api/refresh", refreshLimiter, (req, res) => {
     return res.status(403).json({ error: "Token de refresco inválido" });
   }
 
-  const fila = db.prepare("SELECT revocado, expira_en FROM refresh_tokens WHERE id = ?").get(decoded.id);
-  if (!fila || fila.revocado === 1 || fila.expira_en < Date.now()) {
+  const fila = db.prepare("SELECT usuario_id, revocado, expira_en FROM refresh_tokens WHERE id = ?").get(decoded.id);
+  if (!fila) return res.status(401).json({ error: "Sesión expirada. Inicia sesión nuevamente." });
+  if (fila.revocado === 1) {
+    // Se reutiliza un token ya rotado: es la señal clásica de un token robado.
+    // Se cierra la familia completa de sesiones del usuario para cortar el
+    // acceso al atacante (y el suyo, que tendrá que volver a iniciar sesión).
+    const abiertas = db.prepare(
+      "SELECT COUNT(*) AS n FROM refresh_tokens WHERE usuario_id = ? AND revocado = 0"
+    ).get(fila.usuario_id).n;
+    if (abiertas > 0) {
+      db.prepare("UPDATE refresh_tokens SET revocado = 1 WHERE usuario_id = ? AND revocado = 0")
+        .run(fila.usuario_id);
+      const usuarioSospechoso = db.prepare("SELECT id, rol FROM usuarios WHERE id = ?").get(fila.usuario_id);
+      registrarAuditoria(req, "refresh_reutilizado", { usuario: fila.usuario_id }, usuarioSospechoso ?? null);
+    }
+    return res.status(401).json({ error: "Sesión expirada. Inicia sesión nuevamente." });
+  }
+  if (fila.expira_en < Date.now()) {
     return res.status(401).json({ error: "Sesión expirada. Inicia sesión nuevamente." });
   }
 
@@ -785,23 +1069,23 @@ app.post("/api/logout", refreshLimiter, (req, res) => {
 });
 
 // Cambio de contraseña (verifica la contraseña actual)
-app.post("/api/change-password", authenticateToken, (req, res) => {
+app.post("/api/change-password", authenticateToken, sensiblesLimiter, async (req, res) => {
   const { currentPassword, newPassword } = req.body || {};
   if (!currentPassword || !newPassword) {
     return res.status(400).json({ error: "Faltan campos obligatorios" });
   }
-  if (newPassword.length < 6) {
-    return res.status(400).json({ error: "La nueva contraseña debe tener al menos 6 caracteres" });
+  if (newPassword.length < MIN_PASSWORD) {
+    return res.status(400).json({ error: `La nueva contraseña debe tener al menos ${MIN_PASSWORD} caracteres` });
   }
 
   const row = db.prepare("SELECT * FROM usuarios WHERE id = ?").get(req.user.id);
   if (!row) return res.status(404).json({ error: "Usuario no encontrado" });
 
-  if (!bcrypt.compareSync(currentPassword, row.password)) {
+  if (!(await bcrypt.compare(currentPassword, row.password))) {
     return res.status(401).json({ error: "La contraseña actual es incorrecta" });
   }
 
-  const hashed = bcrypt.hashSync(newPassword, 10);
+  const hashed = await bcrypt.hash(newPassword, 10);
   db.prepare("UPDATE usuarios SET password = ? WHERE id = ?").run(hashed, req.user.id);
   // Por seguridad, toda sesión de larga duración muere al cambiar la contraseña.
   db.prepare("UPDATE refresh_tokens SET revocado = 1 WHERE usuario_id = ?").run(req.user.id);
@@ -819,6 +1103,15 @@ function limpiarResetsExpirados() {
   db.prepare("DELETE FROM contrasena_resets WHERE expira_en < ?").run(Date.now());
 }
 
+// Limpieza periódica de resets expirados (cada 10 minutos)
+setInterval(() => {
+  try {
+    limpiarResetsExpirados();
+  } catch (err) {
+    console.error("Fallo en la limpieza de resets expirados:", err?.message || err);
+  }
+}, 10 * 60 * 1000).unref?.();
+
 async function enviarCorreoReseteo(email, enlace) {
   const apiKey = process.env.RESEND_API_KEY;
   if (!apiKey) {
@@ -827,7 +1120,7 @@ async function enviarCorreoReseteo(email, enlace) {
     return;
   }
   const from = process.env.RESEND_FROM || "LabControl <onboarding@resend.dev>";
-  await fetch("https://api.resend.com/emails", {
+  const res = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -843,6 +1136,25 @@ async function enviarCorreoReseteo(email, enlace) {
         </div>`
     })
   });
+  if (!res.ok) {
+    const errorText = await res.text().catch(() => "");
+    console.error(`Error al enviar correo de restablecimiento a ${email}: ${res.status} ${errorText}`);
+  }
+}
+
+// Base URL pública para enlaces que van en correos. En producción conviene
+// fijarla con LC_PUBLIC_URL; de lo contrario se deriva del Host de la
+// petición (rechazando valores sospechosos para evitar phishing por
+// cabeceras manipuladas).
+function urlBasePublico(req) {
+  const fija = (process.env.LC_PUBLIC_URL || "").trim();
+  if (fija) return fija.replace(/\/+$/, "");
+  const host = String(req.get("host") ?? "").trim().replace(/\.$/, "");
+  if (/^[a-zA-Z0-9.-]+(:\d{1,5})?$/.test(host)) {
+    const protocolo = req.protocol === "https" ? "https" : "http";
+    return `${protocolo}://${host}`;
+  }
+  return `http://localhost:${PORT}`;
 }
 
 // Solicitar recuperación: siempre responde lo mismo (no revela si la cuenta existe).
@@ -860,7 +1172,7 @@ app.post("/api/recuperar-contrasena", (req, res) => {
     db.prepare("INSERT INTO contrasena_resets (token, usuario_id, expira_en, usado) VALUES (?,?,?,0)")
       .run(token, usuario.id, Date.now() + RESET_TOKEN_TTL_MS);
     registrarAuditoria(req, "recuperacion_solicitada", { usuario: usuario.id });
-    const enlace = `${req.protocol}://${req.get("host")}/login.html?reset=${token}`;
+    const enlace = `${urlBasePublico(req)}/login.html?reset=${token}`;
     enviarCorreoReseteo(usuario.email, enlace)
       .catch((e) => console.error("No se pudo enviar el correo de restablecimiento:", e?.message || e));
   }
@@ -869,8 +1181,8 @@ app.post("/api/recuperar-contrasena", (req, res) => {
 
 // Completar restablecimiento con el token del enlace recibido por correo.
 app.post("/api/recuperar-contrasena/:token", [
-  body("newPassword").isLength({ min: 6 }).withMessage("La contraseña debe tener al menos 6 caracteres")
-], (req, res) => {
+  body("newPassword").isLength({ min: MIN_PASSWORD, max: MAX_PASSWORD }).withMessage(`La contraseña debe tener entre ${MIN_PASSWORD} y ${MAX_PASSWORD} caracteres`)
+], async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
     return res.status(400).json({ error: "Datos inválidos", details: errors.array() });
@@ -883,7 +1195,8 @@ app.post("/api/recuperar-contrasena/:token", [
   const usuario = db.prepare("SELECT id FROM usuarios WHERE id = ? AND activo = 1").get(fila.usuario_id);
   if (!usuario) return res.status(404).json({ error: "Usuario no encontrado" });
 
-  db.prepare("UPDATE usuarios SET password = ? WHERE id = ?").run(bcrypt.hashSync(req.body.newPassword, 10), fila.usuario_id);
+  const hashed = await bcrypt.hash(req.body.newPassword, 10);
+  db.prepare("UPDATE usuarios SET password = ? WHERE id = ?").run(hashed, fila.usuario_id);
   db.prepare("UPDATE contrasena_resets SET usado = 1 WHERE token = ?").run(req.params.token);
   db.prepare("DELETE FROM contrasena_resets WHERE usuario_id = ? AND token != ?").run(fila.usuario_id, req.params.token);
   db.prepare("UPDATE refresh_tokens SET revocado = 1 WHERE usuario_id = ?").run(fila.usuario_id);
@@ -897,10 +1210,10 @@ app.post("/api/registro", [
   body("nombre").trim().notEmpty().withMessage("El nombre es obligatorio"),
   body("apellido").trim().notEmpty().withMessage("El apellido es obligatorio"),
   body("email").isEmail().withMessage("El correo debe ser válido"),
-  body("password").isLength({ min: 6 }).withMessage("La contraseña debe tener al menos 6 caracteres"),
+  body("password").isLength({ min: MIN_PASSWORD, max: MAX_PASSWORD }).withMessage(`La contraseña debe tener entre ${MIN_PASSWORD} y ${MAX_PASSWORD} caracteres`),
   body("area").optional({ values: "falsy" }).trim().isLength({ max: 100 }).withMessage("El área no puede superar 100 caracteres"),
   body("especialidad").optional({ values: "falsy" }).trim().isLength({ max: 200 }).withMessage("La especialidad no puede superar 200 caracteres")
-], (req, res) => {
+], async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
     return res.status(400).json({ error: "Datos inválidos", details: errors.array() });
@@ -912,11 +1225,12 @@ app.post("/api/registro", [
   if (db.prepare("SELECT id FROM usuarios WHERE id = ?").get(u.id)) {
     return res.status(409).json({ error: "Ya existe una cuenta con ese usuario" });
   }
-  if (db.prepare("SELECT id FROM usuarios WHERE email = ?").get(u.email)) {
+  if (db.prepare("SELECT id FROM usuarios WHERE lower(email) = ?").get(u.email)) {
     return res.status(409).json({ error: "El correo ya está en uso por otra cuenta" });
   }
 
   const iniciales = `${(u.nombre[0] ?? "?")}${(u.apellido[0] ?? "")}`.toUpperCase();
+  const hashed = await bcrypt.hash(u.password, 10);
   db.prepare(`
     INSERT INTO usuarios (id,nombre,apellido,iniciales,email,password,rol,area,especialidad,nivel_acceso,activo)
     VALUES (@id,@nombre,@apellido,@iniciales,@email,@password,@rol,@area,@especialidad,@nivel_acceso,1)
@@ -926,7 +1240,7 @@ app.post("/api/registro", [
     apellido: sanitizarTexto(u.apellido, 100),
     iniciales,
     email: u.email,
-    password: bcrypt.hashSync(u.password, 10),
+    password: hashed,
     rol: "otro_area",
     area: sanitizarTexto(u.area, 100),
     especialidad: sanitizarTexto(u.especialidad, 200),
@@ -1003,13 +1317,14 @@ app.get("/api/equipos", authenticateToken, (req, res) => {
 
 app.get("/api/usuarios", authenticateToken, (req, res) => {
   const rows = db.prepare("SELECT * FROM usuarios ORDER BY nombre").all();
-  responderLista(req, res, rows.map(usrFromRow));
+  const visibles = rows.map((r) => (puedeVerEmail(req, r) ? usrFromRow(r) : usrPublico(r)));
+  responderLista(req, res, visibles);
 });
 
 app.get("/api/usuarios/:id", authenticateToken, (req, res) => {
   const row = db.prepare("SELECT * FROM usuarios WHERE id = ?").get(req.params.id);
   if (!row) return res.status(404).json({ error: "Usuario no encontrado" });
-  res.json(usrFromRow(row));
+  res.json(puedeVerEmail(req, row) ? usrFromRow(row) : usrPublico(row));
 });
 
 app.post("/api/usuarios", authenticateToken, requireAdmin, [
@@ -1017,10 +1332,10 @@ app.post("/api/usuarios", authenticateToken, requireAdmin, [
   body("nombre").trim().notEmpty().withMessage("El nombre es obligatorio"),
   body("apellido").trim().notEmpty().withMessage("El apellido es obligatorio"),
   body("email").isEmail().withMessage("El email debe ser válido"),
-  body("password").isLength({ min: 6 }).withMessage("La contraseña debe tener al menos 6 caracteres"),
+  body("password").isLength({ min: MIN_PASSWORD, max: MAX_PASSWORD }).withMessage(`La contraseña debe tener entre ${MIN_PASSWORD} y ${MAX_PASSWORD} caracteres`),
   body("rol").optional().isIn(["admin", "programacion", "otro_area"]).withMessage("Rol inválido"),
   body("nivelAcceso").optional().isIn(["total", "tecnico", "basico"]).withMessage("Nivel de acceso inválido")
-], (req, res) => {
+], async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
     return res.status(400).json({ error: "Datos inválidos", details: errors.array() });
@@ -1030,17 +1345,25 @@ app.post("/api/usuarios", authenticateToken, requireAdmin, [
   const existe = db.prepare("SELECT id FROM usuarios WHERE id = ?").get(u.id);
   if (existe) return res.status(409).json({ error: "Ya existe un usuario con ese ID" });
 
-  const emailUso = db.prepare("SELECT id FROM usuarios WHERE email = ?").get(u.email);
+  // El email se normaliza a minúsculas y la unicidad no distingue mayúsculas,
+  // para que "Docente@liceo.cl" no se cuele como una cuenta distinta.
+  const email = String(u.email || "").trim().toLowerCase();
+  const emailUso = db.prepare("SELECT id FROM usuarios WHERE lower(email) = ?").get(email);
   if (emailUso) return res.status(409).json({ error: "El email ya está en uso por otro usuario" });
 
-  const hashed = bcrypt.hashSync(u.password, 10);
+  // Las iniciales se derivan en el servidor: el cliente no las controla.
+  const nombre = sanitizarTexto(u.nombre, 100);
+  const apellido = sanitizarTexto(u.apellido, 100);
+  const iniciales = `${nombre.trim()[0] ?? ""}${apellido.trim()[0] ?? ""}`.toUpperCase();
+
+  const hashed = await bcrypt.hash(u.password, 10);
   db.prepare(`
     INSERT INTO usuarios (id,nombre,apellido,iniciales,email,password,rol,area,especialidad,nivel_acceso,activo)
     VALUES (@id,@nombre,@apellido,@iniciales,@email,@password,@rol,@area,@especialidad,@nivel_acceso,1)
   `).run({
-    id: u.id, nombre: sanitizarTexto(u.nombre, 100), apellido: sanitizarTexto(u.apellido, 100),
-    iniciales: u.iniciales || `${u.nombre[0]}${u.apellido[0]}`.toUpperCase(),
-    email: u.email, password: hashed, rol: u.rol || "otro_area",
+    id: u.id, nombre, apellido,
+    iniciales: iniciales || "??",
+    email, password: hashed, rol: u.rol || "otro_area",
     area: sanitizarTexto(u.area, 100), especialidad: sanitizarTexto(u.especialidad, 200),
     nivel_acceso: u.nivelAcceso || "basico"
   });
@@ -1057,10 +1380,10 @@ app.patch("/api/usuarios/:id", authenticateToken, [
   body("nombre").optional().trim().notEmpty(),
   body("apellido").optional().trim().notEmpty(),
   body("email").optional().isEmail().withMessage("El email debe ser válido"),
-  body("password").optional().isLength({ min: 6 }).withMessage("La contraseña debe tener al menos 6 caracteres"),
+  body("password").optional().isLength({ min: MIN_PASSWORD, max: MAX_PASSWORD }).withMessage(`La contraseña debe tener entre ${MIN_PASSWORD} y ${MAX_PASSWORD} caracteres`),
   body("rol").optional().isIn(["admin", "programacion", "otro_area"]).withMessage("Rol inválido"),
   body("nivelAcceso").optional().isIn(["total", "tecnico", "basico"]).withMessage("Nivel de acceso inválido")
-], (req, res) => {
+], async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
     return res.status(400).json({ error: "Datos inválidos", details: errors.array() });
@@ -1085,9 +1408,12 @@ app.patch("/api/usuarios/:id", authenticateToken, [
   const actual = db.prepare("SELECT * FROM usuarios WHERE id = ?").get(req.params.id);
   if (!actual) return res.status(404).json({ error: "Usuario no encontrado" });
 
-  if (req.body.email !== undefined && String(req.body.email).toLowerCase() !== String(actual.email).toLowerCase()) {
-    const emailUso = db.prepare("SELECT id FROM usuarios WHERE email = ? AND id != ?").get(req.body.email, req.params.id);
-    if (emailUso) return res.status(409).json({ error: "El email ya está en uso por otro usuario" });
+  if (req.body.email !== undefined) {
+    const email = String(req.body.email).trim().toLowerCase();
+    if (email !== String(actual.email ?? "").toLowerCase()) {
+      const emailUso = db.prepare("SELECT id FROM usuarios WHERE lower(email) = ? AND id != ?").get(email, req.params.id);
+      if (emailUso) return res.status(409).json({ error: "El email ya está en uso por otro usuario" });
+    }
   }
 
   const map = {
@@ -1100,7 +1426,12 @@ app.patch("/api/usuarios/:id", authenticateToken, [
   for (const [key, col] of Object.entries(map)) {
     if (req.body[key] !== undefined) {
       if (key === "password") {
-        valores[col] = bcrypt.hashSync(req.body[key], 10);
+        valores[col] = await bcrypt.hash(req.body[key], 10);
+      } else if (key === "email") {
+        valores[col] = String(req.body[key]).trim().toLowerCase();
+      } else if (key === "activo") {
+        // SQLite no acepta booleanos: se traduce a 0/1 (si no, error 500).
+        valores[col] = req.body[key] ? 1 : 0;
       } else if (key === "nombre" || key === "apellido" || key === "area") {
         valores[col] = sanitizarTexto(req.body[key], 100);
       } else if (key === "especialidad") {
@@ -1123,12 +1454,7 @@ app.patch("/api/usuarios/:id", authenticateToken, [
   // Si el propio usuario cambió su nombre/apellido, refrescar el JWT para que el menú se actualice.
   if (esSelf && (req.body.nombre !== undefined || req.body.apellido !== undefined)) {
     const fresca = db.prepare("SELECT * FROM usuarios WHERE id = ?").get(req.user.id);
-    const nuevoToken = jwt.sign(
-      { id: fresca.id, rol: fresca.rol, nombre: fresca.nombre, apellido: fresca.apellido, iniciales: fresca.iniciales, nivelAcceso: fresca.nivel_acceso },
-      JWT_SECRET,
-      { expiresIn: JWT_EXPIRES }
-    );
-    return res.json({ ...usrFromRow(db.prepare("SELECT * FROM usuarios WHERE id = ?").get(req.params.id)), token: nuevoToken });
+    return res.json({ ...usrFromRow(fresca), token: firmarAcceso(fresca) });
   }
 
   res.json(usrFromRow(db.prepare("SELECT * FROM usuarios WHERE id = ?").get(req.params.id)));
@@ -1160,7 +1486,7 @@ app.post("/api/agenda", authenticateToken, [
 
   // No reservar en fechas pasadas
   const hoy = new Date();
-  const hoyISO = new Date(hoy.getTime() - hoy.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+  const hoyISO = `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, "0")}-${String(hoy.getDate()).padStart(2, "0")}`;
   if (r.fecha < hoyISO) {
     return res.status(400).json({ error: "No se pueden agendar reservas en fechas pasadas" });
   }
@@ -1168,7 +1494,9 @@ app.post("/api/agenda", authenticateToken, [
   // Anticipación máxima configurable
   const cfg = JSON.parse(db.prepare("SELECT data FROM config WHERE id = 1").get()?.data || "{}");
   const anticipMax = Number(cfg.laboratorios?.anticipacionMaxReserva) || 7;
-  const dias = Math.round((new Date(r.fecha + "T00:00:00") - new Date(hoyISO + "T00:00:00")) / 86400000);
+  const fechaReserva = new Date(r.fecha + "T00:00:00Z");
+  const fechaHoy = new Date(hoyISO + "T00:00:00Z");
+  const dias = Math.round((fechaReserva.getTime() - fechaHoy.getTime()) / 86400000);
   if (dias > anticipMax) {
     return res.status(400).json({ error: `Solo se permite reservar con hasta ${anticipMax} día(s) de anticipación` });
   }
@@ -1192,10 +1520,12 @@ app.post("/api/agenda", authenticateToken, [
   }
 
   const id = nuevoId("res", r.id);
+  // El estado no lo decide el cliente (mass assignment): toda reserva nace
+  // "pendiente" y solo el admin puede cancelarla o confirmarla después.
   db.prepare(`
     INSERT INTO agenda (id, lab_id, usuario_id, fecha, hora_inicio, hora_fin, motivo, estado)
-    VALUES (?,?,?,?,?,?,?,?)
-  `).run(id, r.labId, req.user.id, r.fecha, r.horaInicio ?? null, r.horaFin ?? null, sanitizarTexto(r.motivo, 500), r.estado || "pendiente");
+    VALUES (?,?,?,?,?,?,?,'pendiente')
+  `).run(id, r.labId, req.user.id, r.fecha, r.horaInicio ?? null, r.horaFin ?? null, sanitizarTexto(r.motivo, 500));
 
   const reserva = agFromRow(db.prepare("SELECT * FROM agenda WHERE id = ?").get(id));
   notificarNuevaReserva(reserva, req.user.id);
@@ -1227,9 +1557,10 @@ app.get("/api/reportes", authenticateToken, (req, res) => {
 });
 
 app.post("/api/reportes", authenticateToken, [
-  body("tipo").trim().notEmpty().withMessage("El tipo es obligatorio"),
+  body("tipo").trim().isLength({ min: 1, max: 50 }).withMessage("El tipo debe tener entre 1 y 50 caracteres"),
   body("titulo").trim().notEmpty().withMessage("El título es obligatorio"),
-  body("descripcion").trim().notEmpty().withMessage("La descripción es obligatoria")
+  body("descripcion").trim().notEmpty().withMessage("La descripción es obligatoria"),
+  body("fecha").optional({ values: "falsy" }).matches(/^\d{4}-\d{2}-\d{2}$/).withMessage("La fecha debe tener formato AAAA-MM-DD")
 ], (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
@@ -1242,7 +1573,7 @@ app.post("/api/reportes", authenticateToken, [
     INSERT INTO reportes (id, tipo, titulo, descripcion, fecha, generado_por, datos, adjuntos)
     VALUES (?,?,?,?,?,?,?,?)
   `).run(id, r.tipo, sanitizarTexto(r.titulo, 300), sanitizarTexto(r.descripcion, 5000), r.fecha, req.user.id,
-         JSON.stringify(r.datos || {}), JSON.stringify(sanitizarAdjuntos(r.adjuntos)));
+         serializarDatos(r.datos), JSON.stringify(sanitizarAdjuntos(r.adjuntos)));
 
   const rep = repFromRow(db.prepare("SELECT * FROM reportes WHERE id = ?").get(id));
   notificarCambioReporte("creado", rep, req.user.id);
@@ -1251,7 +1582,9 @@ app.post("/api/reportes", authenticateToken, [
 
 app.patch("/api/reportes/:id", authenticateToken, [
   body("titulo").optional().trim().notEmpty(),
-  body("descripcion").optional().trim().notEmpty()
+  body("descripcion").optional().trim().notEmpty(),
+  body("tipo").optional().trim().isLength({ min: 1, max: 50 }),
+  body("fecha").optional({ values: "falsy" }).matches(/^\d{4}-\d{2}-\d{2}$/)
 ], (req, res) => {
   const actual = db.prepare("SELECT * FROM reportes WHERE id = ?").get(req.params.id);
   if (!actual) return res.status(404).json({ error: "Reporte no encontrado" });
@@ -1279,7 +1612,7 @@ app.patch("/api/reportes/:id", authenticateToken, [
     r.titulo !== undefined ? sanitizarTexto(r.titulo, 300) : actual.titulo,
     r.descripcion !== undefined ? sanitizarTexto(r.descripcion, 5000) : actual.descripcion,
     r.fecha ?? actual.fecha,
-    JSON.stringify(r.datos ?? JSON.parse(actual.datos || "{}")),
+    serializarDatos(r.datos ?? JSON.parse(actual.datos || "{}")),
     JSON.stringify(r.adjuntos !== undefined ? sanitizarAdjuntos(r.adjuntos) : JSON.parse(actual.adjuntos || "[]")),
     req.params.id
   );
@@ -1343,7 +1676,7 @@ app.get("/api/solicitudes-especialidad", authenticateToken, (req, res) => {
   const rows = req.user.rol === "admin"
     ? db.prepare("SELECT * FROM solicitudes_especialidad ORDER BY id DESC").all()
     : db.prepare("SELECT * FROM solicitudes_especialidad WHERE usuario_id = ? ORDER BY id DESC").all(req.user.id);
-  res.json(rows.map(solicitudFromRow));
+  responderLista(req, res, rows.map(solicitudFromRow));
 });
 
 app.get("/api/solicitudes-especialidad/:id", authenticateToken, (req, res) => {
@@ -1450,7 +1783,7 @@ app.post("/api/solicitudes-especialidad/:id/rechazar", authenticateToken, requir
 app.get("/api/config", authenticateToken, (req, res) => {
   const row = db.prepare("SELECT data FROM config WHERE id = 1").get();
   if (!row) return res.status(404).json({ error: "Configuración no encontrada" });
-  res.json(JSON.parse(row.data));
+  res.json(configParaUsuario(JSON.parse(row.data), req.user?.rol));
 });
 
 app.patch("/api/config", authenticateToken, requireAdmin, (req, res) => {
@@ -1459,10 +1792,22 @@ app.patch("/api/config", authenticateToken, requireAdmin, (req, res) => {
   const actual = JSON.parse(row.data);
   const nuevo = { ...actual };
 
+  // Validación de estructura: el cuerpo debe ser un objeto plano
+  if (typeof req.body !== "object" || req.body === null || Array.isArray(req.body)) {
+    return res.status(400).json({ error: "El cuerpo de la solicitud debe ser un objeto JSON" });
+  }
+
   // Merge de un nivel: se ignoran claves peligrosas (protección contra
   // prototype pollution vía JSON con `__proto__`, `constructor`, etc.).
   for (const [key, valor] of Object.entries(req.body)) {
     if (["__proto__", "constructor", "prototype"].includes(key)) continue;
+    // Validar que el valor sea un tipo primitivo u objeto plano
+    if (valor !== null && typeof valor === "object" && !Array.isArray(valor)) {
+      // Verificar que no sea un objeto con claves peligrosas
+      if (Object.keys(valor).some(k => ["__proto__", "constructor", "prototype"].includes(k))) {
+        continue;
+      }
+    }
     nuevo[key] = (typeof valor === "object" && valor !== null && actual[key])
       ? { ...actual[key], ...valor }
       : valor;
@@ -1493,11 +1838,17 @@ app.use((err, req, res, next) => {
 /* Arranque: solo si este archivo es el punto de entrada (node server.js) */
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  app.listen(PORT, () => {
-    console.log(`\n  LabControl Liceo v3.7`);
+  const servidor = app.listen(PORT, () => {
+    console.log(`\n  LabControl Liceo v3.8`);
     console.log(`  API + sitio corriendo en: http://localhost:${PORT}/login.html`);
     console.log(`  Seguridad: JWT + bcrypt + rate limiting + helmet\n`);
   });
+
+  // Tiempos de espera del socket: una conexión lenta o abandonada no puede
+  // mantener undescriptor abierto indefinidamente (Slowloris).
+  servidor.headersTimeout = 65_000;
+  servidor.requestTimeout = 120_000;
+  servidor.keepAliveTimeout = 61_000;
 }
 
 export { app };

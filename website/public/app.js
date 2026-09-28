@@ -409,7 +409,8 @@ async function revisarRecordatoriosReserva(sesion) {
       const idClave = String(r.id);
       if (vistas.includes(idClave)) continue;
 
-      const inicio = new Date(`${r.fecha}T${(r.horaInicio || "00:00") + ":00"}`);
+      const horaLimpia = (r.horaInicio || "00:00").slice(0, 5);
+      const inicio = new Date(`${r.fecha}T${horaLimpia}:00`);
       const minutos = Math.round((inicio.getTime() - Date.now()) / 60000);
 
       if (minutos > 0 && minutos <= 30) {
@@ -454,7 +455,7 @@ function renderListaNotificaciones() {
     const abrirSolicitud = esAdminSesion && n.tipo === "solicitud_especialidad" && n.solicitudId;
     return `
     <button class="notif-item ${n.leida ? "" : "notif-item--nueva"}" type="button"
-      data-id="${n.id}" data-destino="${destinoNotificacion(n)}"
+      data-id="${esc(n.id)}" data-destino="${esc(destinoNotificacion(n))}"
       ${abrirSolicitud ? `data-sol="${esc(String(n.solicitudId))}"` : ""}>
       <span class="notif-item__punto"></span>
       <span class="notif-item__cuerpo">
@@ -693,7 +694,7 @@ export function renderLabGrid(labs, containerId, { linkTo = "laboratorios.html" 
   el.innerHTML = labs.map((lab) => {
     const estado = ESTADOS[lab.estado];
     const imagenTrasera = lab.imagenes && lab.imagenes.length > 0
-      ? `<img src="${lab.imagenes[0]}" alt="${esc(lab.nombre)}" class="lab-card__img" data-lab-id="${lab.id}" style="width:100%;height:100%;object-fit:cover;cursor:pointer" />`
+      ? `<img src="${esc(lab.imagenes[0])}" alt="${esc(lab.nombre)}" class="lab-card__img" data-lab-id="${esc(lab.id)}" style="width:100%;height:100%;object-fit:cover;cursor:pointer" />`
       : `<span class="photo-icon"><i data-lucide="monitor"></i></span>`;
     return `
       <div class="card lab-card">
@@ -705,7 +706,7 @@ export function renderLabGrid(labs, containerId, { linkTo = "laboratorios.html" 
           <div class="lab-card__room">${esc(lab.sala)}</div>
           <div class="lab-card__row"><span>Equipos</span><strong style="color:var(--color-text)">${lab.equipos}</strong></div>
           <div class="lab-card__row"><span>Estado</span><span class="badge badge--${lab.estado}">${estado.label}</span></div>
-          <a class="lab-card__link" href="${linkTo}?id=${lab.id}">Ver detalles →</a>
+          <a class="lab-card__link" href="${linkTo}?id=${encodeURIComponent(lab.id)}">Ver detalles →</a>
         </div>
       </div>
     `;
@@ -753,11 +754,17 @@ export function showToast(mensaje, tipo = "success") {
   }, 3200);
 }
 
+// Escape para interpolar en HTML. Cubre también las comillas porque la salida
+// se usa dentro de atributos con comillas dobles (p. ej. title="${esc(...)}"):
+// sin ellas, un valor con `"` cierra el atributo y permite XSS almacenado.
 export function esc(str) {
   if (str === null || str === undefined) return "";
-  const div = document.createElement("div");
-  div.textContent = str;
-  return div.innerHTML;
+  return String(str)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
 }
 
 function __scopeDeTabs(group) {

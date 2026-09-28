@@ -1,6 +1,6 @@
 /* Imports (ES modules) */
 import { AUTH, ESTADOS_EQUIPO, cargarEquipos, cargarLaboratorios } from "./data.js";
-import { getQueryParam, renderSidebar, showToast } from "./app.js";
+import { esc, getQueryParam, renderSidebar, showToast } from "./app.js";
 
 
   renderSidebar("equipos.html");
@@ -11,12 +11,6 @@ import { getQueryParam, renderSidebar, showToast } from "./app.js";
   let equiposCache = [];
   let labsCache = [];
   let eqSeleccionado = null;
-
-  function e_esc(v) {
-    return String(v ?? "").replace(/[&<>"']/g, (c) => ({
-      "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
-    }[c]));
-  }
 
   if (!puedeTecnico) {
     document.getElementById("aviso-sin-permiso").style.display = "flex";
@@ -32,7 +26,7 @@ import { getQueryParam, renderSidebar, showToast } from "./app.js";
     const sel = document.getElementById("filtro-lab");
     sel.innerHTML =
       '<option value="">Todos los laboratorios</option>' +
-      labs.map((l) => `<option value="${e_esc(l.id)}">${e_esc(l.nombre)}</option>`).join("");
+      labs.map((l) => `<option value="${esc(l.id)}">${esc(l.nombre)}</option>`).join("");
     if (labFiltroInicial) sel.value = labFiltroInicial;
 
     renderEqStats();
@@ -79,20 +73,20 @@ import { getQueryParam, renderSidebar, showToast } from "./app.js";
       const lab = labsCache.find((l) => l.id === e.labId);
       const estEq = ESTADOS_EQUIPO[e.estado] ?? { label: e.estado, clase: "badge--muted" };
       const tecnico = puedeTecnico
-        ? `<span class="tech-cell">${e_esc(e.procesador)}<br>${e_esc(e.ram)} · ${e_esc(e.almacenamiento)}</span>`
+        ? `<span class="tech-cell">${esc(e.procesador)}<br>${esc(e.ram)} · ${esc(e.almacenamiento)}</span>`
         : `<span class="locked-cell"><i data-lucide="lock"></i> Restringido</span>`;
       const red = puedeTecnico
-        ? `<span class="tech-cell">${e_esc(e.ip)}<br>${e_esc(e.mac)}</span>`
+        ? `<span class="tech-cell">${esc(e.ip)}<br>${esc(e.mac)}</span>`
         : `<span class="locked-cell"><i data-lucide="lock"></i> Restringido</span>`;
       return `
         <tr>
-          <td><strong>${e_esc(e.nombre)}</strong><br><span style="font-size:.74rem;color:var(--color-text-muted)">${lab ? e_esc(lab.nombre) : "—"}</span></td>
-          <td>${e_esc(e.tipo ?? "PC")}</td>
-          <td><span class="badge ${estEq.clase}">${e_esc(estEq.label)}</span></td>
+          <td><strong>${esc(e.nombre)}</strong><br><span style="font-size:.74rem;color:var(--color-text-muted)">${lab ? esc(lab.nombre) : "—"}</span></td>
+          <td>${esc(e.tipo ?? "PC")}</td>
+          <td><span class="badge ${estEq.clase}">${esc(estEq.label)}</span></td>
           <td>${tecnico}</td>
           <td>${red}</td>
           <td>${puedeTecnico
-            ? `<button class="btn btn--sm" data-control="${e_esc(e.nombre)}">Control</button>`
+            ? `<button class="btn btn--sm" data-control="${esc(e.nombre)}">Control</button>`
             : "—"}</td>
         </tr>
       `;

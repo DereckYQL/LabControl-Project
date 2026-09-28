@@ -6,6 +6,9 @@ website/backend/database/*.db
 website/backend/database/*.db-shm
 website/backend/database/*.db-wal
 
+# Clave JWT persistente generada en tiempo de ejecución
+website/backend/database/.jwt-secret
+
 # Artefactos de Playwright / tests
 test-results/
 playwright-report/
