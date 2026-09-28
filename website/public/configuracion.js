@@ -42,11 +42,22 @@ Promise.all([
   cargarConteos(),
   cargarSolicitudesEspecialidad().catch(() => [])
 ]).then(([cfg, usuarios, , solicitudes]) => {
-  config = cfg;
-  usuariosTotal = usuarios;
-  usuario = usuarios.find((u) => u.id === sesion?.id) || null;
+  config = cfg ?? CONFIG_DEFAULT;
+  usuariosTotal = usuarios || [];
+  usuario = (usuarios || []).find((u) => u.id === sesion?.id) || null;
   misSolicitudes = solicitudes || [];
   iniciarPantalla();
+}).catch((err) => {
+  // Un endpoint que falle (red, límite de peticiones, error 5xx) no debe dejar
+  // la página en blanco para siempre: se muestra el perfil con valores por
+  // defecto y se avisa, igual que hacen las demás páginas con su carga inicial.
+  console.error("[configuracion] No se pudo cargar la configuración completa:", err);
+  config = CONFIG_DEFAULT;
+  usuariosTotal = [];
+  usuario = null;
+  misSolicitudes = [];
+  iniciarPantalla();
+  showToast("No se pudieron cargar los datos de configuración.", "error");
 });
 
 function iniciarPantalla() {

@@ -580,7 +580,7 @@ const MIGRACIONES = [
         canonico.close();
       }
       if (anadidas.length) console.log(`  Migración 10: columnas añadidas: ${anadidas.join(", ")}`);
-  if (omitidas.length) {
+      if (omitidas.length) {
         console.warn(
           `  Migración 10: no se pudieron añadir ${omitidas.join(", ")} (SQLite no admite ` +
           "añadir una clave primaria ni una columna obligatoria sin valor por defecto). Revísalas a mano."

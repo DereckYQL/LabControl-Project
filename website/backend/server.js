@@ -250,19 +250,22 @@ function requireAdmin(req, res, next) {
 /* Paginación opcional: ?pagina=1&limite=20 */
 
 const LIMITE_MAX = 100;
+const LIMITE_DEFAULT = 20;
 
 function paginacionDe(req) {
   const tienePagina = req.query.pagina !== undefined || req.query.page !== undefined;
   const tieneLimite = req.query.limite !== undefined || req.query.limit !== undefined;
   if (!tienePagina && !tieneLimite) return null;
 
-  const limite = Number.parseInt(req.query.limite ?? req.query.limit, 10);
+  // Solo con ?pagina=N debe funcionar (limite por defecto); solo con ?limite=N
+  // también (la página por defecto es 1).
+  const limite = Number.parseInt(req.query.limite ?? req.query.limit ?? String(LIMITE_DEFAULT), 10);
   if (!Number.isInteger(limite) || limite < 1 || limite > LIMITE_MAX) {
     const err = new Error(`El parámetro 'limite' debe ser un entero entre 1 y ${LIMITE_MAX}`);
     err.status = 400;
     throw err;
   }
-  const pagina = Number.parseInt(req.query.pagina ?? req.query.page, 10);
+  const pagina = Number.parseInt(req.query.pagina ?? req.query.page ?? "1", 10);
   return { pagina: Number.isInteger(pagina) && pagina > 0 ? pagina : 1, limite };
 }
 

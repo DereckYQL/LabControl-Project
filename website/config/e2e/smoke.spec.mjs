@@ -16,7 +16,7 @@ test("login como INSUCO y el dashboard carga los datos", async ({ page }) => {
   await expect(page.locator(".sidebar__user .name")).not.toBeEmpty();
 });
 
-test("configuracion.html muestra la versión v3.7", async ({ page }) => {
+test("configuracion.html muestra la versión v3.8", async ({ page }) => {
   await login(page, "INSUCO", "Insuco1336");
 
   await page.goto("/configuracion.html");

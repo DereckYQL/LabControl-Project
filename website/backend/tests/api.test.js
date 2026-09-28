@@ -176,6 +176,19 @@ test("validación: limite inválido devuelve 400", async () => {
   expect(res.status).toBe(400);
 });
 
+test("paginación con solo ?pagina= aplica el limite por defecto (no 400)", async () => {
+  const token = await login();
+  const res = await request(app)
+    .get("/api/laboratorios?pagina=2")
+    .set("Authorization", `Bearer ${token}`);
+  expect(res.status).toBe(200);
+  expect(Array.isArray(res.body)).toBe(false);
+  expect(res.body.pagina).toBe(2);
+  expect(res.body.limite).toBe(20);
+  expect(res.body.data.length).toBeLessThanOrEqual(20);
+  expect(res.body.total).toBeGreaterThan(0);
+});
+
 test("seguridad: los usuarios listados nunca exponen password", async () => {
   const token = await login();
   const res = await request(app).get("/api/usuarios").set("Authorization", `Bearer ${token}`);
