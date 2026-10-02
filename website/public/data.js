@@ -487,7 +487,7 @@ function demoRequest(metodo, ruta, cuerpo) {
       const usr = D.usuarios.find((x) => x.id === uid && String(id) === "demo_reset_token");
       if (!usr) throw new Error("El enlace de restablecimiento es inválido o expiró");
       const pass = String(cuerpo?.newPassword ?? "");
-      if (pass.length < 6) throw new Error("La contraseña debe tener al menos 6 caracteres");
+      if (pass.length < 8) throw new Error("La contraseña debe tener al menos 8 caracteres");
       usr.password = pass;
       try { sessionStorage.removeItem("lc_reset_demo"); } catch { /* sin almacenamiento */ }
       return { ok: true, usuario: usr.id };
@@ -560,20 +560,30 @@ async function pedir(ruta, opciones = {}, _reintentado = false) {
       }
 
       if (res.status === 401) {
-        AUTH.logout();
-        return null;
+        const err = await res.json().catch(() => ({}));
+        // Solo se cierra la sesión si realmente había una. Antes, un 401 del
+        // propio login (usuario o contraseña incorrectos) terminaba en
+        // AUTH.logout() → window.location, así que el mensaje de error nunca se
+        // veía y el formulario se recargaba vacío.
+        if (AUTH.getSesion()) AUTH.logout();
+        throw new Error(err.error || "No autorizado. Inicia sesión nuevamente.");
       }
 
       const tipo = res.headers.get("content-type") ?? "";
       if (!tipo.includes("json")) {
-        await activarModoDemo();
-      } else if (!res.ok) {
+        // Una respuesta que no es JSON (HTML de un proxy inverso, ruta mal
+        // configurada, página de error servida por el hosting) NO significa "no
+        // hay servidor". Antes activaba el modo demo y el usuario veía datos
+        // ficticios creyendo que eran los reales.
+        throw new Error(`El servidor respondió con un contenido inesperado (${res.status || "sin estado"}). Revisa la conexión o la URL de la API.`);
+      }
+      if (!res.ok) {
         const err = await res.json().catch(() => ({}));
         throw new Error(err.error || `${ruta} → ${res.status}`);
-      } else {
-        return res.status === 204 ? null : res.json();
       }
+      return res.status === 204 ? null : res.json();
     } catch (err) {
+      // Solo un fallo de red (TypeError) justifica el respaldo local.
       if (!(err instanceof TypeError)) throw err;
       await activarModoDemo();
     }
@@ -801,12 +811,14 @@ export function actualizarConfig(cambios) {
 export const AUTH = {
   // Inicia sesión en la API. Si el admin tiene 2FA devuelve { requires2FA,
   // loginId, usuario } para completar el segundo paso; si no, el usuario.
+  // Lanza el error del servidor (401/429) para que el formulario pueda mostrar
+  // el motivo real en vez de un "no se pudo ingresar" genérico.
   async login(username, password) {
     try {
       const data = await apiSend("POST", "/login", { usuario: username, password });
-      if (!data) return null;
+      if (!data) throw new Error("No se pudo iniciar sesión.");
       if (data.requires2FA) return data;
-      if (!data.token) return null;
+      if (!data.token) throw new Error("La respuesta del servidor no incluyó un token de acceso.");
       const sesion = {
         token: data.token,
         refreshToken: data.refreshToken,
@@ -820,8 +832,9 @@ export const AUTH = {
       };
       localStorage.setItem("lc_sesion", JSON.stringify(sesion));
       return data.usuario;
-    } catch {
-      return null;
+    } catch (err) {
+      if (err instanceof TypeError) await activarModoDemo();
+      throw err;
     }
   },
 

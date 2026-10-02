@@ -8,6 +8,16 @@ let app, dir;
 beforeAll(async () => {
   dir = fs.mkdtempSync(path.join(os.tmpdir(), "lc-api-"));
   process.env.LC_DB_DIR = dir;
+  // La suite completa supera los topes pensados para producción (200 peticiones
+  // cada 15 minutos, 10 inicios de sesión por cuenta). Al crecer la suite, las
+  // pruebas del final recibían 429 del propio rate limiting y fallaban por un
+  // límite, no por el código que verifican. Se suben antes de importar el
+  // servidor (los limiters leen el entorno al crearse).
+  // LC_RESET_LIMIT no se toca: una prueba comprueba que ese límite se respete.
+  process.env.LC_API_LIMIT = "100000";
+  process.env.LC_ESCRITURA_LIMIT = "100000";
+  process.env.LC_LOGIN_LIMIT = "100000";
+  process.env.LC_REGISTRO_LIMIT = "100000";
   app = (await import("../server.js")).app;
 });
 
@@ -75,6 +85,13 @@ test("autenticación: login correcto devuelve token y sin password", async () =>
   expect(res.body.token).toBeTruthy();
   expect(res.body.refreshToken).toBeTruthy();
   expect(res.body.usuario.password).toBeUndefined();
+});
+
+test("salud: /api/salud responde sin token y no expone nada del sistema", async () => {
+  const res = await request(app).get("/api/salud");
+  expect(res.status).toBe(200);
+  expect(res.body.ok).toBe(true);
+  expect(Object.keys(res.body).sort()).toEqual(["ok", "servicio", "version"]);
 });
 
 test("seguridad: /api/usuarios exige token (401)", async () => {
@@ -992,4 +1009,160 @@ test("configuración: el administrador sí recibe la configuración completa", a
   expect(res.body.red?.subredLabs).toBeTruthy();
   expect(res.body.seguridad?.sesionTimeout).toBeTruthy();
   expect(res.body.notificaciones?.emailAdmin).toBeTruthy();
+});
+
+/* =====================================================================
+   Regresiones del análisis 3.8
+   ===================================================================== */
+
+test("XSS: PATCH /api/reportes rechaza una fecha manipulada y no la persiste", async () => {
+  const token = await login();
+  const payload = '2026-01-01"><img src=x onerror=alert(1)>';
+  const creado = await request(app)
+    .post("/api/reportes")
+    .set("Authorization", `Bearer ${token}`)
+    .send({ tipo: "uso", titulo: "Reporte para XSS", descripcion: "Base para la regresión" });
+  expect(creado.status).toBe(201);
+  const id = creado.body.id;
+
+  const ataque = await request(app)
+    .patch(`/api/reportes/${id}`)
+    .set("Authorization", `Bearer ${token}`)
+    .send({ fecha: payload });
+  expect(ataque.status).toBe(400);
+
+  // Lo que quedó guardado no puede contener la carga.
+  const despues = await request(app).get("/api/reportes").set("Authorization", `Bearer ${token}`);
+  const lista = Array.isArray(despues.body) ? despues.body : despues.body.data;
+  const guardado = lista.find((r) => r.id === id);
+  expect(guardado.fecha).not.toContain("onerror");
+  expect(guardado.fecha).not.toContain("<img");
+  expect(guardado.fecha).toBe(creado.body.fecha);
+
+  // Y una fecha válida sí se guarda (no se rompió la edición normal).
+  const ok = await request(app)
+    .patch(`/api/reportes/${id}`)
+    .set("Authorization", `Bearer ${token}`)
+    .send({ fecha: "2026-05-04", titulo: "Reporte editado" });
+  expect(ok.status).toBe(200);
+  expect(ok.body.fecha).toBe("2026-05-04");
+  expect(ok.body.titulo).toBe("Reporte editado");
+});
+
+test("XSS: una fecha vacía no borra la fecha del reporte", async () => {
+  const token = await login();
+  const creado = await request(app)
+    .post("/api/reportes")
+    .set("Authorization", `Bearer ${token}`)
+    .send({ tipo: "uso", titulo: "Reporte sin fecha", descripcion: "Base para la regresión" });
+  expect(creado.status).toBe(201);
+  expect(creado.body.fecha).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+
+  const vacia = await request(app)
+    .patch(`/api/reportes/${creado.body.id}`)
+    .set("Authorization", `Bearer ${token}`)
+    .send({ fecha: "" });
+  expect(vacia.status).toBe(400);
+  expect(vacia.body.error).toMatch(/AAAA-MM-DD/);
+});
+
+test("rate limit de recuperación: la cuota es por solicitud y no bloquea el token", async () => {
+  // Se agota la cuota (5 por hora) de una misma clave IP|correo.
+  for (let i = 0; i < 5; i++) {
+    const r = await request(app).post("/api/recuperar-contrasena").send({ email: "agotado@liceo.cl" });
+    expect(r.status).toBe(200);
+  }
+  const bloqueada = await request(app).post("/api/recuperar-contrasena").send({ email: "agotado@liceo.cl" });
+  expect(bloqueada.status).toBe(429);
+
+  // Antes esta ruta heredaba el mismo límite por IP: un Sixth usuario legítimo
+  // detrás de la misma salida a internet se quedaba sin poder cambiar su clave.
+  const conToken = await request(app)
+    .post("/api/recuperar-contrasena/token-que-no-existe")
+    .send({ newPassword: "NuevaClave1" });
+  expect(conToken.status).toBe(400);
+  expect(conToken.body.error).toMatch(/inválido o expiró/);
+});
+
+test("auditoría: los comodines de LIKE se buscan de forma literal", async () => {
+  const token = await login();
+  const todos = await request(app).get("/api/auditoria").set("Authorization", `Bearer ${token}`);
+  expect(todos.status).toBe(200);
+  const lista = Array.isArray(todos.body) ? todos.body : todos.body.data;
+  expect(lista.length).toBeGreaterThan(0);
+
+  // "%" no debe traer todo el registro: se escapa y no hay acciones con ese signo.
+  const comodin = await request(app).get("/api/auditoria?q=%25").set("Authorization", `Bearer ${token}`);
+  expect(comodin.status).toBe(200);
+  const encontrados = Array.isArray(comodin.body) ? comodin.body : comodin.body.data;
+  expect(encontrados.length).toBeLessThan(lista.length);
+  expect(encontrados.length).toBe(0);
+
+  // Un texto real sí encuentra.
+  const real = await request(app).get("/api/auditoria?q=login").set("Authorization", `Bearer ${token}`);
+  const hits = Array.isArray(real.body) ? real.body : real.body.data;
+  expect(hits.length).toBeGreaterThan(0);
+});
+
+test("ids: un id de cliente repetido no provoca error 500", async () => {
+  const token = await login();
+  const uno = await request(app)
+    .post("/api/reportes")
+    .set("Authorization", `Bearer ${token}`)
+    .send({ id: "rep_duplicado", tipo: "uso", titulo: "Original", descripcion: "Primer registro" });
+  expect(uno.status).toBe(201);
+  expect(uno.body.id).toBe("rep_duplicado");
+
+  const dos = await request(app)
+    .post("/api/reportes")
+    .set("Authorization", `Bearer ${token}`)
+    .send({ id: "rep_duplicado", tipo: "uso", titulo: "Copia", descripcion: "Segundo registro" });
+  expect(dos.status).toBe(201);
+  expect(dos.body.id).not.toBe("rep_duplicado");
+  expect(dos.body.titulo).toBe("Copia");
+});
+
+test("laboratorios: un técnico no pierde cambios en silencio", async () => {
+  const token = await login();
+  // El admin es técnico: envía estado y un campo extra que esta ruta no escribe.
+  const res = await request(app)
+    .patch("/api/laboratorios/1")
+    .set("Authorization", `Bearer ${token}`)
+    .send({ estado: "disponible", nombre: "Laboratorio 1" });
+  expect(res.status).toBe(400);
+  expect(res.body.error).toMatch(/nombre/);
+
+  // Solo el estado sigue funcionando.
+  const ok = await request(app)
+    .patch("/api/laboratorios/1")
+    .set("Authorization", `Bearer ${token}`)
+    .send({ estado: "disponible" });
+  expect(ok.status).toBe(200);
+});
+
+test("adjuntos: el límite de 5 MB se mide sobre los bytes reales del archivo", async () => {
+  const token = await login();
+  // PNG 1x1 válido (67 bytes) con su tamaño real declarado.
+  const png = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";
+  const ok = await request(app)
+    .post("/api/reportes")
+    .set("Authorization", `Bearer ${token}`)
+    .send({
+      tipo: "uso", titulo: "Con adjunto", descripcion: "Reporte con PNG",
+      adjuntos: [{ nombre: "pixel.png", tipo: "image/png", tamano: 67, data: `data:image/png;base64,${png}` }]
+    });
+  expect(ok.status).toBe(201);
+  expect(ok.body.adjuntos).toHaveLength(1);
+  expect(ok.body.adjuntos[0].nombre).toBe("pixel.png");
+
+  // Un tipo no admitido se descarta (el frontend ahora avisa antes de enviarlo).
+  const descartado = await request(app)
+    .post("/api/reportes")
+    .set("Authorization", `Bearer ${token}`)
+    .send({
+      tipo: "uso", titulo: "Con adjunto no admitido", descripcion: "PowerPoint",
+      adjuntos: [{ nombre: "deck.pptx", tipo: "application/vnd.ms-powerpoint", tamano: 67, data: `data:application/vnd.ms-powerpoint;base64,${png}` }]
+    });
+  expect(descartado.status).toBe(201);
+  expect(descartado.body.adjuntos).toHaveLength(0);
 });

@@ -15,8 +15,8 @@
 <link rel="apple-touch-icon" href="img/icon-192.png" />
 <title>Reportes · Insuco LabControl</title>
 <link rel="icon" type="image/png" href="img/logo-insuco.png" />
-<link rel="stylesheet" href="style.css?v=3.8.0" />
-<script src="theme.js?v=3.8.0"></script>
+<link rel="stylesheet" href="style.css?v=3.9.0" />
+<script src="theme.js?v=3.9.0"></script>
 </head>
 <body>
   <a class="skip-nav" href="#main-content">Saltar al contenido</a>
@@ -107,7 +107,7 @@
       <div class="form-group">
         <label class="form-label">Descripción (obligatoria)</label>
         <textarea class="form-input" id="nuevo-rep-descripcion" rows="4" required minlength="10"
-          placeholder="Describe el contexto y las conclusiones del reporte. Sin límite de extensión."></textarea>
+          placeholder="Describe el contexto y las conclusiones del reporte (hasta 5000 caracteres)."></textarea>
       </div>
       <div class="form-row">
         <div class="form-group">
@@ -123,11 +123,11 @@
         <label class="form-label">Archivos adjuntos (opcional)</label>
         <label class="dropzone" for="nuevo-rep-archivos">
           <i data-lucide="paperclip"></i>
-          <span>Haz clic para agregar imágenes, PDF u otros documentos</span>
-          <small>Máximo 10 MB por archivo · hasta 10 archivos</small>
+          <span>Haz clic para agregar imágenes, PDF, Word o archivos de texto</span>
+          <small>Máximo 5 MB por archivo · hasta 10 archivos</small>
         </label>
         <input id="nuevo-rep-archivos" type="file" multiple hidden
-          accept="image/*,.pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt,.csv,.zip,.rar" />
+          accept="image/png,image/jpeg,image/gif,image/webp,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain,text/csv" />
         <div id="lista-adjuntos" class="adj-chips"></div>
       </div>
     </div>
@@ -138,9 +138,9 @@
   </div>
 </div>
 
-<script type="module" src="data.js?v=3.8.0"></script>
-<script src="lucide.min.js?v=3.8.0"></script>
-<script type="module" src="app.js?v=3.8.0"></script>
-<script type="module" src="reportes.js?v=3.8.0"></script>
+<script type="module" src="data.js?v=3.9.0"></script>
+<script src="lucide.min.js?v=3.9.0"></script>
+<script type="module" src="app.js?v=3.9.0"></script>
+<script type="module" src="reportes.js?v=3.9.0"></script>
 </body>
 </html>

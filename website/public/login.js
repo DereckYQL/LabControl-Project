@@ -90,28 +90,32 @@ $("login-form").addEventListener("submit", async (e) => {
       // Segundo paso: validar el código TOTP del desafío pendiente.
       errorDos.style.display = "none";
       btn.textContent = "Verificando…";
-      const usuario = await AUTH.verificar2fa(desafio2FA.loginId, inputCodigo.value).catch(() => null);
-      if (usuario) {
+      try {
+        await AUTH.verificar2fa(desafio2FA.loginId, inputCodigo.value);
         window.location.href = "index.html";
-        return;
+      } catch (err) {
+        errorDos.textContent = (err && err.message) ? err.message : "Código incorrecto o sesión expirada. Intenta de nuevo.";
+        errorDos.style.display = "block";
       }
-      errorDos.textContent = "Código incorrecto o sesión expirada. Intenta de nuevo.";
-      errorDos.style.display = "block";
     } else {
       // Primer paso: credenciales.
       errorUno.style.display = "none";
       btn.textContent = "Ingresando…";
-      const result = await AUTH.login(
-        $("input-user").value.trim(),
-        $("input-pass").value
-      ).catch(() => null);
-      if (result && result.requires2FA) {
-        desafio2FA = result;
-        mostrarPaso(true);
-      } else if (result) {
-        window.location.href = "index.html";
-      } else {
+      try {
+        const result = await AUTH.login($("input-user").value.trim(), $("input-pass").value);
+        if (result && result.requires2FA) {
+          desafio2FA = result;
+          mostrarPaso(true);
+        } else {
+          window.location.href = "index.html";
+        }
+      } catch (err) {
+        // El motivo real del servidor (credenciales incorrectas, cuenta
+        // bloqueada, demasiados intentos) se muestra sin perder lo ya escrito.
+        errorUno.textContent = (err && err.message) ? err.message : "No se pudo iniciar sesión. Intenta de nuevo.";
         errorUno.style.display = "block";
+        $("input-pass").value = "";
+        $("input-pass").focus();
       }
     }
   } finally {
@@ -156,7 +160,7 @@ registroForm.addEventListener("submit", async (e) => {
   if (nombre.length < 2 || apellido.length < 2) msg = "Ingresa tu nombre y apellido.";
   else if (!PATRON_USUARIO.test(usuario)) msg = "El usuario debe tener al menos 3 caracteres, con solo letras, números y guion bajo.";
   else if (!PATRON_EMAIL.test(email)) msg = "Ingresa un correo válido.";
-  else if (pass.length < 6) msg = "La contraseña debe tener al menos 6 caracteres.";
+  else if (pass.length < 8) msg = "La contraseña debe tener al menos 8 caracteres.";
   else if (pass !== pass2) msg = "Las contraseñas no coinciden.";
   else if (!terminos) msg = "Debes aceptar los términos de uso y la política de privacidad para continuar.";
   if (msg) {
@@ -247,7 +251,7 @@ restablecerForm.addEventListener("submit", async (e) => {
   const pass = $("rec-pass").value;
   const pass2 = $("rec-pass2").value;
   let msg = null;
-  if (pass.length < 6) msg = "La contraseña debe tener al menos 6 caracteres.";
+  if (pass.length < 8) msg = "La contraseña debe tener al menos 8 caracteres.";
   else if (pass !== pass2) msg = "Las contraseñas no coinciden.";
   if (msg) {
     mostrarBox(restablecerError, msg);

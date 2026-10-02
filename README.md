@@ -24,6 +24,27 @@ Solo el **Administrador** puede gestionar usuarios y acceder a la configuración
 
 ## Cambios
 
+> **v3.9** — **El sistema sale a `labcontrol.com` y se corrigen los errores de la segunda revisión del análisis**:
+> > - **La web se publica sola en Cloudflare Pages**: el proyecto está conectado al repositorio, así que cada `push` a `master` despliega la web sin intervención. El dominio `labcontrol.com` responde con SSL y los nombreservers del dominio apuntan a Cloudflare.
+> > - **La web y la API quedan en el mismo dominio**: Cloudflare Pages solo sirve archivos estáticos, así que el servidor Express + SQLite se despliega aparte, en un hosting con disco persistente. Una **Pages Function** (`functions/api/[[path]].js`) reenvía `/api/*` hacia ese servidor, de modo que el frontend sigue llamando a `/api` en su propio origen y **no hubo que abrir CORS ni tocar la política de seguridad de la interfaz**. La dirección del backend se configura con la variable de entorno `API_ORIGIN` del proyecto de Pages.
+> > - **El login volvía a aparecer vacío y sin explicación**: con un 401 la sesión se cerraba y el formulario se recargaba, así que una contraseña incorrecta no mostraba ningún mensaje. Ahora se ve el motivo real del servidor (crecnciales incorrectas, cuenta bloqueada, demasiados intentos) tanto en el primer paso como en el 2FA, y la sesión solo se cierra si es que había una.
+> > - **El modo demo ya no se disfraza de servidor real**: cualquier respuesta que no fuera JSON (el HTML de error de un hosting, una ruta mal configurada) activaba los datos de ejemplo y el profesor veía datos ficticios creyendo que eran los reales. Ahora solo un fallo de conexión activa el respaldo local; cualquier otra cosa se informa como error.
+> > - **El calendario semanal de reservas**: navegar entre semanas lo vaciaba (la agenda no se conservaba) y cualquier reserva ofrecía "Cancelar" aunque fuera de otro usuario, lo que terminaba en un 403 del servidor. Ahora la semana se mantiene al navegar, solo su dueño o el administrador pueden cancelar, y las ajenas se muestran sin acción.
+> > - **Agendar una reserva ya no se da por hecho**: el modal se cerraba antes de saber si la operación había salido y el calendario no se refrescaba. Ahora espera la respuesta, explica el error sin perder lo escrito y no acepta doble clic.
+> > - **La fecha "de hoy" se calculaba en UTC**: después de las 21:00 en Chile el formulario ponía mañana y bloqueaba reservar el mismo día. Ahora todas las fechas por defecto usan la hora local.
+> > - **Cerrada la vía de XSS por fecha manipulada**: `formatFecha` hacía `split("-")` sobre cualquier valor, así que una fecha con otra forma se interpolaba tal cual en el detalle de un reporte. Ahora solo acepta `AAAA-MM-DD`.
+> > - **Los adjuntos se rechazaban antes de tiempo**: el límite de 5 MB se medía sobre los caracteres base64, así que cualquier archivo de más de ~3,75 MB se descartaba en silencio aunque el aviso dijera 5 MB. Ahora se mide sobre los bytes reales, el selector del navegador ofrece los mismos tipos que acepta el servidor y el texto del formulario dice el tamaño correcto.
+> > - **Editar un reporte ya no se pierde en silencio**: los validadores del servidor se declaraban pero nunca se leían, así que una fecha o un tipo manipulados se guardaban y se mostraban sin escapar. Ahora un dato inválido se rechaza indicando el campo, y un reporte sin fecha recibe la del día.
+> > - **El estado del laboratorio ya no se guarda a medias**: un técnico que enviara además el nombre o el sistema operativo recibía 200 y el cambio se perdía. Ahora la API explica qué campo no es editable por esa ruta y solo cambia el estado.
+> > - **Un id repetido ya no tumba el sistema**: dos altas con el mismo id (o generadas en el mismo milisegundo) terminaban en un error 500 de clave primaria. Ahora el servidor comprueba si el id está en uso y genera uno único.
+> > - **La búsqueda de la auditoría usaba comodines**: `%` y `_` no se escapaban, así que buscar "%" devolvía todos los registros y "a_b" encontraba también "aab".
+> > - **La recuperación de contraseña ya no bloquea a quien comparte salida a internet**: el límite cubría también la ruta del token, donde no hay correo que contar, y agotaba la cuota de todo el flujo. Ahora limita solo la solicitud que dispara el envío de correo.
+> > - **El mapa y la configuración se desincronizaban**: los rótulos de cada sala estaban escritos a mano en el SVG (con salas que no eran las reales) y ahora los dibuja la base de datos; los interruptores de avisos del sitio solo le aparecen al administrador, con una nota para los demás; y la tabla de Equipos muestra "Equipo / Laboratorio" en una sola columna.
+> > - **Contraseñas de 8 caracteres en todos los caminos**: el backend ya exigía 8 y los formularios de registro, recuperación, cambio de contraseña y edición de usuario seguían aceptando 6.
+> > - **La suite ya no la corta el propio rate limiting**: al crecer, las pruebas del final recibían 429 del servidor que están comprobando. Los topes se suben dentro de la corrida (menos el de recuperación, que sí se verifica) y se agregan **8 pruebas nuevas** sobre fechas manipuladas, adjuntos, ids repetidos, campos no editables, el límite de recuperación y el chequeo de salud: **89 en total**.
+> > - **Caché renovada en `3.9.0`**: todos los assets (CSS y JS) y el `service-worker` cambian su versión para forzar la descarga en los navegadores.
+> > - **Verificación completa en v3.9**: lint 0 errores, typecheck OK, sintaxis OK, suite backend 89/89 y e2e 27/27.
+
 > **v3.8** — **Migraciones reversibles, semilla versionada y respaldos que no pueden dejar el sistema sin base**:
 > > - **Las migraciones ahora se pueden deshacer**: cada migración declara su paso de vuelta, y hay un comando `npm run db:rollback <n>` que baja el esquema a la versión que se le pida. Si un paso falla a medias, se deshacen también los que ya habían salido, así que nunca queda el esquema a medias. Cuatro migraciones (3, 4, 9 y 10) son **irreversibles** de verdad: no se puede recuperar lo que sobrescribieron, y el programa lo dice con el motivo en lugar de fingir que sí. El comando hace una copia de seguridad antes de tocar nada.
 > > - **Base a salvo de una migración a medias**: la creación del esquema va en transacción (antes, una tabla que fallaba dejaba la base con medio esquema) y cada migración se aplica en su propio *savepoint*. El motor ya no se fía solo del número más alto: si falta una migración en el registro, la completa en vez de saltársela entera, y si la base es de una versión **más nueva** que el programa, se niega a arrancar con un mensaje claro en vez de escribir encima.
@@ -219,8 +240,10 @@ labcontrol/
 ├── Abrir LabControl.bat              Acceso directo: inicia el servidor y abre la web
 ├── Abrir LabControl en el celular.bat Inicia el servidor y muestra el QR para el celular
 ├── .github/workflows/                CI y despliegue automático a GitHub Pages
+├── functions/                         Pages Function (Cloudflare Pages)
+│   └── api/[[path]].js                Reenvía /api/* al backend Node (API_ORIGIN)
 └── website/
-    ├── public/                        Sitio servido (local y GitHub Pages)
+    ├── public/                        Sitio servido (local, GitHub Pages y Cloudflare Pages)
     │   ├── login.html                 Inicio de sesión
     │   ├── index.html                 Dashboard: resumen, estado en tiempo real, distribución de equipos
     │   ├── laboratorios.html          Listado + detalle de laboratorio (tabs: general/hardware/servicios/agenda)
@@ -250,6 +273,7 @@ labcontrol/
         │   ├── syntax-check.mjs       Comprueba la sintaxis de todos los .js del proyecto
         │   └── migraciones.js         CLI del esquema: estado, rollback, semillar, podar
         ├── package.json
+        │   # GET /api/salud responde sin token (health check del hosting)
         └── database/
             └── labcontrol.db          (se crea solo la primera vez que se ejecuta el servidor)
 ```
@@ -279,9 +303,85 @@ El botón del login está listo en la interfaz, pero la autenticación OAuth aú
    - `GET /api/auth/google/callback` → intercambia el código, verifica el `id_token`/perfil, busca o crea el usuario (con `email` de dominio institucional), firma la sesión igual que `/api/login` y redirige a `index.html`.
 4. En `login.js`, conecta el botón `#btn-google` a esa ruta (hoy solo muestra el aviso). Se recomienda crear la cuenta con dominio `@liceo.cl` para distinguir cuentas institucionales de personales.
 
+## Publicación en Cloudflare Pages y backend
+
+El repositorio sirve para dos despliegues distintos. La web es estática (puede ir a
+Pages), pero el backend es un servidor Express con SQLite y necesita un proceso Node
+con disco: **no puede ejecutarse en Pages**. La función `functions/api/[[path]].js` es el
+puente entre ambos.
+
+### 1. La web en Cloudflare Pages
+
+Conectar el repositorio en *Workers & Pages → Create → Pages → Connect to Git* y dejar
+los ajustes de compilación así (**el sitio está en una subcarpeta, por eso el campo
+"Build output directory" es el que importa**):
+
+| Ajuste | Valor |
+|---|---|
+| Framework preset | None |
+| Build command | `exit 0` |
+| Root directory | *(vacío)* |
+| **Build output directory** | `website/public` |
+| Production branch | `master` |
+
+Sin eso, Pages busca el sitio en la raíz del repositorio y no encuentra nada.
+
+### 2. La variable `API_ORIGIN`
+
+En *Settings → Environment variables* del proyecto de Pages:
+
+```
+API_ORIGIN=https://labcontrol-api.up.railway.app
+```
+
+Es la dirección pública del backend, **sin barra final**. La función reenvía método,
+cabeceras (con `Authorization`) y cuerpo, y devuelve la respuesta tal cual; si la
+variable falta, `/api/*` responde 503 y el resto del sitio sigue funcionando.
+
+### 3. El dominio
+
+`labcontrol.com` debe estar en Cloudflare (zona propia), no solo apuntar por CNAME:
+
+1. *Add a site* en Cloudflare con el dominio, plan Free. Cloudflare escanea los
+   registros DNS actuales y los mantiene copiados.
+2. Cambiar los **nameservers** del dominio por los dos que entrega Cloudflare (pasos
+   3 y 4 del asistente). Es el único paso que hay que hacer en el registrador.
+3. Cuando los nameservers propaguen, en el proyecto de Pages: *Custom domains → Set up
+   a domain*, y añadir `labcontrol.com` y `www.labcontrol.com`. Cloudflare crea los
+   registros CNAME y emite el certificado SSL solo.
+
+Los nameservers actuales del dominio apuntan al proveedor antiguo, así que conviene
+anotarlos (por si hay que volver atrás) antes de cambiar nada. Mientras el dominio no esté
+en Cloudflare, `labcontrol.com` seguirá sin funcionar
+aunque el proyecto de Pages esté desplegado: para probar la web alcanza con la dirección
+`<proyecto>.pages.dev`.
+
+### 4. El backend (Railway)
+
+1. *New Project → Deploy from GitHub repo*, el mismo repositorio, con **Root Directory**
+   `website/backend` y **Start Command** `npm start`.
+2. Railway toma `PORT` solo, y `node:sqlite` necesita Node ≥ 22.5 (el `engines` del
+   `package.json` ya lo declara).
+3. Crear un **volume** en el servicio y apuntar ahí la base, que es lo que sobrevive a
+   los redespliegues. Sin volume, cada despliegue deja la base vacía.
+4. Variables de entorno del servicio:
+
+```
+LC_DB_DIR=/data                 # la carpeta del volume
+JWT_SECRET=<cadena larga y aleatoria>
+LC_TRUST_PROXY=1                # para que el rate limiting y la auditoría vean la IP real
+```
+
+5. Health check en `/api/salud` (devuelve `{"ok":true,...}` y no expone nada del
+   sistema).
+6. Copiar la URL pública que Railway entrega y ponerla como `API_ORIGIN` en Pages.
+
+Con esto `labcontrol.com/api/*` queda apuntando al backend y el frontend sigue hablando
+con `/api` en su propio origen, sin tocar CORS ni la CSP.
+
 ## Próximos pasos sugeridos
 
-1. ~~Seguridad: hashear las contraseñas y mover la sesión a JWT~~ **(v2.2 completado)**.
+1. ~~Seguridad: hashtar las contraseñas y mover la sesión a JWT~~ **(v2.2 completado)**.
 2. Subir fotos reales de cada laboratorio.
 3. Conectar el control remoto a un agente real instalado en cada equipo (hoy solo registra el comando en un log simulado, no se guarda en la base de datos).
 4. ~~Agregar un `backend/database/schema.sql` versionado en control de código~~ **(v2.6: sustituido por el sistema de migraciones sobre `schema_migrations` en `db.js`)**.

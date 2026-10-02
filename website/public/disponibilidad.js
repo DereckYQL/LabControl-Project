@@ -94,7 +94,20 @@ import { abrirModal, cerrarModal, esc, formatFecha, renderSidebar, showToast } f
      ====================================================== */
 
   let semanaOffset = 0;
+  let agendaCache = [];
   const NOMBRES_DIAS = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
+
+  // Solo el dueño de la reserva o el administrador pueden cancelarla (igual que
+  // en la tabla). Antes el calendario ofrecía "Cancelar" sobre cualquier chip y
+  // terminaba en un 403 del servidor.
+  function puedeCancelar(res) {
+    return !!sesion && (AUTH.esAdmin() || res.usuarioId === sesion.id);
+  }
+
+  function guardarAgenda(agenda) {
+    agendaCache = agenda ?? [];
+    return agendaCache;
+  }
 
   function fechaISO(d) {
     const p = (n) => String(n).padStart(2, "0");
@@ -112,7 +125,9 @@ import { abrirModal, cerrarModal, esc, formatFecha, renderSidebar, showToast } f
     return { inicio: dias[0], fin: dias[6], dias };
   }
 
-  function renderSemana(agenda = []) {
+  // `agenda` se toma siempre de la caché: la navegación semanal llamaba
+  // renderSemana() sin argumentos y vaciaba el calendario completo.
+  function renderSemana(agenda = agendaCache) {
     const wrap = document.getElementById("semana-wrap");
     if (!wrap) return;
     const { inicio, fin, dias } = obtenerSemana(semanaOffset);
@@ -144,8 +159,8 @@ import { abrirModal, cerrarModal, esc, formatFecha, renderSidebar, showToast } f
                   <td class="${d.fecha === hoy ? "semana-td--hoy" : ""}">
                     ${reservas.length
                       ? reservas.map((r) => `
-                          <div class="semana-chip ${r.estado === "pendiente" ? "semana-chip--pendiente" : ""}"
-                               data-res-id="${esc(r.id)}">${esc(r.horaInicio)}–${esc(r.horaFin)}<span>${esc(r.motivo)}</span></div>`).join("")
+                          <div class="semana-chip ${r.estado === "pendiente" ? "semana-chip--pendiente" : ""} ${puedeCancelar(r) ? "" : "semana-chip--ajeno"}"
+                               ${puedeCancelar(r) ? `data-res-id="${esc(r.id)}" title="Clic para cancelar la reserva"` : `title="Reserva de ${esc(r.usuarioId)}"`}>${esc(r.horaInicio)}–${esc(r.horaFin)}<span>${esc(r.motivo)}</span></div>`).join("")
                       : ""}
                   </td>`;
               }).join("")}
@@ -174,11 +189,12 @@ import { abrirModal, cerrarModal, esc, formatFecha, renderSidebar, showToast } f
     eliminarReserva(id)
       .then(() => cargarAgenda())
       .then((ag) => {
-        renderTablaAgenda(ag, labsCache);
-        renderSemana(ag);
+        guardarAgenda(ag);
+        renderTablaAgenda(agendaCache, labsCache);
+        renderSemana();
         showToast("Reserva cancelada correctamente.");
       })
-      .catch(() => showToast("No se pudo cancelar la reserva.", "error"));
+      .catch((err) => showToast((err && err.message) ? err.message : "No se pudo cancelar la reserva.", "error"));
   }
 
   // Modal estado
@@ -206,8 +222,9 @@ import { abrirModal, cerrarModal, esc, formatFecha, renderSidebar, showToast } f
   document.getElementById("btn-nueva-reserva").addEventListener("click", () => {
     const sel = document.getElementById("res-lab");
     sel.innerHTML = labsCache.map((l) => `<option value="${esc(l.id)}">${esc(l.nombre)} — ${esc(l.sala)}</option>`).join("");
-    // Fecha mínima: hoy
-    const hoy = new Date().toISOString().split("T")[0];
+    // Fecha mínima: hoy en hora LOCAL. Con toISOString(), después de las 21:00
+    // (UTC-3/-4) el "hoy" caía en el día siguiente y bloqueaba reservar el mismo día.
+    const hoy = fechaISO(new Date());
     document.getElementById("res-fecha").value = hoy;
     document.getElementById("res-fecha").min = hoy;
     abrirModal("modal-reserva");
@@ -225,22 +242,29 @@ import { abrirModal, cerrarModal, esc, formatFecha, renderSidebar, showToast } f
     const fin     = document.getElementById("res-fin").value;
     const motivo  = document.getElementById("res-motivo").value.trim();
     if (!fecha || !motivo) { showToast("Completa todos los campos.", "error"); return; }
+    const btn = document.getElementById("btn-guardar-reserva");
+    btn.disabled = true;
     const nuevaRes = {
       labId,
       fecha,
       horaInicio: inicio,
       horaFin: fin,
-      motivo,
-      estado: "pendiente"
+      motivo
     };
+    // El modal se cerraba antes de saber el resultado y el calendario semanal
+    // no se refrescaba: solo se actualizaba la tabla. Ahora se espera la
+    // respuesta, se muestran los dos manuales y se explica el error si falla.
     crearReserva(nuevaRes)
       .then(() => cargarAgenda())
       .then((ag) => {
-        renderTablaAgenda(ag, labsCache);
+        guardarAgenda(ag);
+        renderTablaAgenda(agendaCache, labsCache);
+        renderSemana();
+        cerrarModal(document.getElementById("modal-reserva"));
         showToast("Reserva agendada correctamente.");
       })
-      .catch(() => showToast("No se pudo agendar la reserva.", "error"));
-    cerrarModal(document.getElementById("modal-reserva"));
+      .catch((err) => showToast((err && err.message) ? err.message : "No se pudo agendar la reserva.", "error"))
+      .finally(() => { btn.disabled = false; });
   });
 
   // Cerrar modal al hacer clic en overlay
@@ -264,8 +288,9 @@ import { abrirModal, cerrarModal, esc, formatFecha, renderSidebar, showToast } f
   Promise.all([cargarLaboratorios(), cargarAgenda(), cargarUsuarios()]).then(([labs, agenda, usuarios]) => {
     labsCache = labs;
     usuariosCache = usuarios;
+    guardarAgenda(agenda);
     renderDispStats(labs);
     renderTablaDisp(labs);
-    renderTablaAgenda(agenda, labs);
-    renderSemana(agenda);
+    renderTablaAgenda(agendaCache, labs);
+    renderSemana();
   }).catch(() => showToast("No se pudieron cargar los datos de disponibilidad.", "error"));

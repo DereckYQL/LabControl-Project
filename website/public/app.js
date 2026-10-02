@@ -720,10 +720,20 @@ export function getQueryParam(name) {
   return new URLSearchParams(window.location.search).get(name);
 }
 
+// Solo acepta AAAA-MM-DD. Aunque el backend ya valida el formato, cualquier valor
+// con otra forma se interpolaba tal cual en `innerHTML` (por ejemplo en
+// reportes.js), lo que abría XSS almacenado a través de una fecha manipulada.
 export function formatFecha(fechaStr) {
-  if (!fechaStr) return "—";
-  const [y, m, d] = fechaStr.split("-");
-  return `${d}/${m}/${y}`;
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(fechaStr ?? ""));
+  if (!m) return "—";
+  return `${m[3]}/${m[2]}/${m[1]}`;
+}
+
+// Fecha en zona horaria LOCAL (AAAA-MM-DD). `toISOString()` devuelve UTC: en Chile
+// después de las 21:00 el día local ya es el siguiente.
+export function fechaLocalISO(d = new Date()) {
+  const p = (n) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
 }
 
 export function rolLabel(rol) {

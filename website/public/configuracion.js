@@ -236,6 +236,13 @@ function buildPanel(id) {
     /* Notificaciones */
     case "notificaciones": return `
       <h2 class="cfg-panel__title">Notificaciones</h2>
+      ${!esAdmin ? `
+      <div class="cfg-section">
+        <p style="color:var(--color-text-muted);font-size:.85rem">
+          Los avisos del sitio los define el administrador del sistema. Puedes
+          activar las notificaciones del sistema operativo más abajo.
+        </p>
+      </div>` : `
       <div class="cfg-section">
         <div style="font-weight:600;margin-bottom:10px">Avisos dentro del sitio</div>
         ${[
@@ -249,12 +256,12 @@ function buildPanel(id) {
         ].map((n) => `
           <div class="toggle-row">
             <span>${n.label}</span>
-<button type="button" role="switch" aria-checked="${n.checked}" class="toggle ${n.checked ? "toggle--on" : ""}" id="${n.id}">
+            <button type="button" role="switch" aria-checked="${n.checked}" class="toggle ${n.checked ? "toggle--on" : ""}" id="${n.id}">
               <div class="toggle__knob"></div>
             </button>
           </div>
         `).join("")}
-      </div>
+      </div>`}
       <div class="cfg-section">
         <div style="font-weight:600;margin-bottom:6px">Notificaciones del sistema</div>
         <p style="color:var(--color-text-muted);font-size:.85rem;margin-bottom:12px">
@@ -339,7 +346,7 @@ function buildPanel(id) {
         </div>
         <div class="form-group">
           <label class="form-label">Anticipación máxima para reservas (días)</label>
-          <input class="form-input" type="number" id="cfg-anticip" value="${config.laboratorios.anticipacionMaxReserva}" style="max-width:120px" min="1" max="30" />
+          <input class="form-input" type="number" id="cfg-anticip" value="${esc(config.laboratorios.anticipacionMaxReserva)}" style="max-width:120px" min="1" max="30" />
         </div>
         <div class="toggle-row">
           <span>Permitir reservas de otras áreas</span>
@@ -419,11 +426,11 @@ function buildPanel(id) {
         </div>
         <div class="form-group">
           <label class="form-label">Tiempo de inactividad para cierre de sesión (minutos)</label>
-          <input class="form-input" type="number" id="cfg-timeout" value="${config.seguridad.sesionTimeout}" min="5" max="120" style="max-width:120px" />
+          <input class="form-input" type="number" id="cfg-timeout" value="${esc(config.seguridad.sesionTimeout)}" min="5" max="120" style="max-width:120px" />
         </div>
         <div class="form-group">
           <label class="form-label">Intentos de login antes de bloqueo</label>
-          <input class="form-input" type="number" id="cfg-intentos" value="${config.seguridad.intentosLoginMax}" min="3" max="10" style="max-width:120px" />
+          <input class="form-input" type="number" id="cfg-intentos" value="${esc(config.seguridad.intentosLoginMax)}" min="3" max="10" style="max-width:120px" />
         </div>
         <div class="toggle-row">
           <span>Registro de actividad de usuarios</span>
@@ -498,7 +505,7 @@ function buildPanel(id) {
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:20px">
           <div class="cfg-sys-card">
             <div class="cfg-sys-card__label">Versión del sistema</div>
-            <div class="cfg-sys-card__value">LabControl v3.8</div>
+            <div class="cfg-sys-card__value">LabControl v3.9</div>
           </div>
           <div class="cfg-sys-card">
             <div class="cfg-sys-card__label">Total laboratorios</div>
@@ -602,7 +609,7 @@ async function cambiarContrasena() {
   const confirma = document.getElementById("s-pass-confirm").value;
   if (!actual || !nueva) { showToast("Completa todos los campos.", "error"); return; }
   if (nueva !== confirma) { showToast("Las contraseñas no coinciden.", "error"); return; }
-  if (nueva.length < 6)   { showToast("La contraseña debe tener al menos 6 caracteres.", "error"); return; }
+  if (nueva.length < 8)   { showToast("La contraseña debe tener al menos 8 caracteres.", "error"); return; }
   try {
     await apiSend("POST", "/change-password", { currentPassword: actual, newPassword: nueva });
     showToast("Contraseña actualizada correctamente.");
@@ -902,7 +909,7 @@ function contenidoAcerca() {
       <div style="font-size:.85rem;color:var(--color-text-muted)">Sistema de control y supervisión de los laboratorios de computación del liceo.</div>
       <div class="cfg-sys-card" style="margin:18px auto 0;max-width:260px">
         <div class="cfg-sys-card__label">Versión del sistema</div>
-        <div class="cfg-sys-card__value">LabControl v3.8</div>
+        <div class="cfg-sys-card__value">LabControl v3.9</div>
       </div>
       <div class="cfg-sys-card" style="margin:10px auto 0;max-width:260px">
         <div class="cfg-sys-card__label">Institución</div>

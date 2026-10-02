@@ -328,7 +328,7 @@ import { abrirModal, cerrarModal, __activarTab, esc, initTabs, nivelLabel, rende
       if (apellido) cambios.apellido = apellido;
       if (email) cambios.email = email;
       if (pass) {
-        if (pass.length < 6) { showToast("La contraseña debe tener al menos 6 caracteres.", "error"); return; }
+        if (pass.length < 8) { showToast("La contraseña debe tener al menos 8 caracteres.", "error"); return; }
         cambios.password = pass;
       }
       cambios.area = area;

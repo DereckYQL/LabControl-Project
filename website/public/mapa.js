@@ -27,6 +27,12 @@ import { renderSidebar, showToast } from "./app.js";
       g.setAttribute("role", "button");
       g.setAttribute("tabindex", "0");
       g.setAttribute("aria-label", `${lab.nombre} (${lab.sala}) — ${ESTADOS[lab.estado].label}`);
+      // El rótulo del mapa venía escrito a mano en el SVG y quedó desincronizado
+      // de la base de datos (salas distintas a las reales). La base manda.
+      const tNombre = g.querySelector('[data-mapa-texto="nombre"]');
+      const tSala = g.querySelector('[data-mapa-texto="sala"]');
+      if (tNombre) tNombre.textContent = lab.nombre;
+      if (tSala) tSala.textContent = lab.sala;
       g.addEventListener("click", () => seleccionarLab(lab.id));
       g.addEventListener("keydown", (e) => {
         if (e.key === "Enter" || e.key === " ") {

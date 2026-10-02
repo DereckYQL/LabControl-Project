@@ -162,6 +162,11 @@ const registroLimiter = rateLimit({
 app.use("/api/registro", registroLimiter);
 
 // Recuperación de contraseña: por IP y por cuenta (evita abuso del envío de correos).
+// El límite cubre solo la SOLICITUD (la que dispara el envío de correo). Con
+// `app.use` también alcanzaba a `/api/recuperar-contrasena/:token`, donde no hay
+// `email` en el cuerpo: la cuota pasaba a ser 5 por hora y por IP para todo el
+// flujo de restablecimiento, dejando sin poder cambiar la contraseña a usuarios
+// legítimos que comparten salida a internet.
 const resetLimiter = rateLimit({
   windowMs: 60 * 60 * 1000,
   max: Number(process.env.LC_RESET_LIMIT) || 5,
@@ -171,7 +176,7 @@ const resetLimiter = rateLimit({
   validate: false,
   message: { error: "Demasiadas solicitudes de recuperación de contraseña. Espera 1 hora." }
 });
-app.use("/api/recuperar-contrasena", resetLimiter);
+app.post("/api/recuperar-contrasena", resetLimiter);
 
 // Rate limiting en renovación/cierre de sesión (token rotation es sensible).
 const refreshLimiter = rateLimit({
@@ -554,8 +559,8 @@ function notificarNuevaReserva(reserva, actorId) {
   crearNotificacion({
     toggle: "alertaReservas",
     tipo: "reserva_confirmada",
-    titulo: "Reserva confirmada",
-    mensaje: `Tu reserva de ${lab} para el ${reserva.fecha} (${horario}) quedó registrada.`,
+    titulo: "Reserva registrada",
+    mensaje: `Tu reserva de ${lab} para el ${reserva.fecha} (${horario}) quedó registrada y espera confirmación.`,
     destinatario: reserva.usuarioId
   });
   notificarATodos({
@@ -653,15 +658,21 @@ function sanitizarAdjuntos(adjuntos) {
     const data = typeof a.data === "string" ? a.data : "";
     const t = String(a.tipo || "").toLowerCase();
     const tamano = Number(a.tamano) || 0;
+    // El límite se mide sobre los bytes reales, no sobre los caracteres base64:
+    // contar `data.length` rechazaba de forma silenciosa todo archivo de más de
+    // ~3,75 MB aunque el máximo announced fuera de 5 MB.
+    const cuerpo = /^data:[^,]*;base64,/.test(data) ? cuerpoBase64(data) : "";
+    const bytes = cuerpo ? Buffer.from(cuerpo, "base64").length : 0;
     const valido =
       t && TIPOS_ADJUNTO.has(t) &&
       Number.isInteger(tamano) && tamano > 0 && tamano <= MAX_ARCHIVO_ADJUNTO &&
-      data.length > 0 && data.length <= MAX_ARCHIVO_ADJUNTO &&
+      bytes > 0 && bytes <= MAX_ARCHIVO_ADJUNTO &&
+      data.length <= Math.ceil(MAX_ARCHIVO_ADJUNTO * 4 / 3) + 1024 &&
       /^data:(image|application|text)\/[a-zA-Z0-9+.-]+;base64,[A-Za-z0-9+/=\r\n]*$/.test(data) &&
       data.startsWith(`data:${t};base64,`) &&
       (t === "text/plain" || t === "text/csv"
         ? contenidoTextoValido(t, data)
-        : TIPO_REAL_ADMISIBLE[t]?.includes(detectarMimeAdjunto(Buffer.from(cuerpoBase64(data), "base64"))));
+        : TIPO_REAL_ADMISIBLE[t]?.includes(detectarMimeAdjunto(Buffer.from(cuerpo, "base64"))));
     if (!valido) continue;
     resultado.push({
       nombre: String(a.nombre ?? "archivo").replace(/[^\w.\- ]/gi, "").slice(0, 120) || "archivo",
@@ -699,11 +710,29 @@ function serializarDatos(datos) {
   return texto;
 }
 
-// Ids generados en cliente: solo se aceptan formatos seguros (evita inyección por atributo).
-function nuevoId(prefijo, sugerido) {
+// Ids generados en cliente: solo se aceptan formatos seguros (evita inyección por
+// atributo) y nunca se reutiliza uno que ya exista. Antes, un id repetido (o dos
+// altas en el mismo milisegundo) terminaban en un error 500 de clave primaria.
+function nuevoId(prefijo, sugerido, tabla = null) {
   const candidato = typeof sugerido === "string" ? sugerido.trim() : "";
-  if (candidato && /^[A-Za-z0-9_]{1,80}$/.test(candidato)) return candidato;
-  return `${prefijo}_${Date.now()}`;
+  if (candidato && /^[A-Za-z0-9_]{1,80}$/.test(candidato) && !idEnUso(tabla, candidato)) return candidato;
+  let generado = "";
+  do {
+    generado = `${prefijo}_${Date.now().toString(36)}${randomBytes(3).toString("hex")}`;
+  } while (idEnUso(tabla, generado));
+  return generado;
+}
+
+function idEnUso(tabla, id) {
+  if (!tabla) return false;
+  try {
+    return !!db.prepare(`SELECT 1 FROM ${tabla} WHERE id = ?`).get(id);
+  } catch { return true; }
+}
+
+// Escapa los comodines de LIKE para que el usuario busque texto literal.
+function escaparLike(texto) {
+  return texto.replace(/[\\%_]/g, (c) => `\\${c}`);
 }
 
 /* Login (con rate limit estricto) */
@@ -847,6 +876,13 @@ app.post("/api/login/2fa", loginLimiter, (req, res) => {
 
 /* Verificación en dos pasos (2FA) — gestión propia (entra a Configuración → Seguridad) */
 
+// Comprobación de vida del servicio, sin token y sin tocar la base: la usan el
+// hosting del backend (health check) y quien despliegue el proyecto para ver si
+// la API está respondiendo. No revela nada del sistema.
+app.get("/api/salud", (req, res) => {
+  res.json({ ok: true, servicio: "labcontrol-api", version: "3.9" });
+});
+
 // Estado del 2FA de la sesión actual.
 app.get("/api/2fa/estado", authenticateToken, (req, res) => {
   const fila = db.prepare("SELECT totp_habilitado FROM usuarios WHERE id = ?").get(req.user.id);
@@ -924,8 +960,11 @@ app.get("/api/auditoria", authenticateToken, requireAdmin, (req, res) => {
 
   const q = typeof req.query.q === "string" ? req.query.q.trim().toLowerCase() : "";
   if (q) {
-    condiciones.push("(accion LIKE ? OR IFNULL(usuario_id, '') LIKE ? OR IFNULL(rol, '') LIKE ? OR IFNULL(detalle, '') LIKE ?)");
-    for (let i = 0; i < 4; i++) valores.push(`%${q}%`);
+    // Sin escapar, `%` y `_` actúan como comodines de LIKE: buscar "%" devolvía
+    // el registro completo y "a_b" también encontraba "aab".
+    const patron = `%${escaparLike(q)}%`;
+    condiciones.push(`(accion LIKE ? ESCAPE '\\' OR IFNULL(usuario_id, '') LIKE ? ESCAPE '\\' OR IFNULL(rol, '') LIKE ? ESCAPE '\\' OR IFNULL(detalle, '') LIKE ? ESCAPE '\\')`);
+    for (let i = 0; i < 4; i++) valores.push(patron);
   }
   const usuario = typeof req.query.usuario === "string" ? req.query.usuario.trim().slice(0, 80) : "";
   if (usuario) {
@@ -1290,6 +1329,12 @@ app.patch("/api/laboratorios/:id", authenticateToken, (req, res) => {
   if (campos.some((k) => k !== "estado") && !esTecnico(req.user?.rol)) {
     return res.status(403).json({ error: "Se requieren permisos técnicos para modificar otros campos" });
   }
+  // Esta ruta solo escribe `estado`. Antes, un técnico que enviara además `nombre` o
+  // `so` recibía 200 y la operación se perdía en silencio: ahora se explica.
+  const ignorados = campos.filter((k) => k !== "estado");
+  if (ignorados.length) {
+    return res.status(400).json({ error: `Desde aquí solo se puede cambiar el estado del laboratorio. Campo no editable: ${ignorados.join(", ")}` });
+  }
   const { estado } = req.body;
   if (!["disponible", "ocupado", "mantencion"].includes(estado)) {
     return res.status(400).json({ error: "Estado inválido" });
@@ -1522,7 +1567,7 @@ app.post("/api/agenda", authenticateToken, [
     }
   }
 
-  const id = nuevoId("res", r.id);
+  const id = nuevoId("res", r.id, "agenda");
   // El estado no lo decide el cliente (mass assignment): toda reserva nace
   // "pendiente" y solo el admin puede cancelarla o confirmarla después.
   db.prepare(`
@@ -1571,11 +1616,14 @@ app.post("/api/reportes", authenticateToken, [
   }
 
   const r = req.body;
-  const id = nuevoId("rep", r.id);
+  const id = nuevoId("rep", r.id, "reportes");
+  const hoy = new Date();
+  const fechaPorDefecto = `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, "0")}-${String(hoy.getDate()).padStart(2, "0")}`;
   db.prepare(`
     INSERT INTO reportes (id, tipo, titulo, descripcion, fecha, generado_por, datos, adjuntos)
     VALUES (?,?,?,?,?,?,?,?)
-  `).run(id, r.tipo, sanitizarTexto(r.titulo, 300), sanitizarTexto(r.descripcion, 5000), r.fecha, req.user.id,
+  `).run(id, sanitizarTexto(r.tipo, 50), sanitizarTexto(r.titulo, 300), sanitizarTexto(r.descripcion, 5000),
+         r.fecha || fechaPorDefecto, req.user.id,
          serializarDatos(r.datos), JSON.stringify(sanitizarAdjuntos(r.adjuntos)));
 
   const rep = repFromRow(db.prepare("SELECT * FROM reportes WHERE id = ?").get(id));
@@ -1587,12 +1635,19 @@ app.patch("/api/reportes/:id", authenticateToken, [
   body("titulo").optional().trim().notEmpty(),
   body("descripcion").optional().trim().notEmpty(),
   body("tipo").optional().trim().isLength({ min: 1, max: 50 }),
-  body("fecha").optional({ values: "falsy" }).matches(/^\d{4}-\d{2}-\d{2}$/)
+  body("fecha").optional().matches(/^\d{4}-\d{2}-\d{2}$/).withMessage("La fecha debe tener el formato AAAA-MM-DD")
 ], (req, res) => {
   const actual = db.prepare("SELECT * FROM reportes WHERE id = ?").get(req.params.id);
   if (!actual) return res.status(404).json({ error: "Reporte no encontrado" });
   if (!puedeModificarReporte(actual, req)) {
     return res.status(403).json({ error: "Solo el administrador o el creador pueden editar este reporte" });
+  }
+
+  // Sin esta comprobación los validadores no bloqueaban nada: una fecha o un tipo
+  // malicioso se guardaban tal cual y se renderizaban sin escapar en el detalle.
+  const errores = validationResult(req);
+  if (!errores.isEmpty()) {
+    return res.status(400).json({ error: errores.array()[0].msg });
   }
 
   const r = req.body;
@@ -1611,7 +1666,7 @@ app.patch("/api/reportes/:id", authenticateToken, [
       adjuntos    = ?
     WHERE id = ?
   `).run(
-    r.tipo ?? actual.tipo,
+    r.tipo !== undefined ? sanitizarTexto(r.tipo, 50) : actual.tipo,
     r.titulo !== undefined ? sanitizarTexto(r.titulo, 300) : actual.titulo,
     r.descripcion !== undefined ? sanitizarTexto(r.descripcion, 5000) : actual.descripcion,
     r.fecha ?? actual.fecha,
@@ -1842,7 +1897,7 @@ app.use((err, req, res, next) => {
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const servidor = app.listen(PORT, () => {
-    console.log(`\n  LabControl Liceo v3.8`);
+    console.log(`\n  LabControl Liceo v3.9`);
     console.log(`  API + sitio corriendo en: http://localhost:${PORT}/login.html`);
     console.log(`  Seguridad: JWT + bcrypt + rate limiting + helmet\n`);
   });

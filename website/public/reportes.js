@@ -1,6 +1,6 @@
 /* Imports (ES modules) */
 import { AUTH, actualizarReporte, cargarReportes, cargarUsuarios, crearReporte, eliminarReporte } from "./data.js";
-import { abrirModal, cerrarModal, esc, formatFecha, getQueryParam, refrescarNotificaciones, renderSidebar, showToast } from "./app.js";
+import { abrirModal, cerrarModal, esc, fechaLocalISO, formatFecha, getQueryParam, refrescarNotificaciones, renderSidebar, showToast } from "./app.js";
 
 
   renderSidebar("reportes.html");
@@ -252,7 +252,7 @@ import { abrirModal, cerrarModal, esc, formatFecha, getQueryParam, refrescarNoti
     modoModal    = "crear";
     editandoId   = null;
     archivosTemporales = [];
-    const hoy = new Date().toISOString().split("T")[0];
+    const hoy = fechaLocalISO();
     document.getElementById("nuevo-rep-hasta").value = hoy;
     document.getElementById("modal-rep-titulo").textContent = "Generar nuevo reporte";
     document.getElementById("btn-generar-rep").textContent  = "Generar";
@@ -307,9 +307,23 @@ import { abrirModal, cerrarModal, esc, formatFecha, getQueryParam, refrescarNoti
     });
   }
 
+  // Espejo de TIPOS_ADJUNTO del backend. Sin esta comprobación el navegador
+  // dejaba elegir .ppt/.xlsx/SVG y el servidor los descartaba en silencio: el
+  // usuario veía "Reporte generado" y el archivo no estaba.
+  const TIPOS_ADJUNTO = new Set([
+    "image/png", "image/jpeg", "image/gif", "image/webp",
+    "application/pdf",
+    "application/msword",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "text/plain", "text/csv",
+    "application/zip", "application/x-rar-compressed"
+  ]);
+  const MAX_BYTES_ADJUNTO = 5 * 1024 * 1024;
+
   async function agregarArchivos(files) {
     for (const f of [...files]) {
-      if (f.size > 10 * 1024 * 1024) { showToast(`"${f.name}" supera el máximo de 10 MB.`, "error"); continue; }
+      if (f.size > MAX_BYTES_ADJUNTO) { showToast(`"${f.name}" supera el máximo de 5 MB.`, "error"); continue; }
+      if (!TIPOS_ADJUNTO.has(f.type)) { showToast(`"${f.name}" es un tipo de archivo no admitido.`, "error"); continue; }
       if (archivosTemporales.length >= 10) { showToast("Máximo 10 archivos por reporte.", "error"); break; }
       try { archivosTemporales.push(await leerArchivo(f)); }
       catch { showToast(`No se pudo leer "${f.name}".`, "error"); }
@@ -361,7 +375,7 @@ import { abrirModal, cerrarModal, esc, formatFecha, getQueryParam, refrescarNoti
           tipo,
           titulo,
           descripcion,
-          fecha: new Date().toISOString().split("T")[0],
+          fecha: fechaLocalISO(),
           generadoPor: sesion?.id ?? "desconocido",
           datos: generarDatosMock(tipo),
           adjuntos: archivosTemporales

@@ -65,7 +65,7 @@ import { esc, getQueryParam, renderSidebar, showToast } from "./app.js";
     const lista = equiposFiltrados();
 
     if (!lista.length) {
-      tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;color:var(--color-text-muted);padding:24px">Sin equipos que mostrar.</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;color:var(--color-text-muted);padding:24px">Sin equipos que mostrar.</td></tr>`;
       return;
     }
 

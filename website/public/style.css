@@ -2465,6 +2465,9 @@ textarea.form-input { resize: vertical; min-height: 90px; }
   background: var(--soft-danger);
   border-color: var(--danger);
 }
+/* Reserva de otro usuario: se muestra, pero no se ofrece para cancelar. */
+.semana-chip--ajeno { cursor: default; }
+.semana-chip--ajeno:hover { transform: none; box-shadow: none; }
 
 /* prefers-reduced-motion: usuario pide menos movimiento */
 @media (prefers-reduced-motion: reduce) {
