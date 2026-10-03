@@ -1,6 +1,6 @@
 /* service-worker.js — caché offline: red para la API, caché para estáticos. */
 
-const CACHE_NAME = "labcontrol-v3.9.0";
+const CACHE_NAME = "labcontrol-v3.9.1";
 const PRECACHE_URLS = [
   "./",
   "index.html",
@@ -12,19 +12,19 @@ const PRECACHE_URLS = [
   "usuarios.html",
   "reportes.html",
   "configuracion.html",
-  "style.css?v=3.9.0",
-  "theme.js?v=3.9.0",
-  "app.js?v=3.9.0",
-  "data.js?v=3.9.0",
-  "index.js?v=3.9.0",
-  "login.js?v=3.9.0",
-  "laboratorios.js?v=3.9.0",
-  "equipos.js?v=3.9.0",
-  "disponibilidad.js?v=3.9.0",
-  "mapa.js?v=3.9.0",
-  "reportes.js?v=3.9.0",
-  "usuarios.js?v=3.9.0",
-  "configuracion.js?v=3.9.0",
+  "style.css?v=3.9.1",
+  "theme.js?v=3.9.1",
+  "app.js?v=3.9.1",
+  "data.js?v=3.9.1",
+  "index.js?v=3.9.1",
+  "login.js?v=3.9.1",
+  "laboratorios.js?v=3.9.1",
+  "equipos.js?v=3.9.1",
+  "disponibilidad.js?v=3.9.1",
+  "mapa.js?v=3.9.1",
+  "reportes.js?v=3.9.1",
+  "usuarios.js?v=3.9.1",
+  "configuracion.js?v=3.9.1",
   "app.js",
   "data.js",
   "index.js",
@@ -37,7 +37,7 @@ const PRECACHE_URLS = [
   "usuarios.js",
   "configuracion.js",
   "datos-demo.js",
-  "lucide.min.js?v=3.9.0",
+  "lucide.min.js?v=3.9.1",
   "manifest.webmanifest",
   "img/logo-insuco.png",
   "img/icon-192.png",
@@ -88,8 +88,16 @@ self.addEventListener("fetch", (event) => {
   const { request } = event;
   const url = new URL(request.url);
 
-  // No cachear peticiones a la API ni credenciales
-  if (url.pathname.startsWith("/api") || request.credentials === "include") return;
+  // No cachear peticiones a la API ni credenciales. La ruta se compara contra el
+  // scope del service worker y no contra la raíz del dominio: en GitHub Pages la
+  // API queda en /LabControl-Project/api/, no en /api/. Se quitan las barras
+  // iniciales para que ambos casos se comparen igual.
+  const base = new URL(self.registration.scope).pathname.replace(/\/+$/, "");
+  const ruta = (base && url.pathname.startsWith(`${base}/`)
+    ? url.pathname.slice(base.length)
+    : url.pathname).replace(/^\/+/, "");
+  if (ruta === "api" || ruta.startsWith("api/")) return;
+  if (request.credentials === "include") return;
 
   // Navegación (HTML): network-first con fallback a cache
   if (request.mode === "navigate") {

@@ -1,6 +1,10 @@
 /* data.js — cliente de la API; si no hay servidor usa los datos locales (demo). */
 
-const API_BASE = "/api";
+// Ruta relativa, sin barra inicial: el sitio puede servirse en la raíz de un
+// dominio o dentro de un subdirectorio (GitHub Pages lo publica en
+// /LabControl-Project/), y en ambos casos la API cuelga de la misma carpeta
+// que el HTML que la está pidiendo.
+const API_BASE = "api";
 
 /* Modo demo (respaldo sin servidor) */
 
@@ -571,10 +575,16 @@ async function pedir(ruta, opciones = {}, _reintentado = false) {
 
       const tipo = res.headers.get("content-type") ?? "";
       if (!tipo.includes("json")) {
-        // Una respuesta que no es JSON (HTML de un proxy inverso, ruta mal
-        // configurada, página de error servida por el hosting) NO significa "no
-        // hay servidor". Antes activaba el modo demo y el usuario veía datos
-        // ficticios creyendo que eran los reales.
+        // 404/405 con HTML: en este origen no hay ninguna API montada (host
+        // estático tipo GitHub Pages o Vercel), así que se usa el respaldo local.
+        if (res.status === 404 || res.status === 405) {
+          await activarModoDemo();
+          return demoRequest(metodo, ruta, cuerpo);
+        }
+        // Cualquier otro contenido que no sea JSON (HTML de un proxy inverso,
+        // página de error del hosting, 500) NO significa "no hay servidor".
+        // Antes activaba el modo demo y el usuario veía datos ficticios creyendo
+        // que eran los reales.
         throw new Error(`El servidor respondió con un contenido inesperado (${res.status || "sin estado"}). Revisa la conexión o la URL de la API.`);
       }
       if (!res.ok) {

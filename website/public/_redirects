@@ -1,0 +1,19 @@
+# Sin este archivo, Cloudflare Pages responde 308 a cada peticion .html y la
+# redirige a la ruta sin extension (/login.html -> /login). El sitio usa
+# direcciones con .html en los enlaces, en el service worker y en los enlaces de
+# los correos, asi que cada navegacion pagaba un salto extra y el service-worker
+# precargaba rutas distintas de las que el navegador pedia.
+# Estas reglas sirven el archivo con 200, sin redireccion: la direccion que ve el
+# usuario y la que guardan los enlaces siguen siendo .html. No se pueden usar
+# reglas 301/308 porque Pages no tiene forma de desactivar el recorte de la
+# extension .html desde el repositorio, y cada peticion .html terminaba
+# redirigida a la misma pagina.
+/index.html              /                    200
+/login.html              /login               200
+/laboratorios.html      /laboratorios        200
+/disponibilidad.html    /disponibilidad      200
+/mapa.html               /mapa                200
+/equipos.html            /equipos             200
+/reportes.html           /reportes            200
+/usuarios.html           /usuarios            200
+/configuracion.html     /configuracion       200

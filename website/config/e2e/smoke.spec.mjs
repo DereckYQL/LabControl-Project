@@ -16,17 +16,29 @@ test("login como INSUCO y el dashboard carga los datos", async ({ page }) => {
   await expect(page.locator(".sidebar__user .name")).not.toBeEmpty();
 });
 
-test("configuracion.html muestra la versión v3.8", async ({ page }) => {
+test("configuracion.html muestra la versión vigente", async ({ page }) => {
   await login(page, "INSUCO", "Insuco1336");
 
   await page.goto("/configuracion.html");
-  await expect(page.locator("body")).toContainText("LabControl v3.8", { timeout: 8000 });
+
+  // La versión no se escribe a mano en el test: se toma del token `?v=` de los
+  // propios assets (3.9.1 → "3.9"), que es el mismo que usa el service worker.
+  // Si se fijara "v3.x" aquí, el test se caería en cada versión nueva.
+  const visible = await page.evaluate(() => {
+    const src = [...document.querySelectorAll("script[src]")]
+      .map((s) => s.getAttribute("src"))
+      .find((s) => s && s.includes("app.js"));
+    const v = src ? new URL(src, location.href).searchParams.get("v") : null;
+    return v ? `LabControl v${v.split(".").slice(0, 2).join(".")}` : null;
+  });
+  expect(visible).toBeTruthy();
+  await expect(page.locator("body")).toContainText(visible, { timeout: 8000 });
 
   // El panel visible muestra la versión y el conteo en vivo de laboratorios/equipos.
   await page.click('#cfg-sidenav button[data-section="sistema"]');
   const panel = page.locator("#panel-sistema");
   await expect(panel).toBeVisible();
-  await expect(panel).toContainText("LabControl v3.8");
+  await expect(panel).toContainText(visible);
   await expect(panel).toContainText("Total laboratorios");
   await expect(panel).toContainText("Total equipos");
 });

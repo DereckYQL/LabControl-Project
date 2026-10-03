@@ -14,6 +14,9 @@ test-results/
 playwright-report/
 coverage/
 
+# Estado local de Cloudflare Pages / Wrangler
+.wrangler/
+
 # Sistema / editor
 *.log
 Thumbs.db

@@ -1,0 +1,133 @@
+LabControl — PENDIENTES Y LIMITACIONES CONOCIDAS
+================================================
+
+Documento de trabajo interno. Describe lo que falta por implementar, lo que quedó a medias
+y las limitaciones del despliegue actual. No es documentación de uso: eso está en README.md.
+
+
+1. CORREO DE RECUPERACIÓN DE CONTRASEÑA (RESEND)
+-------------------------------------------------
+Estado: el flujo está construido y probado, falta conectarlo al proveedor de correo.
+
+Qué ya funciona en el backend:
+  - La respuesta es siempre la misma, sin revelar si el correo existe.
+  - Genera un token de 30 minutos y lo guarda en la tabla contrasena_resets.
+  - Revoca las sesiones abiertas de esa cuenta y deja el evento en la auditoría.
+  - Limita las solicitudes para que no se use como forma de envío masivo.
+
+Qué falta:
+  1. Crear la cuenta en Resend (resend.com) y verificar un dominio propio.
+     También sirve el dominio de prueba onboarding@resend.dev, que solo entrega a la
+     casilla que se indique.
+  2. Generar la clave de API y definir RESEND_API_KEY en el servicio del backend.
+  3. Definir RESEND_FROM con la casilla remitente real (por defecto usa
+     LabControl <onboarding@resend.dev>).
+  4. Probar el flujo completo: solicitud, recepción del correo, uso del enlace y cambio
+     de contraseña.
+
+Mientras no haya clave, el enlace se imprime en la consola del servidor, que sirve para
+desarrollar pero no para producción: nadie recibiría el correo.
+
+Pendiente de decidir: si el dominio propio del establecimiento se usará como remitente, hay
+que configurar los registros DNS de entrega (SPF, DKIM) que indique Resend.
+
+
+2. INICIO DE SESIÓN CON GOOGLE
+-----------------------------
+Estado: el botón existe en la interfaz y explica que la función no está conectada. No
+autentica a nadie.
+
+Qué falta:
+  1. Crear un proyecto en Google Cloud Console y un cliente OAuth de tipo "Web
+     application", con la URI de redirección apuntando al callback del backend
+     (por ejemplo http://localhost:3000/api/auth/google/callback en desarrollo).
+  2. Definir GOOGLE_CLIENT_ID y GOOGLE_CLIENT_SECRET en el backend.
+  3. Instalar la librería OAuth correspondiente en website/backend.
+  4. Implementar las dos rutas públicas en server.js:
+       GET /api/auth/google          redirige a la pantalla de consentimiento
+       GET /api/auth/google/callback  intercambia el código, valida el id_token,
+                                     busca o crea el usuario y firma la sesión
+                                     igual que /api/login
+  5. Conectar el botón del login a esa ruta.
+
+Consideraciones:
+  - Decidir qué pasa con el dominio del correo: si la cuenta es institucional (@liceo.cl)
+    debería heredar el rol según el área, y si es personal, quedar con acceso básico.
+  - La verificación en dos pasos del administrador debería seguir aplicándose igual que en
+    el inicio de sesión con contraseña.
+  - Hay que decidir si se permiten correos externos o solo los del establecimiento.
+
+
+3. OTRAS FUNCIONES PENDIENTES
+----------------------------
+Control remoto de equipos
+  El botón "Control" del módulo Equipos abre un panel simulado que solo escribe en el
+  registro de la interfaz. Falta el agente que se instala en cada equipo (por ejemplo con
+  Wake on LAN o un agente propio), sus comandos, la auditoría de las acciones y que el
+  estado del equipo se guarde en la base de datos.
+
+Fotos de los laboratorios
+  No hay fotografías reales de las salas. El módulo Laboratorios y el mapa funcionan con
+  los datos del inventario y los rótulos que dibuja la base de datos.
+
+Aplicación móvil
+  El sistema está preparado para consumir la misma API REST desde una app nativa (segunda
+  etapa del proyecto), pero no existe.
+
+Captcha en el registro y en la recuperación de contraseña
+  Hoy la defensa es el límite de peticiones. Un captcha o una verificación equivalente
+  reduciría el relleno automatizado de cuentas.
+
+
+4. LIMITACIONES DEL DESPLIEGUE ACTUAL
+------------------------------------
+La auditoría no guarda la IP real del profesor
+  El hosting intermediario reemplaza la cadena X-Forwarded-For por la dirección de su
+  propio borde, así que en la auditoría queda la IP del proxy. El límite de intentos de
+  inicio de sesión no se rompe por esto, porque su clave combina IP y usuario y cada
+  cuenta conserva su propio cupo. Para guardar la IP real habría que pasarla en una
+  cabecera propia, con un secreto compartido entre el sitio y la API, y leerla en el
+  backend.
+
+El backend está lejos de Chile
+  El servicio corre en una región de Estados Unidos. La latencia se nota en las primeras
+  peticiones. Se puede pedir otra región, pero cambiaría la dirección pública del backend y
+  habría que actualizarla en el puente del sitio.
+
+El dominio propio todavía no está conectado
+  El sitio se publica en una dirección de Cloudflare Pages. El dominio del proyecto ya
+  está registrado, pero sus servidores de nombres siguen en el registrador, así que hoy
+  muestra la página del registrador. Para conectarlo: agregar el dominio a la cuenta de
+  Cloudflare, cambiar los servidores de nombres por los que entrega Cloudflare y, cuando
+  propaguen, agregar el dominio personalizado al proyecto de Pages. Cloudflare emite el
+  certificado sin costo. Mientras tanto, las direcciones canónicas y las de las redes
+  sociales apuntan a la dirección de Pages.
+
+Los desafíos de la verificación en dos pasos viven en memoria
+  Mientras alguien está entre el paso de contraseña y el de código, ese estado queda en la
+  memoria del proceso. Si el servicio se reinicia en ese instante, la persona tiene que
+  volver a iniciar sesión. No afecta a las sesiones ya abiertas.
+
+Los avisos del sistema operativo dependen del navegador
+  Las notificaciones cuando la pestaña está en segundo plano funcionan en los navegadores
+  que lo soportan; en el resto solo se ven con la aplicación abierta.
+
+El sitio sin conexión es una copia de la interfaz
+  El service worker guarda los archivos estáticos, no los datos: sin conexión se puede
+  navegar, pero no crear ni modificar nada, y no se ven datos nuevos.
+
+Varios scripts siguen dentro de las páginas
+  La mayoría del código está en módulos externos, pero cada página todavía conserva algún
+  script embebido. Está anotado como deuda técnica.
+
+
+5. DECISIONES DOCUMENTADAS (NO SE CAMBIAN)
+-------------------------------------------
+Se revisaron y se dejan como están, con su motivo:
+
+  - No hay captcha en el registro ni en la recuperación: el límite de peticiones cubre el
+    abuso y el uso real es de unos pocos profesores.
+  - Los desafíos de verificación en dos pasos no se guardan en la base: son de un solo uso y
+    duran minutos.
+  - La aplicación está reservada a personas adultas y se opera bajo la supervisión del
+    establecimiento; así consta en los términos de uso y en la política de privacidad.

@@ -1876,9 +1876,18 @@ app.patch("/api/config", authenticateToken, requireAdmin, (req, res) => {
   res.json(nuevo);
 });
 
-/* Sitio estático (public/) — sin servir archivos ocultos (dotfiles) */
+/* Sitio estático (public/) — sin servir archivos ocultos (dotfiles)
 
-app.use(express.static(path.join(__dirname, "..", "public"), {
+   El mismo proceso sirve la web y la API, así que basta una sola URL y no hace
+   falta proxy. La carpeta del sitio se puede mover con LC_PUBLIC_DIR cuando el
+   despliegue no copia `public/` al lado de `backend/` (por ejemplo, con el Root
+   Directory de un hosting en `website/backend`), en vez de fallar en silencio con
+   un "Cannot GET /" que no dice nada del motivo. */
+
+const dirSitio = path.resolve(process.env.LC_PUBLIC_DIR || path.join(__dirname, "..", "public"));
+const sitioDentro = fs.existsSync(path.join(dirSitio, "index.html"));
+
+app.use(express.static(dirSitio, {
   dotfiles: "deny",
   index: ["index.html"]
 }));
@@ -1898,7 +1907,13 @@ app.use((err, req, res, next) => {
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const servidor = app.listen(PORT, () => {
     console.log(`\n  LabControl Liceo v3.9`);
-    console.log(`  API + sitio corriendo en: http://localhost:${PORT}/login.html`);
+    if (sitioDentro) {
+      console.log(`  API + sitio corriendo en: http://localhost:${PORT}/login.html`);
+    } else {
+      console.log(`  API corriendo en: http://localhost:${PORT}/api`);
+      console.log(`  El sitio no está en ${dirSitio}: esta instancia solo responde la API.`);
+      console.log(`  Sube la carpeta public/ o indica la ruta con LC_PUBLIC_DIR.`);
+    }
     console.log(`  Seguridad: JWT + bcrypt + rate limiting + helmet\n`);
   });
 

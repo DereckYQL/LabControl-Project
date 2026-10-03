@@ -1,391 +1,245 @@
 # LabControl Liceo
 
-Sitio web para el control y supervisión de los 5 laboratorios de computación del liceo, con inicio de sesión, roles de profesor, acceso diferenciado a la información técnica y una **base de datos real (SQLite)** en el backend. Proyecto de la asignatura *Diseño y Aplicaciones Web*.
+Sistema web para el control y la supervisión de los laboratorios de computación del Liceo
+INSUCO. Permite consultar y administrar la disponibilidad, el inventario de equipos, el mapa
+del establecimiento, las reservas de uso, los reportes y las cuentas de los profesores, con
+autenticación por roles y base de datos real en el backend.
 
-## Objetivo
+**Sitio publicado:** <https://insuco-labcontrol.pages.dev>
 
-Que los profesores de la carrera de Programación (y, con menos permisos, el resto de profesores) puedan consultar y administrar los laboratorios desde un solo sistema: disponibilidad, mapa, equipos, reportes y usuarios — simple de usar y adaptable a cualquier dispositivo.
+Proyecto de la asignatura *Diseño y Aplicaciones Web*.
 
-## Roles y permisos
+---
 
-Todo profesor con cuenta puede ver el estado y la disponibilidad de los laboratorios, cambiar su estado y agendar reservas de uso.
+## 1. Contenido del sistema
 
-Los profesores de **Programación** (y el Administrador) pueden además ver la información técnica completa de los equipos, usar el control remoto y generar reportes. Los profesores de otras áreas solo ven información superficial.
-
-Solo el **Administrador** puede gestionar usuarios y acceder a la configuración avanzada del sitio.
-
-## Cuentas de prueba
-
-| Usuario | Contraseña | Rol |
-|---|---|---|
-| **INSUCO** | `Insuco1336` | Administrador (`admin@liceo.cl`) |
-| prof_juan | juan123 | Programación |
-| prof_camila | camila123 | Otra área |
-
-## Cambios
-
-> **v3.9** — **El sistema sale a `labcontrol.com` y se corrigen los errores de la segunda revisión del análisis**:
-> > - **La web se publica sola en Cloudflare Pages**: el proyecto está conectado al repositorio, así que cada `push` a `master` despliega la web sin intervención. El dominio `labcontrol.com` responde con SSL y los nombreservers del dominio apuntan a Cloudflare.
-> > - **La web y la API quedan en el mismo dominio**: Cloudflare Pages solo sirve archivos estáticos, así que el servidor Express + SQLite se despliega aparte, en un hosting con disco persistente. Una **Pages Function** (`functions/api/[[path]].js`) reenvía `/api/*` hacia ese servidor, de modo que el frontend sigue llamando a `/api` en su propio origen y **no hubo que abrir CORS ni tocar la política de seguridad de la interfaz**. La dirección del backend se configura con la variable de entorno `API_ORIGIN` del proyecto de Pages.
-> > - **El login volvía a aparecer vacío y sin explicación**: con un 401 la sesión se cerraba y el formulario se recargaba, así que una contraseña incorrecta no mostraba ningún mensaje. Ahora se ve el motivo real del servidor (crecnciales incorrectas, cuenta bloqueada, demasiados intentos) tanto en el primer paso como en el 2FA, y la sesión solo se cierra si es que había una.
-> > - **El modo demo ya no se disfraza de servidor real**: cualquier respuesta que no fuera JSON (el HTML de error de un hosting, una ruta mal configurada) activaba los datos de ejemplo y el profesor veía datos ficticios creyendo que eran los reales. Ahora solo un fallo de conexión activa el respaldo local; cualquier otra cosa se informa como error.
-> > - **El calendario semanal de reservas**: navegar entre semanas lo vaciaba (la agenda no se conservaba) y cualquier reserva ofrecía "Cancelar" aunque fuera de otro usuario, lo que terminaba en un 403 del servidor. Ahora la semana se mantiene al navegar, solo su dueño o el administrador pueden cancelar, y las ajenas se muestran sin acción.
-> > - **Agendar una reserva ya no se da por hecho**: el modal se cerraba antes de saber si la operación había salido y el calendario no se refrescaba. Ahora espera la respuesta, explica el error sin perder lo escrito y no acepta doble clic.
-> > - **La fecha "de hoy" se calculaba en UTC**: después de las 21:00 en Chile el formulario ponía mañana y bloqueaba reservar el mismo día. Ahora todas las fechas por defecto usan la hora local.
-> > - **Cerrada la vía de XSS por fecha manipulada**: `formatFecha` hacía `split("-")` sobre cualquier valor, así que una fecha con otra forma se interpolaba tal cual en el detalle de un reporte. Ahora solo acepta `AAAA-MM-DD`.
-> > - **Los adjuntos se rechazaban antes de tiempo**: el límite de 5 MB se medía sobre los caracteres base64, así que cualquier archivo de más de ~3,75 MB se descartaba en silencio aunque el aviso dijera 5 MB. Ahora se mide sobre los bytes reales, el selector del navegador ofrece los mismos tipos que acepta el servidor y el texto del formulario dice el tamaño correcto.
-> > - **Editar un reporte ya no se pierde en silencio**: los validadores del servidor se declaraban pero nunca se leían, así que una fecha o un tipo manipulados se guardaban y se mostraban sin escapar. Ahora un dato inválido se rechaza indicando el campo, y un reporte sin fecha recibe la del día.
-> > - **El estado del laboratorio ya no se guarda a medias**: un técnico que enviara además el nombre o el sistema operativo recibía 200 y el cambio se perdía. Ahora la API explica qué campo no es editable por esa ruta y solo cambia el estado.
-> > - **Un id repetido ya no tumba el sistema**: dos altas con el mismo id (o generadas en el mismo milisegundo) terminaban en un error 500 de clave primaria. Ahora el servidor comprueba si el id está en uso y genera uno único.
-> > - **La búsqueda de la auditoría usaba comodines**: `%` y `_` no se escapaban, así que buscar "%" devolvía todos los registros y "a_b" encontraba también "aab".
-> > - **La recuperación de contraseña ya no bloquea a quien comparte salida a internet**: el límite cubría también la ruta del token, donde no hay correo que contar, y agotaba la cuota de todo el flujo. Ahora limita solo la solicitud que dispara el envío de correo.
-> > - **El mapa y la configuración se desincronizaban**: los rótulos de cada sala estaban escritos a mano en el SVG (con salas que no eran las reales) y ahora los dibuja la base de datos; los interruptores de avisos del sitio solo le aparecen al administrador, con una nota para los demás; y la tabla de Equipos muestra "Equipo / Laboratorio" en una sola columna.
-> > - **Contraseñas de 8 caracteres en todos los caminos**: el backend ya exigía 8 y los formularios de registro, recuperación, cambio de contraseña y edición de usuario seguían aceptando 6.
-> > - **La suite ya no la corta el propio rate limiting**: al crecer, las pruebas del final recibían 429 del servidor que están comprobando. Los topes se suben dentro de la corrida (menos el de recuperación, que sí se verifica) y se agregan **8 pruebas nuevas** sobre fechas manipuladas, adjuntos, ids repetidos, campos no editables, el límite de recuperación y el chequeo de salud: **89 en total**.
-> > - **Caché renovada en `3.9.0`**: todos los assets (CSS y JS) y el `service-worker` cambian su versión para forzar la descarga en los navegadores.
-> > - **Verificación completa en v3.9**: lint 0 errores, typecheck OK, sintaxis OK, suite backend 89/89 y e2e 27/27.
-
-> **v3.8** — **Migraciones reversibles, semilla versionada y respaldos que no pueden dejar el sistema sin base**:
-> > - **Las migraciones ahora se pueden deshacer**: cada migración declara su paso de vuelta, y hay un comando `npm run db:rollback <n>` que baja el esquema a la versión que se le pida. Si un paso falla a medias, se deshacen también los que ya habían salido, así que nunca queda el esquema a medias. Cuatro migraciones (3, 4, 9 y 10) son **irreversibles** de verdad: no se puede recuperar lo que sobrescribieron, y el programa lo dice con el motivo en lugar de fingir que sí. El comando hace una copia de seguridad antes de tocar nada.
-> > - **Base a salvo de una migración a medias**: la creación del esquema va en transacción (antes, una tabla que fallaba dejaba la base con medio esquema) y cada migración se aplica en su propio *savepoint*. El motor ya no se fía solo del número más alto: si falta una migración en el registro, la completa en vez de saltársela entera, y si la base es de una versión **más nueva** que el programa, se niega a arrancar con un mensaje claro en vez de escribir encima.
-> > - **Las bases ya en uso se reparan solas**: `CREATE TABLE` no añade columnas a una tabla que ya existe, y eso tumbaba el arranque (la base real del proyecto tenía la migración al día pero le faltaba `laboratorios.imagenes`, y la semilla la escribe). La migración 10 (*alinear_columnas_con_el_esquema*) compara cada tabla con el esquema canónico y añade las columnas que falten, así que cualquier base que haya arrastrado esa deriva se arregla al abrir el programa sin intervención.
-> > - **La semilla de ejemplo se puede actualizar**: era de una sola vez, así que una versión nueva nunca podía añadir datos a una base que ya existía. Ahora es un proceso versionado e idempotente: solo inserta lo que falta, **nunca pisa lo que el administrador editó**, no reactiva cuentas dadas de baja y no toca la configuración. Se registra en `seed_history` y se puede reaplicar a mano con `npm run db:semillar`.
-> > - **Restaurar un respaldo ya no puede dejar el sistema sin base**: antes solo se miraban los primeros bytes del archivo. Ahora se abre una **copia** del respaldo y se le pide `quick_check` y la lista de tablas antes de tocar nada, con la base en servicio todavía abierta. La base anterior se conserva en un `.prev`, y si el intercambio falla se revalida esa copia antes de reabrir. Mientras dura la operación la API responde *503* en vez de fingir que funciona, y al terminar se revocan las sesiones y se purgan los desafíos 2FA que quedaban en memoria de la base anterior.
-> > - **Las tablas que crecían sin límite ahora se podan**: auditoría, notificaciones, sesiones, enlaces de reseteo y solicitudes de especialidad no tenían tope y crecían para siempre. Ahora hay una limpieza periódica (cada 15 minutos) que conserva 5.000 registros de auditoría, las 20.000 notificaciones más recientes, 200 enlaces de reseteo vivos y 1.000 solicitudes resueltas (100 por usuario). **Las solicitudes pendientes nunca se borran**, que es lo que hay que mirar. También se puede forzar a mano con `npm run db:podar`, y el estado del esquema se consulta con `npm run db:estado`.
-> > - **TOTP más acotado**: la ventana de verificación del código 2FA ya no admite un valor absurdo que la convertía en un barrido de millones de Intentos, y el tamaño del secreto se normaliza en vez de lanzar. Con 13 pruebas nuevas que incluyen los vectores oficiales de base32 de RFC 4648.
-> > - **28 pruebas nuevas** (80 en total) sobre migraciones, rollback, semilla, poda, TOTP y reparación de bases, más dos de respaldos en la suite de API. Escribirlas destapó cinco fallos reales del código nuevo, y al verificar el CLI contra la base real del proyecto se destapó un sexto (bases al día pero con columnas perdidas, corregido con la migración 10): todos documentados en las secciones 11 y 12 del `informe-analisis.txt`.
-> > - **Análisis completo de las secciones 3 y 4** del informe (`informe-analisis.txt`, secciones 10, 11 y 12): los 62 ítems de "problemas entre versiones" y los 72 de "malas prácticas" revisados uno a uno. La mayor parte de la sección 4 ya estaba resuelta en la 3.7, y los tres que se dejan sin cambio (desafíos 2FA en memoria, sin CAPTCHA en el registro y en la recuperación) se cierran como **decisión documentada** con su motivo.
-> > - **Caché renovada en `3.8.0`**: todos los assets (CSS y JS) y el `service-worker` cambian su versión para forzar la descarga en los navegadores.
-> > - **Verificación completa en v3.8**: lint 0 errores, typecheck OK, sintaxis OK, suite backend 80/80 y e2e 27/27.
-
-> **v3.7** — **Los laboratorios ahora tienen los datos reales del inventario**:
-> > - **Ficha real de los 5 laboratorios**: se reemplazó la información de ejemplo por la del documento de inventario. Sistema operativo: LAB 1, 2 y 4 en **Windows 11 Pro**, LAB 3 en **Linux Mint** y LAB 5 en **Linux Mint y Windows 10**.
-> > - **Cantidad de equipos correcta**: LAB 1 con 30, LAB 2 con 27, LAB 3 con 23, LAB 4 con 28 y LAB 5 con 30 equipos (138 en total, antes 145). La lista de equipos de cada laboratorio se ajustó a la nueva cantidad: se quitaron los que sobraban y se agregaron los que faltaban.
-> > - **Servicios por laboratorio**: cada laboratorio muestra solo los servicios que tiene. LAB 1 (Pizarra, Proyectos), LAB 2 (Pizarra, Proyector), LAB 3 (Pizarra), LAB 4 (Pizarra) y LAB 5 (Pizarra, Proyector). Se eliminaron los servicios de ejemplo (Internet, Impresora de red, Pizarra digital y Rack de servidores).
-> > - **El "Laboratorio de Redes" pasa a ser el "Laboratorio 5"**: el nombre, la descripción y el plano (*Mapa*) se actualizaron. Sala, ubicación, hardware, responsable y horario se conservan tal como estaban.
-> > - **Se aplica automáticamente a las bases existentes**: migración 9 (`schema_migrations`) actualiza los laboratorios, sincroniza el sistema operativo de cada equipo y corrige los reportes de ejemplo al abrir el programa, sin perder datos.
-> > - **Caché renovada en `3.7.0`**: todos los assets (CSS y JS) y el `service-worker` cambian su versión para forzar la descarga en los navegadores.
-> > - **Verificación completa en v3.7**: lint 0 errores, typecheck OK, sintaxis OK, suite backend 39/39 y e2e 27/27.
-
-> **v3.6** — **Menú del celular con el usuario y las notificaciones dentro, registro en 2 columnas y textos legales para adultos**:
-> > - **Barra superior minimalista**: en la vista del celular la barra deja de mostrar el usuario y la campana, y queda solo el botón de menú junto al logo. Ambos elementos se movieron al desplegable, que se abre al pulsar ese botón.
-> > - **Cabecera del menú con la foto, el nombre y el correo**: arriba del menú, con una línea divisoria sutil que lo separa del resto de botones, aparece el avatar junto al nombre del usuario y su correo institucional, y a un lado el botón de notificaciones.
-> > - **Notificaciones dentro del menú**: la ventana de notificaciones se despliega a lo ancho del menú, debajo de los datos del usuario, y se cierra sola al plegar el menú.
-> > - **El correo ahora viaja con la sesión**: se guarda al iniciar sesión (y al guardar el perfil) y, si vienes de una versión anterior, se recupera una sola vez desde el servidor.
-> > - **Escritorio sin cambios**: por encima de 860 px la barra lateral se mantiene igual (usuario al pie, campana arriba a la derecha); el reparto se ajusta solo al cambiar el tamaño de la ventana o girar el celular.
-> > - **Registro en 2 columnas**: el formulario "Crear cuenta" (nombre, apellido, usuario, correo, área y especialidad) se reparte en dos columnas en escritorio y vuelve a una sola columna en el celular.
-> > - **Textos legales para adultos**: se eliminaron la línea de consentimiento de menores del formulario de registro y la sección "Menores de edad" de la Política de privacidad; Términos de uso y Política de privacidad ahora aclaran que la aplicación está reservada a personas adultas y se opera bajo la supervisión del establecimiento.
-> > - **Caché renovada en `3.6.2`**: todos los assets (CSS y JS) y el `service-worker` cambian su versión para forzar la descarga en los navegadores y evitar páginas con archivos viejos. Además, la precarga del service-worker ahora ignora la caché del navegador (`cache: "reload"`), de modo que al desplegar una versión nueva el móvil descarga siempre los archivos frescos.
-> > - **Verificación completa en v3.6**: lint 0 errores, typecheck OK, sintaxis OK, suite backend 38/38 y e2e 27/27.
-
-> **v3.5** — **Registro de cuentas, recuperación de contraseña e inicio con Google en el login**:
-> > - **Login como en la vida real**: bajo el botón "Ingresar" ahora hay dos enlaces pequeños — *¿Olvidaste tu contraseña?* y *Crear cuenta* — y, debajo, un divisor con el botón **Continuar con Google**. El texto legal del registro está adaptado al estilo Roblox (Términos de uso, Política de privacidad y consentimiento de menores), y ambos documentos se muestran en un modal accesible directamente desde el formulario.
-> > - **Crear cuenta (funcional)**: formulario con nombre, apellido, usuario, correo, área y especialidad. La cuenta se crea al instante con rol *otra área* y nivel de acceso básico, ya puede iniciar sesión, rechaza usuarios o correos duplicados (409) y notifica a los administradores con el nuevo aviso *"Nuevos usuarios registrados"* (*Configuración → Notificaciones*). El mismo comportamiento está replicado en modo demo y verificado con tests de API.
-> > - **Recuperar contraseña (base lista)**: la solicitud siempre responde lo mismo, sin revelar si el correo existe. Si la cuenta existe, se genera un enlace con token de 30 minutos (tabla `contrasena_resets`), se revocan todas sus sesiones y el evento queda en la auditoría. El enlace llega por correo vía **Resend** cuando existe `RESEND_API_KEY`; sin esa clave se imprime en la consola del servidor para probar el flujo en desarrollo (ver *Correo de recuperación* más abajo). Incluye límite de peticiones (5/hora por IP y correo).
-> > - **Google**: el botón "Continuar con Google" queda visible en el login y explica en la propia interfaz que requiere conectar un cliente OAuth de Google en el backend (ver *Inicio con Google*), por lo que todavía no permite autenticar.
-> > - **Verificación completa en v3.5**: lint 0 errores, typecheck OK, sintaxis OK y suite backend 38/38.
-
-> **v3.4** — **Verificación en dos pasos (2FA), auditoría de actividad, respaldos, y mejoras de reportes y disponibilidad**:
-> > - **Verificación en dos pasos (2FA) para el administrador**: al iniciar sesión se solicita un código TOTP de 6 dígitos desde la aplicación de autenticación (Google Authenticator, Aegis, etc.). El administrador activa/desactiva la 2FA desde *Configuración → Seguridad* con un código QR; mientras está activa, cada inicio de sesión exige el código de su aplicación. Queda fuera del alcance de la contraseña única y verificado con pruebas de backend y e2e.
-> > - **Auditoría de actividad**: los eventos importantes (inicios de sesión, cierres, cambios de contraseña, laboratorios, usuarios, reservas, configuración y solicitudes) se registran con fecha, usuario, acción, detalle y dirección IP. El panel *Configuración → Auditoría* (solo admin) permite buscar y filtrar por rango de fechas (hasta 200 registros visibles).
-> > - **Respaldos de la base de datos**: *Configuración → Respaldos* (solo admin) permite descargar una copia completa de la base de datos (`.db`) y restaurar un respaldo subiendo un archivo. Restaurar reemplaza la base actual, cierra todas las demás sesiones y fuerza un cierre de sesión; la descarga y restauración también quedan registradas en la auditoría.
-> > - **Exportar reportes a CSV**: cada reporte abreto en *Reportes* incluye el botón "Exportar CSV" (descarga el reporte en formato de valores separados por comas, compatible con Excel — UTF-8 con BOM).
-> > - **Calendario semanal de reservas**: *Disponibilidad* agrega una vista de cuadrícula por días de la semana y laboratorio, con navegación a semanas anteriores/siguientes, la semana actual resaltada y chips de reserva que pueden cancelarse con un clic.
-> > - **PWA completa**: `manifest.webmanifest` e iconos 192/512 recién generados del logo; `theme-color`, `apple-touch-icon` y `canonical` en las 9 páginas; `robots.txt` permite indexar. El Service Worker precachea el manifest y los iconos nuevos.
-> > - **Verificación completa en v3.4**: lint 0 errores, typecheck OK, sintaxis OK, suite backend 35/35 y e2e 20/20.
-
-> **v3.3** — **Accesibilidad (P3) y migración del frontend a ES Modules (P4)**:
-> > - **Accesibilidad completa (prioridad P3)**: enlace "Saltar al contenido" al inicio de sesión y en las 9 páginas, foco gestionado con `tabindex="-1"` en el contenido principal, foco atrapado en los modales y restaurado al cerrar, interruptores (switch) operables con teclado (espacio/enter), formularios con atributos `required`/`minlength` correctos y contraste de `.login-hint code` corregido en el tema claro. Acreditado con 3 pruebas e2e nuevas de accesibilidad (teclado, foco y skip-nav).
-> > - **Frontend migrado a ES Modules (prioridad P4)**: `data.js`, `app.js` y los 9 scripts de página usan `import`/`export` reales (módulos, `type="module"`), eliminando la dependencia implícita del orden de carga y los globales; `theme.js` y `lucide.min.js` siguen como scripts clásicos para evitar el flash de tema. El Service Worker precachea las rutas de módulos (con y sin versión) y la degradación sin conexión se verificó recargando el módulo desde la caché.
-> > - **Bug corregido**: `restablecerConfiguración` en Configuración fallaba porque `CONFIG_DEFAULT` no estaba definido en el frontend; ahora se define espejando el seed del backend (antes habría lanzado un error en tiempo de ejecución).
-> > - **Verificación completa en v3.3**: lint 0 errores, typecheck OK, suite backend 30/30 y e2e 15/15 incluyendo los nuevos tests de accesibilidad.
-
-> **v3.2** — **Sesiones seguras con refresh tokens y estabilidad general**:
-> > - **Renovación automática de sesión (refresh tokens)**: al expirar el token de acceso (2 h), la aplicación renueva la sesión sola mediante un token de larga duración (30 días) con **rotación**: cada renovación invalida el token anterior, reutilizar un token ya usado es rechazado, y cerrar sesión o cambiar la contraseña revocan todos los tokens al instante. Verificado con una prueba e2e real que expira el token mientras se usa la web y confirma que la sesión se mantiene.
-> > - **Peticiones resilientes**: la renovación es single-flight (las peticiones paralelas comparten un único refresco) y las peticiones que fallaron por token vencido se reintentan automáticamente.
-> > - **Errores siempre visibles**: se agregó recuperación de errores con aviso en el mapa de laboratorios y en el formulario de inicio de sesión; la aplicación ya no falla en silencio en ninguna página.
-> > - **Descarga sin conexión (offline) verificada**: el Service Worker precachea el 100 % de los archivos estáticos (páginas, estilos, scripts e imágenes); acreditado con prueba e2e que sirve la interfaz y los assets desde la caché sin conexión y, si la API no responde, muestra un aviso en lugar de quedarse en blanco.
-> > - **Prioridades P1 y P2 completadas**: autenticación robusta (bcrypt + JWT con token de acceso y refresco), autorización verificada en el servidor, saneamiento con express-validator, helmet, CORS restrictivo, límites de peticiones, contraseñas nunca expuestas, tabs con varios grupos, gráficos sin división por cero y manejo de errores con interfaz — todo cubierto por pruebas (jest 30/30 y e2e 12/12).
-
-> **v3.1** — **Corrección de vulnerabilidades**:
-> > - **CSP estricto (sin `unsafe-inline`)**: los scripts inline y los manejadores `onclick` de todas las páginas se migraron a archivos `.js` externos con eventos delegados, y ahora la política `script-src 'self'` bloquea cualquier ejecución de JavaScript inyectado. Verificado con una prueba e2e que inyecta un script malicioso y confirma que no se ejecuta.
-> > - **Respuestas de la API sin caché**: `Cache-Control: no-store` en todas las rutas `/api` para que el navegador no almacene datos sensibles (usuario, correo, configuraciones).
-> > - **Protección contra prototype pollution**: el guardado de configuración ignora claves peligrosas (`__proto__`, `constructor`, `prototype`) al fusionar el JSON recibido.
-> > - **Fuerza bruta por cuenta**: el límite de intentos de inicio de sesión ahora se aplica por IP **y por usuario**, bloqueando el ataque aunque las IP roten.
-> > - **Más cabeceras de seguridad**: `Referrer-Policy: same-origin` y `Permissions-Policy` (sin cámara, micrófono, geolocalización, pagos ni USB).
-> > - **Servidor estático endurecido**: se deniegan los archivos ocultos (`dotfiles: deny`) y se explicita el index; el manejo de errores nunca revela trazas internas.
-> > - **Auditoría `npm audit` limpia** (0 vulnerabilidades) en `website/config` y `website/backend` re-verificada en esta versión.
-
-> **v3.0** — **Solicitudes administrativas y correcciones**:
-> > - **Botón "Editar" y "Desactivar" de usuarios arreglado**: antes no respondían al clic; ahora abren el modal precargado (edición con ID bloqueado y contraseña opcional) y la desactivación pide confirmación y evita que un administrador se dé de baja a sí mismo.
-> > - **Cambio de especialidad mediante solicitud administrativa**: los profesores ya no modifican su especialidad directamente; envían una solicitud que el administrador aprueba o rechaza desde el panel de notificaciones ("Revisar solicitud"), con alerta activada por defecto.
-> > - **Área solo administrable por el Administrador**: el campo "Área / Departamento" dejó de ser editable por el propio profesor; la API rechaza el intento (403) y la interfaz lo muestra deshabilitado con sugerencias.
-> > - **Revisión de seguridad**: auditoría `npm audit` limpia (0 vulnerabilidades) en el frontend y el backend, validación de todos los datos renders con escapes HTML, prepared statements en SQLite y el endurecimiento previo (helmet/CSP, rate limiting, bcrypt, JWT con clave aleatoria) verificado e intacto. El perfil de los profesores no expone hash de contraseña en ninguna respuesta.
-> > - **Pruebas ampliadas**: se agregaron tests del flujo completo de solicitudes (crear → notificar → aprobar/rechazar → aplicar) y de la edición de un usuario existente; e2e con base de datos temporal por corrida.
-
-> **v2.9** — **Corrección de errores y endurecimiento de seguridad**:
-> > - **XSS almacenado eliminado**: todos los datos de usuario se escapan al renderizar (notificaciones, reportes, laboratorios, equipos, usuarios y agenda). Los títulos de reportes, motivos de reserva y nombres ya no pueden inyectar HTML ni JavaScript.
-> > - **Adjuntos validados de verdad**: allowlist de tipos MIME (PNG/JPEG/GIF/WebP/PDF/DOC/DOCX/TXT/CSV/ZIP/RAR), máximo 6 MB por archivo y 10 archivos, con contenido verificado como data-URL base64 válido.
-> > - **Botón "Control" de equipos corregido**: antes lanzaba un error (`PC01 is not defined`) e impedía abrir el panel remoto; ahora usa delegación de eventos e identificadores seguros.
-> > - **Configuración 100% operativa**: "Guardar cambios" persiste todos los paneles (perfil, sitio, red, laboratorios, equipos, notificaciones y seguridad) y "Restablecer a valores de fábrica" restaura la configuración real. Los totales de laboratorios/equipos del panel Sistema se calculan en vivo.
-> > - **Perfil editable por cualquier profesor**: cada usuario puede actualizar su nombre, apellido, correo, área y especialidad (antes solo el administrador; las demás cuentas recibían 403).
-> > - **Permisos coherentes**: cualquier profesor puede cambiar el estado de un laboratorio (Disponible / Ocupado / Mantención), tal como mostraban la interfaz y el README. La API además redacta la información técnica (hardware, IP/MAC) para cuentas no técnicas.
-> > - **Reservas con validación completa**: laboratorio existente, fecha no pasada ni más allá de la anticipación máxima, horas con formato `HH:MM` y fin posterior al inicio, y detección de solapamientos.
-> > - **IDs y correos saneados**: los IDs de usuario solo aceptan letras, números y guion bajo; los ids de reportes/reservas venidos del cliente se validan, y el correo institucional debe ser único.
-> > - **Endurecimiento de seguridad**: CSP habilitado, CORS bloqueado a orígenes externos por defecto, `JWT_SECRET` aleatorio si no está definido en el entorno, y límites de peticiones en todas las rutas de escritura.
-> > - **Temas corregidos**: solo existen "Claro" y "Oscuro" (los valores Azul/Verde/legados se migran a Claro) y se agrega tamaño de texto accesible (Normal/Grande) aplicado en todo el sitio.
-> > - **Sugerencias en el login**: la pantalla de inicio muestra las cuentas de demostración con un clic para rellenarlas automáticamente.
-
-> **v2.8** — **Ajustes de notificaciones y botones**:
-> > - **Panel de notificaciones sobre todo y translúcido**: el recuadro ya no queda debajo de otros elementos y ahora es semi-transparente con desenfoque del fondo. Se corrigió la causa real: el sidebar no apilaba sobre el contenido (que conserva un contexto por la animación `page-in`), ahora tiene `z-index: 90` por debajo de modales y toasts.
-> > - **Botón de ayuda (?) más grande**: el símbolo de interrogación ahora llena mejor el círculo del botón (26px), venciendo la regla genérica `.btn svg.lucide` que lo reducía a 15px. El botón pasó a ser un círculo de exactamente 26px, del mismo tamaño que el símbolo y centrado.
-> > - **Iconos de botones corregidos en todos los botones**: se eliminó la regla genérica `.btn svg.lucide { width:15px }` que encogía cada símbolo dentro de un `.btn` (Encender/Apagar/Reiniciar en equipos, Imprimir/Editar/Eliminar en reportes, etc.); ahora cada icono usa su tamaño real (base 20px).
-> > - **Botones 100% clicables**: se corrigió que los iconos de lucide interceptaran el clic y se re-renderizaran en bucle; ahora toda la superficie de los botones de ayuda, notificaciones y cerrar sesión responde al clic.
-> > - **Título más pegado al logo**: el nombre de LabControl en el sidebar sube más hacia el logo.
-> > - **Espaciado y color del botón de ayuda**: en Configuración el botón de ayuda queda un poco más separado de "Guardar cambios" y usa el mismo color de fondo/borde que el recuadro del usuario de la barra lateral. El símbolo de interrogación es gris claro.
-> > - *Hotfix*: la versión visible sigue siendo `v2.8`; el cache busting pasa por `?v=2.8.1`–`?v=2.8.4` (y la caché del service worker a `labcontrol-v2.8.1`–`...4`) para que los arreglos lleguen a PC y celular.
-
-> **v2.7** — **Ventana de notificaciones y ayuda en Configuración**:
-> > - **Ventana de notificaciones corregida**: el panel ya no sale recortado. En escritorio se abre hacia la derecha de la campana (antes se anclaba a la izquierda y quedaba cortado por el borde de la pantalla) y en celular se ajusta su ancho para que siempre quede completa, tirándola hacia la derecha.
-> > - **Botón de ayuda (?) en Configuración**: un botón de interrogación junto a "Guardar cambios" despliega un menú con tres opciones: **Ayuda / FAQ** (preguntas frecuentes), **Términos y condiciones** y **Acerca de**.
-> > - **Ayuda / FAQ y Términos y condiciones completos**: el modal muestra las preguntas frecuentes (reservas, estados, reportes, notificaciones, contraseñas) y las condiciones de uso del sistema.
-> > - **Acerca de (base)**: por ahora muestra el logo, el nombre del sistema, la institución y la versión; se completará más adelante.
-> > - Cache busting `?v=2.7` y caché del service worker (`labcontrol-v2.7`) para que la nueva versión cargue sin problemas en PC y celular.
-
-> **v2.6** — **Deuda técnica (P4)**:
-> > - **Backend 100% ES Modules** (`import`/`export` en `server.js` y `db.js`) y **Express 5**. La app se exporta para testing sin abrir puerto.
-> > - **Migraciones de base de datos versionadas**: tabla `schema_migrations` y sistema de migraciones en `db.js` (v2: columna `adjuntos`; v3: hash bcrypt de contraseñas en texto plano). Idempotentes sobre bases existentes. Soporte `LC_DB_DIR` para tests.
-> > - **Paginación en listados**: los GET de listas aceptan `?pagina=` y `?limite=` (1–100) devolviendo un sobre `{ data, total, pagina, totalPaginas, limite }`; sin parámetros siguen devolviendo el arreglo plano (compatible hacia atrás).
-> > - **Scripts extraídos del HTML**: el bloque de `configuracion.html` ahora vive en `configuracion.js` y el selector de tema en `theme.js` (las 9 páginas lo usan). Cache busting unificado `?v=2.6` en toda la web. Los scripts inline restantes por página quedan como deuda documentada.
-> > - **Tests automatizados**: Jest + Supertest para el backend (`npm test`, 12 pruebas: auth, paginación, migraciones, protección de `password`); Playwright e2e para el flujo real de login y configuración (`npm run test:e2e`).
-> > - **Calidad y CI**: ESLint (config plana por archivo), typecheck con TypeScript (`tsc --noEmit`), revisión de sintaxis con `node --check` y workflow nuevo `.github/workflows/ci.yml` en GitHub Actions.
-
-> **v2.5** — **Accesibilidad y UX (P3) completado**:
-> > - **Toggles accesibles por teclado (final)**: la inicialización de los interruptores con `role="switch"` ahora se ejecuta de verdad — antes la función existía pero nunca se llamaba. Se activan con `Espacio`/`Enter` en `Configuración` y en cualquier página.
-> > - **Mapa 2D accesible por teclado**: cada laboratorio del mapa ahora es enfocable (`tabindex="0"`), anuncia su nombre y estado (`aria-label`, `role="button"`) y responde a `Enter`/`Espacio`, con anillo de foco visible.
-> > - **Tabs con roles ARIA**: las pestañas (`laboratorios`, `usuarios`) ahora usan `role="tablist"`/`tab`/`tabpanel`, `aria-selected` y navegación por teclado con flechas, `Home` y `End`.
-> > - **`aria-expanded` en notificaciones**: la campana lateral indica si el panel está abierto o cerrado para lectores de pantalla.
-> > - **`minlength` adicional**: límites mínimos en login (usuario y contraseña), nuevo usuario y campos de reportes/reservas que aún no lo tenían.
-
-> **v2.4** — **Accesibilidad y UX (P3)**:
-> > - **Skip-nav y ARIA**: en todas las páginas se agregó un enlace "Saltar al contenido" y roles/atributos ARIA (`role="main"`, `aria-labelledby` en modales, etc.) para mejorar la navegación con teclado y lectores de pantalla.
-> > - **Toggles accesibles por teclado**: los interruptores de *Configuración* ahora son botones con `role="switch"` y `aria-checked`, operables con `Espacio`/`Enter`.
-> > - **Focus trap en modales**: al abrir un modal se enfoca el primer control, `Tab`/`Shift+Tab` se mantienen dentro, `Escape` cierra y el foco vuelve al elemento que abrió el modal.
-> > - **Contraste corregido**: se mejoró el color del texto y del código en las sugerencias de login (`.login-hint code`), claro y oscuro.
-> > - **`prefers-reduced-motion`**: si el usuario pide menos movimiento en su sistema, se desactivan animaciones y transiciones.
-> > - **SEO y metadatos**: `<meta description>`, `favicon` y Open Graph tags en todas las páginas.
-> > - **Validación HTML5**: se agregaron `required`/`minlength` a los formularios de usuarios, reservas, reportes y cambio de contraseña.
-> - **Mejora visual del sidebar**: se eliminó el prefijo `//` del nombre de marca y el título "LabControl" ahora es más grande y queda más pegado al logo.
-
-> **v2.3** — **Estabilidad y Calidad (P2)**:
-> > - **Tabs corregidos con múltiples grupos**: cada grupo `.tabs` ahora solo afecta a sus propios paneles (en `laboratorios` y `usuarios`), evitando que un cambio en una pestaña desactive la de otra sección.
-> > - **División por cero corregida en `renderDonut`**: se filtran los laboratorios con 0 equipos antes de calcular porcentajes; con total 0 se muestra "Sin equipos". También se protege `drawBarChart`.
-> > - **Se eliminó `new Function()` y la carga síncrona (`XMLHttpRequest`)** en `data.js`: el modo demo ahora carga `datos-demo.js` de forma asíncrona y dinámica (sin ejecutar código como texto ni bloquear el hilo).
-> > - **Manejo de errores con UI**: todas las operaciones de carga de datos (`index`, `laboratorios`, `usuarios`, `equipos`, `disponibilidad`, `reportes`) ahora muestran un aviso visual (toast) si algo falla en lugar de fallar en silencio.
-> > - **Event listeners de navegación limpios**: se evitan listeners duplicados en el sidebar y se gestiona correctamente el temporizador de notificaciones.
-> > - **Selectores CSS duplicados resueltos**: se eliminaron las reglas repetidas de reportes y el `font-family` duplicado del tema oscuro.
-> > - **Service Worker real con offline caching**: además de notificaciones, ahora precachea los assets estáticos y sirve la app en modo offline (network-first para páginas, cache-first para estáticos).
-
-> **v2.2** — **Seguridad P1 — Capa de autenticación y protección completa**:
-> - **JWT (JSON Web Tokens)**: la sesión ahora usa tokens firmados en el servidor. El token se almacena en `localStorage` y se envía en el header `Authorization` de cada petición. Si el token expira, el usuario es redirigido a login automáticamente.
-> - **Contraseñas hasheadas con bcrypt**: todas las contraseñas se almacenan con hash bcrypt (incluidas las del seed). Las contraseñas en texto plano de versiones anteriores se hashean automáticamente al migrar.
-> - **Autorización server-side**: todos los endpoints verifican el token JWT. Los endpoints de escritura (crear, editar, eliminar) requieren rol de administrador. La autorización de reportes y reservas se valida contra el ID del usuario en el token, no del cliente.
-> - **Rate limiting**: 10 intentos de login cada 15 minutos; 200 peticiones generales cada 15 minutos.
-> - **Headers de seguridad (helmet)**: CSP, X-Frame-Options, HSTS, X-Content-Type-Options y más.
-> - **CORS configurado**: solo permite peticiones del mismo origen.
-> - **Validación de entradas**: `express-validator` en todos los endpoints de escritura (usuarios, reportes, agenda).
-> - **Passwords nunca expuestos**: `GET /api/usuarios` y `GET /api/usuarios/:id` ya no retornan el campo `password`.
-> - **Nuevo endpoint**: `POST /api/change-password` para cambio de contraseña server-side con verificación de la contraseña actual.
-> - **Modo demo actualizado**: el login en demo ahora retorna un token y el usuario. Las funciones de eliminación ya no necesitan `usuarioId` como parámetro (el servidor lo obtiene del token).
-> - Se corrige `renderDonut` para manejar división por cero cuando no hay equipos.
-> - Se añade función `esc()` en `app.js` para escape de HTML (prevención XSS).
-> - Se corrige el tab system para que solo afecte paneles dentro de su propio grupo `.tabs`.
-> - Se remueve `autocomplete="off"` del login para permitir gestores de contraseñas.
-> - Se agrega `autocomplete="username"` y `autocomplete="current-password"` en los campos de login.
-
-> **v2.0** — **Identidad visual oficial de INSUCO**: la interfaz adopta los colores
-> institucionales del liceo — **amarillo** (`#ffc300` / dorado `#ff8f00`), **blanco**
-> y **negro/gris oscuro** — presentes en el escudo y la web del instituto. El tema por
-> defecto usa fondo blanco crema con acentos amarillos y sidebar oscuro; el tema
-> **Oscuro** presenta la misma identidad en negro con acentos dorados. El tema "Azul"
-> pasa a llamarse **Dorado** en el selector de apariencia.
-> La tipografía también cambia a las familias del sitio del liceo: **Outfit** para
-> títulos y cuerpo y **ABeeZee** como respaldo. Se corrige además un error que impedía
-> crear la base de datos la primera vez (los reportes de ejemplo referenciaban al
-> usuario `admin`, ya renombrado a `INSUCO`).
-
-> **v1.9** — **Nombre del sitio en el sidebar**: la barra lateral ahora muestra el
-> nombre **"Insuco LabControl"** junto al logo, con una **fuente tecnológica**
-> (*Orbitron*) y un efecto de brillo neón que refuerza la identidad visual del
-> sistema. Se adapta a celular manteniendo el estilo.
-
-> **v1.8** — **Notificaciones completas en PC y celular**: la campana lateral ahora avisa
-> de todo — nuevos reportes, **fallas de equipos**, **cambios de estado de los laboratorios**
-> y **reservas confirmadas o canceladas** — cada tipo con su interruptor en
-> *Configuración → Notificaciones* (incluido un **recordatorio 30 min antes de tu reserva**).
-> Además se pueden activar las **notificaciones del sistema operativo**: llegan como avisos
-> nativos tanto en el **PC** como en el **celular**, aunque la pestaña esté en segundo plano.
-
-> **v1.7** — **Sistema de reportes renovado**: tarjetas más resumidas que despliegan el
-> detalle completo al seleccionarlas, creación de reportes con **título + descripción
-> obligatoria y archivos adjuntos** (imágenes, PDF y otros documentos), **edición y
-> eliminación** por parte del creador (o del administrador, que controla todos) y un
-> sistema de **notificaciones** con campana lateral que avisa a los demás usuarios cada
-> vez que se crea, edita o elimina un reporte.
-
-## Estructura del proyecto
-
-```
-labcontrol/
-├── Abrir LabControl.bat              Acceso directo: inicia el servidor y abre la web
-├── Abrir LabControl en el celular.bat Inicia el servidor y muestra el QR para el celular
-├── .github/workflows/                CI y despliegue automático a GitHub Pages
-├── functions/                         Pages Function (Cloudflare Pages)
-│   └── api/[[path]].js                Reenvía /api/* al backend Node (API_ORIGIN)
-└── website/
-    ├── public/                        Sitio servido (local, GitHub Pages y Cloudflare Pages)
-    │   ├── login.html                 Inicio de sesión
-    │   ├── index.html                 Dashboard: resumen, estado en tiempo real, distribución de equipos
-    │   ├── laboratorios.html          Listado + detalle de laboratorio (tabs: general/hardware/servicios/agenda)
-    │   ├── disponibilidad.html        Estado actual + agenda de reservas (cambiar estado, agendar uso)
-    │   ├── mapa.html                  Mapa 2D interactivo del establecimiento (SVG)
-    │   ├── equipos.html               Inventario de equipos, con control remoto para Programación/Admin
-    │   ├── reportes.html              Reportes de uso, disponibilidad, fallas e inventario
-    │   ├── usuarios.html              Profesores, área, especialidad y nivel de acceso
-    │   ├── configuracion.html         Configuración personal + configuración avanzada (solo Admin)
-    │   ├── style.css                  Estilos compartidos
-    │   ├── app.js                     Sidebar dinámico por rol + funciones de render reutilizadas
-    │   ├── data.js                    Cliente de la API (fetch) — reemplaza al antiguo array hardcodeado
-    │   ├── theme.js · configuracion.js · datos-demo.js · lucide.min.js · service-worker.js
-    │   └── img/                       Logo e imágenes del sitio
-    ├── config/                        Tooling y scripts auxiliares (package.json, eslint, playwright)
-    │   ├── package.json               Scripts de calidad y e2e (npm test/lint/typecheck/check)
-    │   ├── package-lock.json
-    │   ├── eslint.config.mjs          Reglas ESLint del repositorio
-    │   ├── playwright.config.mjs      Configuración de los tests e2e
-    │   ├── e2e/                       Tests e2e de Playwright (smoke)
-    │   └── celular.js                 Muestra el código QR para abrir la web desde el celular
-    └── backend/                       Servidor + base de datos
-        ├── server.js                  API REST (Express) — también sirve el sitio de public/
-        ├── db.js                      Conexión SQLite + esquema, migraciones y semilla de ejemplo
-        ├── totp.mjs                   Códigos TOTP de la verificación en dos pasos (sin dependencias)
-        ├── scripts/
-        │   ├── syntax-check.mjs       Comprueba la sintaxis de todos los .js del proyecto
-        │   └── migraciones.js         CLI del esquema: estado, rollback, semillar, podar
-        ├── package.json
-        │   # GET /api/salud responde sin token (health check del hosting)
-        └── database/
-            └── labcontrol.db          (se crea solo la primera vez que se ejecuta el servidor)
-```
-
-## Correo de recuperación (Resend) e inicio con Google
-
-### Activar el correo de recuperación (base construida en v3.5)
-
-El backend ya resuelve todo el flujo: genera el token, lo guarda 30 minutos en `contrasena_resets`, revoca las sesiones y registra en auditoría. Solo falta el proveedor de correo:
-
-1. Crea una cuenta en [Resend](https://resend.com), verifica un dominio (o usa el dominio `onboarding@resend.dev` de prueba) y genera una API Key.
-2. Define la variable de entorno al iniciar el servidor:
-   ```
-   RESEND_API_KEY=re_xxxx___   RESEND_FROM="LabControl <noresponder@liceo.cl>"
-   ```
-   (`RESEND_FROM` es opcional; por defecto usa `LabControl <onboarding@resend.dev>`.)
-3. Reinicia el servidor. Desde ese momento el formulario *¿Olvidaste tu contraseña?* envía un correo con el enlace `…/login.html?reset=<token>`. Sin la clave, el enlace se imprime en la consola del servidor (útil para desarrollo).
-
-### Activar el inicio con Google (pendiente de implementar)
-
-El botón del login está listo en la interfaz, pero la autenticación OAuth aún no está conectada. Para implementarla:
-
-1. En [Google Cloud Console](https://console.cloud.google.com), crea un proyecto y un **OAuth Client** de tipo *Web application* con URI de redirección, p. ej. `http://localhost:3000/api/auth/google/callback`.
-2. Define `GOOGLE_CLIENT_ID` y `GOOGLE_CLIENT_SECRET` en el backend e instala el paquete OAuth (p. ej. `google-auth-library`).
-3. Agrega en `server.js` (o un router aparte) dos rutas públicas:
-   - `GET /api/auth/google` → redirige a la pantalla de consentimiento de Google.
-   - `GET /api/auth/google/callback` → intercambia el código, verifica el `id_token`/perfil, busca o crea el usuario (con `email` de dominio institucional), firma la sesión igual que `/api/login` y redirige a `index.html`.
-4. En `login.js`, conecta el botón `#btn-google` a esa ruta (hoy solo muestra el aviso). Se recomienda crear la cuenta con dominio `@liceo.cl` para distinguir cuentas institucionales de personales.
-
-## Publicación en Cloudflare Pages y backend
-
-El repositorio sirve para dos despliegues distintos. La web es estática (puede ir a
-Pages), pero el backend es un servidor Express con SQLite y necesita un proceso Node
-con disco: **no puede ejecutarse en Pages**. La función `functions/api/[[path]].js` es el
-puente entre ambos.
-
-### 1. La web en Cloudflare Pages
-
-Conectar el repositorio en *Workers & Pages → Create → Pages → Connect to Git* y dejar
-los ajustes de compilación así (**el sitio está en una subcarpeta, por eso el campo
-"Build output directory" es el que importa**):
-
-| Ajuste | Valor |
+| Módulo | Qué permite |
 |---|---|
-| Framework preset | None |
-| Build command | `exit 0` |
-| Root directory | *(vacío)* |
-| **Build output directory** | `website/public` |
-| Production branch | `master` |
+| **Inicio de sesión** | Acceso con usuario y contraseña, renovación automática de sesión y registro de cuentas nuevas. |
+| **Panel** | Resumen del estado de los laboratorios, actividad reciente y distribución de equipos. |
+| **Laboratorios** | Ficha de cada laboratorio: estado, hardware, servicios disponibles y agenda de la semana. |
+| **Disponibilidad** | Cambio de estado (disponible, ocupado, mantención) y reserva de horarios, con detección de solapamientos. |
+| **Mapa** | Plano del establecimiento con los laboratorios marcados según su estado en vivo. |
+| **Equipos** | Inventario por laboratorio con número de serie, sistema operativo y estado. El control remoto está simulado. |
+| **Reportes** | Reportes de uso, disponibilidad, fallas e inventario, con adjuntos, edición, eliminación y exportación a CSV. |
+| **Usuarios** | Alta, edición y baja de profesores, área, especialidad y solicitudes de cambio de especialidad. |
+| **Configuración** | Perfil personal, apariencia del sitio, notificaciones, seguridad (2FA), auditoría, respaldos y configuración avanzada (solo administrador). |
 
-Sin eso, Pages busca el sitio en la raíz del repositorio y no encuentra nada.
+La web es una **PWA**: se puede instalar en el teléfono y guarda una copia de los archivos
+estáticos para trabajar sin conexión.
 
-### 2. La variable `API_ORIGIN`
+---
 
-En *Settings → Environment variables* del proyecto de Pages:
+## 2. Roles y permisos
 
-```
-API_ORIGIN=https://labcontrol-api.up.railway.app
-```
+| Capacidad | Otra área | Programación | Administrador |
+|---|:--:|:--:|:--:|
+| Ver estado y disponibilidad de los laboratorios | Sí | Sí | Sí |
+| Cambiar el estado de un laboratorio | Sí | Sí | Sí |
+| Agendar y cancelar reservas propias | Sí | Sí | Sí |
+| Editar los datos técnicos de un laboratorio | No | Sí | Sí |
+| Ver datos técnicos del equipo (hardware, IP/MAC) | No | Sí | Sí |
+| Control remoto de equipos | No | Sí | Sí |
+| Consultar los reportes y exportarlos a CSV | Sí | Sí | Sí |
+| Crear, editar y eliminar reportes propios | Sí | Sí | Sí |
+| Editar o eliminar reportes de otros | No | No | Sí |
+| Crear cuentas y editar las de otros | No | No | Sí |
+| Auditoría, respaldos y verificación en dos pasos | No | No | Sí |
 
-Es la dirección pública del backend, **sin barra final**. La función reenvía método,
-cabeceras (con `Authorization`) y cuerpo, y devuelve la respuesta tal cual; si la
-variable falta, `/api/*` responde 503 y el resto del sitio sigue funcionando.
+Editar el perfil propio está disponible para todos; cambiar el rol, el área, el estado de la
+cuenta o la contraseña de otra persona es solo del administrador.
 
-### 3. El dominio
+La información técnica se **redacta en el servidor**: una cuenta no técnica nunca la recibe,
+aunque la interfaz la pida.
 
-`labcontrol.com` debe estar en Cloudflare (zona propia), no solo apuntar por CNAME:
+---
 
-1. *Add a site* en Cloudflare con el dominio, plan Free. Cloudflare escanea los
-   registros DNS actuales y los mantiene copiados.
-2. Cambiar los **nameservers** del dominio por los dos que entrega Cloudflare (pasos
-   3 y 4 del asistente). Es el único paso que hay que hacer en el registrador.
-3. Cuando los nameservers propaguen, en el proyecto de Pages: *Custom domains → Set up
-   a domain*, y añadir `labcontrol.com` y `www.labcontrol.com`. Cloudflare crea los
-   registros CNAME y emite el certificado SSL solo.
+## 3. Arquitectura
 
-Los nameservers actuales del dominio apuntan al proveedor antiguo, así que conviene
-anotarlos (por si hay que volver atrás) antes de cambiar nada. Mientras el dominio no esté
-en Cloudflare, `labcontrol.com` seguirá sin funcionar
-aunque el proyecto de Pages esté desplegado: para probar la web alcanza con la dirección
-`<proyecto>.pages.dev`.
+El frontend es estático (HTML, CSS y JavaScript con módulos ES, sin compilación) y el backend
+es una API REST sobre Express con SQLite.
 
-### 4. El backend (Railway)
-
-1. *New Project → Deploy from GitHub repo*, el mismo repositorio, con **Root Directory**
-   `website/backend` y **Start Command** `npm start`.
-2. Railway toma `PORT` solo, y `node:sqlite` necesita Node ≥ 22.5 (el `engines` del
-   `package.json` ya lo declara).
-3. Crear un **volume** en el servicio y apuntar ahí la base, que es lo que sobrevive a
-   los redespliegues. Sin volume, cada despliegue deja la base vacía.
-4. Variables de entorno del servicio:
+### En producción
 
 ```
-LC_DB_DIR=/data                 # la carpeta del volume
-JWT_SECRET=<cadena larga y aleatoria>
-LC_TRUST_PROXY=1                # para que el rate limiting y la auditoría vean la IP real
+navegador
+   │  HTTPS, mismo origen
+   ▼
+Cloudflare Pages ──── archivos estáticos (website/public)
+   │
+   └── /api/* ──► Pages Function (functions/api/[[path]].js) ──► API en Railway
+                                                            │
+                                                            └── SQLite en volumen
 ```
 
-5. Health check en `/api/salud` (devuelve `{"ok":true,...}` y no expone nada del
-   sistema).
-6. Copiar la URL pública que Railway entrega y ponerla como `API_ORIGIN` en Pages.
+El frontend llama siempre a `api/...` por ruta relativa, así que no necesita saber dónde vive
+el backend: una **Pages Function** reenvía `/api/*` al servicio real. El navegador nunca
+habla directo con el backend, no hay que abrir CORS y la política de seguridad de la interfaz
+no cambia.
 
-Con esto `labcontrol.com/api/*` queda apuntando al backend y el frontend sigue hablando
-con `/api` en su propio origen, sin tocar CORS ni la CSP.
+El backend no puede vivir en el mismo hosting que la web porque usa `node:sqlite`, escribe
+la base en disco y crea respaldos: necesita un proceso Node con sistema de archivos.
 
-## Próximos pasos sugeridos
+### En local (un solo proceso)
 
-1. ~~Seguridad: hashtar las contraseñas y mover la sesión a JWT~~ **(v2.2 completado)**.
-2. Subir fotos reales de cada laboratorio.
-3. Conectar el control remoto a un agente real instalado en cada equipo (hoy solo registra el comando en un log simulado, no se guarda en la base de datos).
-4. ~~Agregar un `backend/database/schema.sql` versionado en control de código~~ **(v2.6: sustituido por el sistema de migraciones sobre `schema_migrations` en `db.js`)**.
-5. Evaluar la app móvil (etapa 2 del proyecto), consumiendo la misma API REST.
-6. ~~Eliminar scripts inline de los HTML y migrar a módulos ES~~ **(v2.6: backend migrado a ES Modules y extraídos `theme.js` y `configuracion.js`; aún restan scripts inline por página como deuda documentada)**.
-7. ~~Agregar tests automatizados (Jest para backend, Playwright para frontend)~~ **(v2.6 completado)**.
-8. Implementar refresh tokens para sesiones de larga duración.
+El mismo Express que expone la API también entrega el sitio estático, de modo que todo
+funciona en una sola URL, sin proxy:
+
+```
+Express (website/backend/server.js)
+   ├── /api/*      API REST + SQLite
+   └── /*          sitio de website/public
+```
+
+Si el hosting no copia `public/` junto a `backend/`, se indica la ruta con `LC_PUBLIC_DIR`.
+
+---
+
+## 4. Estructura del proyecto
+
+```
+.
+├── Abrir LabControl.bat                Inicia el servidor y abre el sitio en el navegador
+├── Abrir LabControl en el celular.bat   Inicia el servidor y muestra un QR para el celular
+├── .github/workflows/
+│   ├── ci.yml                          Calidad y pruebas (backend, lint, tipos, interfaz)
+│   └── deploy-cloudflare.yml           Publicación de la web + redespliegue de la API
+├── functions/api/[[path]].js           Pages Function que reenvía /api/* al backend
+├── website/
+│   ├── public/                         Sitio publicado (web estática)
+│   │   ├── login.html                  Inicio de sesión y registro
+│   │   ├── index.html                  Panel
+│   │   ├── laboratorios.html           Laboratorios y su ficha
+│   │   ├── disponibilidad.html         Estado y agenda de reservas
+│   │   ├── mapa.html                   Mapa del establecimiento
+│   │   ├── equipos.html                Inventario de equipos
+│   │   ├── reportes.html               Reportes
+│   │   ├── usuarios.html               Usuarios
+│   │   ├── configuracion.html          Configuración
+│   │   ├── _headers                    Cabeceras de seguridad del hosting estático
+│   │   ├── _redirects                  Sirve cada página con 200, sin redirecciones
+│   │   ├── 404.html                    Página de error
+│   │   ├── robots.txt                  Instrucciones para buscadores
+│   │   ├── style.css                   Estilos compartidos
+│   │   ├── app.js                      Navegación por rol y funciones de render
+│   │   ├── data.js                     Cliente de la API
+│   │   ├── service-worker.js           Caché y funcionamiento sin conexión
+│   │   └── manifest.webmanifest        Datos de la PWA
+│   ├── backend/                        API y base de datos
+│   │   ├── server.js                   API REST (Express)
+│   │   ├── db.js                       Esquema, migraciones, semilla y respaldo
+│   │   ├── totp.mjs                    Códigos TOTP de la verificación en dos pasos
+│   │   ├── tests/                      Pruebas de backend (Jest + Supertest)
+│   │   └── scripts/                    Utilidades de línea de comandos
+│   └── config/                         Calidad, pruebas de interfaz y utilidades
+└── PENDIENTES.txt                      Pendientes y limitaciones conocidas
+```
+
+---
+
+## 5. Requisitos
+
+- **Node.js 22.5 o superior** (el backend usa el módulo `node:sqlite`, incorporado en Node).
+- Un navegador moderno. Para el celular, acceso a la red local o un código QR.
+
+---
+
+## 6. Puesta en marcha local
+
+```bash
+cd website/backend
+npm install
+npm start
+```
+
+El sitio queda en <http://localhost:3000>. La base de datos se crea sola la primera vez, con
+el esquema y los datos de ejemplo.
+
+También sirve `npm run dev` para recargar el servidor al guardar cambios, y en Windows los
+scripts `Abrir LabControl.bat` y `Abrir LabControl en el celular.bat` del raíz.
+
+Para levantar solo la interfaz estática, sin backend, alcanza con servir `website/public`
+con cualquier servidor de archivos; en ese caso el sitio funciona con los datos de ejemplo
+y no se pueden guardar cambios.
+
+---
+
+## 7. Seguridad
+
+- **Contraseñas** con hash bcrypt, mínimo de 8 caracteres en todos los caminos y nunca
+  devueltas por la API.
+- **Sesiones** con JWT: token de acceso de 2 horas y token de refresco de 30 días con
+  rotación; reutilizar un token ya usado se rechaza, y cerrar sesión o cambiar la contraseña
+  revoca todos los tokens.
+- **Verificación en dos pasos (TOTP)** para el administrador, con clave QR y ventana de
+  5 minutos.
+- **Límites de peticiones** en el inicio de sesión, el registro, la recuperación y las rutas
+  de escritura. El límite de sesión combina IP y usuario, así que dos profesores no se
+  bloquean entre sí.
+- **Validación de entrada** con `express-validator` en todas las rutas de escritura, y
+  consultas preparadas en SQLite.
+- **Cabeceras de seguridad** con `helmet`: CSP sin `unsafe-inline`, `X-Frame-Options`,
+  `Referrer-Policy`, `Permissions-Policy` y `Cache-Control: no-store` en la API. El sitio
+  publicado replica la misma política en `website/public/_headers`; si se cambia en un lado,
+  hay que cambiarla en el otro.
+- **Escape de HTML** en todas las vistas y fechas validadas con formato estricto.
+- **Adjuntos** de reportes con lista blanca de tipos, máximo 5 MB por archivo y 10 por
+  reporte.
+- **Auditoría** de los eventos relevantes con fecha, usuario, acción, detalle y dirección de
+  origen, consultable desde *Configuración → Auditoría*.
+
+---
+
+## 8. Calidad y pruebas
+
+Los comandos se ejecutan desde `website/config`:
+
+```bash
+npm test          # pruebas de backend (Jest + Supertest)
+npm run test:e2e  # pruebas de interfaz (Playwright)
+npm run lint      # ESLint
+npm run typecheck # TypeScript en modo comprobación
+npm run check     # sintaxis de todos los .js
+```
+
+GitHub Actions corre lo mismo en cada `push` a `master`: el flujo de calidad tiene un trabajo
+para el backend (pruebas, lint y tipos) y otro para las pruebas de interfaz.
+
+---
+
+## 9. Publicación
+
+Hay **un solo despliegue**, disparado por `push` a `master` desde
+`.github/workflows/deploy-cloudflare.yml`:
+
+1. Publica `website/public` en Cloudflare Pages.
+2. Le pide a Railway que redespliegue la API por su API GraphQL y espera a que el despliegue
+   quede en `SUCCESS`.
+3. Comprueba que las nueve páginas respondan `200`, que `robots.txt` y el `404` existan y que
+   `/api/salud` devuelva la misma versión que la web.
+
+Si alguna comprobación falla, el flujo queda en rojo.
+
+Configuración del repositorio, una sola vez:
+
+```
+gh secret set CLOUDFLARE_API_TOKEN          # token con permiso Account > Cloudflare Pages: Edit
+gh secret set RAILWAY_API_TOKEN             # token de railway.app/account/tokens
+gh variable set RAILWAY_PROJECT_ID          # identificadores del servicio, desde la URL del panel
+gh variable set RAILWAY_SERVICE_ID
+gh variable set RAILWAY_ENVIRONMENT_ID
+```
+
+El backend se configura en el hosting con `LC_DB_DIR` apuntando al volumen, `JWT_SECRET`,
+`LC_TRUST_PROXY` y `LC_PUBLIC_URL`. El chequeo de vida es `GET /api/salud`.
+
+**Cabeceras de seguridad**: al publicarse como archivos estáticos, `helmet` deja de afectar
+al frontend, por eso `website/public/_headers` replica la misma política. Es el único punto
+que hay que mantener sincronizado con el backend.
+
+---
+
+## 10. Pendientes
+
+Lo que falta por hacer y las limitaciones conocidas del despliegue actual están en
+[PENDIENTES.txt](PENDIENTES.txt).

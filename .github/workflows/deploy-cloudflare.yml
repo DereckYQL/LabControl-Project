@@ -1,0 +1,186 @@
+name: Deploy a Cloudflare Pages
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Dos pushes seguidos: el segundo espera al primero en vez de competir por el
+# mismo proyecto de Pages.
+concurrency:
+  group: cloudflare-pages
+  cancel-in-progress: true
+
+env:
+  PROYECTO: insuco-labcontrol
+  HOST: insuco-labcontrol.pages.dev
+  CUENTA: 6384cb8e31c88eef7f7b2547b5099c68
+
+jobs:
+  deploy:
+    name: Publicar la web y la API en un solo despliegue
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # El proyecto de Pages se creo por CLI (Direct Upload) y Cloudflare no
+      # permite conectarle un repositorio despues, asi que el despliegue sale
+      # desde aqui. Wrangler se instala a mano porque `wrangler-action` se trae
+      # su propia version y deja pasar un token vacio en silencio.
+      - name: Instalar Wrangler
+        run: npm install --global wrangler@4
+
+      - name: Publicar la web
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          set -euo pipefail
+          # `tr` recorta el token pegado con espacios o un salto de linea de mas:
+          # Wrangler trata una cadena vacia igual que una variable inexistente y
+          # solo responde "it's necessary to set a CLOUDFLARE_API_TOKEN".
+          token="$(printf '%s' "${CLOUDFLARE_API_TOKEN:-}" | tr -d '[:space:]')"
+          if [ -z "$token" ]; then
+            echo "::error::El secreto CLOUDFLARE_API_TOKEN esta vacio o no existe."
+            echo "::error::Revisalo con 'gh secret list'; el token de Cloudflare necesita el permiso Account > Cloudflare Pages: Edit."
+            exit 1
+          fi
+          export CLOUDFLARE_API_TOKEN="$token"
+          export CLOUDFLARE_ACCOUNT_ID="$CUENTA"
+          # `website/public` es lo que se sube. La funcion de `functions/` (el
+          # puente de /api hacia el backend) la toma Wrangler de la raiz.
+          wrangler pages deploy website/public \
+            --project-name "$PROYECTO" \
+            --branch master \
+            --commit-dirty=true
+
+      # La API no es de este repositorio (node:sqlite necesita disco), asi que no
+      # se puede publicar junto con la web. Con este paso, el mismo push que sube
+      # la web le pide a Railway que la redespliegue: un solo despliegue para las
+      # dos partes. Railway no tiene deploy hook de entrada, el redespliegue se
+      # pide por su API GraphQL. Los tres ids van como variables del repositorio
+      # porque no son secretos. Es opcional a proposito, para que el workflow
+      # siga sirviendo aunque el token no este configurado.
+      - name: Redesplegar la API en Railway
+        env:
+          RAILWAY_API_TOKEN: ${{ secrets.RAILWAY_API_TOKEN }}
+          PROYECTO_ID: ${{ vars.RAILWAY_PROJECT_ID }}
+          SERVICE_ID: ${{ vars.RAILWAY_SERVICE_ID }}
+          ENVIRONMENT_ID: ${{ vars.RAILWAY_ENVIRONMENT_ID }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${RAILWAY_API_TOKEN:-}" ] || [ -z "${SERVICE_ID:-}" ] || [ -z "${ENVIRONMENT_ID:-}" ]; then
+            echo "::notice::La API no se redespliega sola: falta el secreto RAILWAY_API_TOKEN o las variables RAILWAY_SERVICE_ID / RAILWAY_ENVIRONMENT_ID."
+            echo "::notice::Los ids salen de la URL del dashboard (railway.app/project/<proyecto>/service/<servicio>?environment=<entorno>) y el token de railway.app/account/tokens."
+            echo "::notice::Se guardan con 'gh secret set RAILWAY_API_TOKEN', 'gh variable set RAILWAY_SERVICE_ID' y 'gh variable set RAILWAY_ENVIRONMENT_ID'."
+            exit 0
+          fi
+
+          # El endpoint y la mutacion son los de la API publica de Railway.
+          api() {
+            curl -fsS -X POST https://backboard.railway.com/graphql/v2 \
+              -H "Authorization: Bearer $RAILWAY_API_TOKEN" \
+              -H "Content-Type: application/json" \
+              --data "$1"
+          }
+
+          estado_despliegue() {
+            api "{\"query\":\"query Estado(\$servicio: String!, \$entorno: String!) { deployments(first: 1, input: { serviceId: \$servicio, environmentId: \$entorno }) { edges { node { id status } } } }\",\"variables\":{\"servicio\":\"$SERVICE_ID\",\"entorno\":\"$ENVIRONMENT_ID\"}}" > "$1"
+          }
+
+          # Id del despliegue que hay hoy: sirve para no dar por bueno el SUCCESS
+          # del despliegue anterior mientras el nuevo aun no aparece en la lista.
+          estado_despliegue /tmp/estado-antes.json
+          anterior="$(jq -r '.data.deployments.edges[0]?.node | (.id? // empty)' /tmp/estado-antes.json)"
+          echo "Despliegue actual de la API (proyecto ${PROYECTO_ID:-sin id}): ${anterior:-desconocido}."
+
+          respuesta="$(api "{\"query\":\"mutation Redeploy(\$servicio: String!, \$entorno: String!) { serviceInstanceRedeploy(serviceId: \$servicio, environmentId: \$entorno) }\",\"variables\":{\"servicio\":\"$SERVICE_ID\",\"entorno\":\"$ENVIRONMENT_ID\"}}")"
+          if echo "$respuesta" | grep -q '"errors"'; then
+            echo "::error::Railway no acepto el redespliegue: $respuesta"
+            exit 1
+          fi
+          echo "API en redespliegue; esperando a que levante."
+
+          # Si se devuelve el control sin esperar, el chequeo de version de mas
+          # abajo correria contra la API vieja y fallaria por el motivo equivocado.
+          for intento in $(seq 1 30); do
+            sleep 10
+            estado_despliegue /tmp/estado-nuevo.json
+            nuevo="$(jq -r '.data.deployments.edges[0]?.node | (.id? // empty)' /tmp/estado-nuevo.json)"
+            estado="$(jq -r '.data.deployments.edges[0]?.node | (.status? // empty)' /tmp/estado-nuevo.json)"
+            if [ "$nuevo" = "$anterior" ]; then
+              echo "Intento $intento: todavia no aparece el despliegue nuevo en Railway."
+              continue
+            fi
+            case "${estado:-}" in
+              SUCCESS) echo "API desplegada correctamente (intento $intento)."; exit 0 ;;
+              FAILED|CRASHED) echo "::error::El despliegue de la API en Railway quedo en $estado."; exit 1 ;;
+              *) echo "Estado de la API: ${estado:-desconocido} (intento $intento)." ;;
+            esac
+          done
+          echo "::error::La API no termino de desplegarse en 5 minutos."
+          exit 1
+
+      - name: Comprobar la web
+        run: |
+          set -euo pipefail
+          # El dominio de produccion sigue sirviendo el despliegue anterior unos
+          # segundos despues de que Wrangler termina, asi que se reintenta antes
+          # de dar el despliegue por malo.
+          for intento in 1 2 3 4 5 6 7 8 9 10; do
+            fallos=0
+            # Cada pagina tiene que responder 200 y no 308: Pages recorta la
+            # extension .html y manda a la ruta sin ella, lo que rompe los
+            # enlaces y el service-worker. Lo evita `_redirects`.
+            for pagina in index login laboratorios disponibilidad mapa equipos reportes usuarios configuracion; do
+              codigo="$(curl -o /dev/null -s -w '%{http_code}' "https://$HOST/$pagina.html")"
+              if [ "$codigo" = "200" ]; then
+                echo "OK   /$pagina.html"
+              else
+                echo "::error::/$pagina.html devolvio $codigo (se espera 200 sin redireccion)"
+                fallos=$((fallos + 1))
+              fi
+            done
+
+            codigo="$(curl -o /dev/null -s -w '%{http_code}' "https://$HOST/robots.txt")"
+            [ "$codigo" = "200" ] && echo "OK   /robots.txt" || { echo "::error::/robots.txt devolvio $codigo"; fallos=$((fallos + 1)); }
+
+            codigo="$(curl -o /dev/null -s -w '%{http_code}' "https://$HOST/no-existe-$GITHUB_RUN_ID.txt")"
+            [ "$codigo" = "404" ] && echo "OK   404 en un archivo inexistente" || { echo "::error::un archivo inexistente devolvio $codigo en vez de 404"; fallos=$((fallos + 1)); }
+
+            if [ "$fallos" -eq 0 ]; then
+              echo "Web verificada en el intento $intento."
+              exit 0
+            fi
+            echo "Intento $intento: fallan $fallos comprobaciones. Se reintenta en 15 s."
+            sleep 15
+          done
+          exit 1
+
+      - name: Comprobar que la API responde con esta version
+        run: |
+          set -euo pipefail
+          sitio="$(sed -n '/LabControl v/{s/.*LabControl v\([0-9]*\.[0-9]*\).*/\1/p;q}' website/public/configuracion.js)"
+          for intento in 1 2 3 4 5 6 7 8 9 10 11 12; do
+            if salud="$(curl -fsS "https://$HOST/api/salud")"; then
+              echo "$salud"
+              break
+            fi
+            echo "Intento $intento: la API todavia no responde, reintentando..."
+            sleep 10
+          done
+          [ -n "${salud:-}" ] || { echo "::error::La web subio, pero /api/salud no respondio tras 12 intentos."; exit 1; }
+
+          api="$(printf '%s' "$salud" | sed -n 's/.*"version":"\([0-9.]*\)".*/\1/p')"
+          # La web y la API tienen que ser la misma version: si no, quedaria una
+          # pagina nueva hablando con una API vieja.
+          if [ "$api" != "$sitio" ]; then
+            echo "::error::La web es la $sitio pero /api/salud dice $api."
+            echo "::error::Redespliega la API en Railway para que las dos partes queden juntas."
+            exit 1
+          fi
+          echo "Web y API en la misma version ($sitio)."

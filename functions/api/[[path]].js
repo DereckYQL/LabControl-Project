@@ -29,6 +29,20 @@ function limpio(headers) {
   return salida;
 }
 
+/* La IP real del cliente. Cloudflare la pone en cf-connecting-ip; x-forwarded-for
+   llega con la cadena completa de saltos (navegador -> edge -> worker -> proxy del
+   hosting), y el backend la resuelve con LC_TRUST_PROXY. Sin reescribirla, un salto
+   de la cadena deja una IP de datacenter en la auditoria y, si esa IP se comparte,
+   el rate limiting agrupa a todos los visitantes en el mismo cubo. Se reescribe con
+   la IP real para que la cadena sea la correcta en cualquier hosting.
+
+   OJO: no todos los hostings respetan la cabecera. Railway la reemplaza por la de su
+   propio borde, asi que alli la auditoria sigue guardando la IP del proxy (documentado
+   en el README). El limite de login no depende de esto: su clave es ip|usuario. */
+function ipReal(headers) {
+  return headers.get("cf-connecting-ip") || headers.get("x-real-ip") || "";
+}
+
 export async function onRequest(context) {
   const { request, env } = context;
   const origen = (env.API_ORIGIN || "").trim().replace(/\/+$/, "");
@@ -43,11 +57,15 @@ export async function onRequest(context) {
   const url = new URL(request.url);
   const destino = `${origen}${url.pathname}${url.search}`;
 
+  const cabecerasPeticion = limpio(request.headers);
+  const ip = ipReal(request.headers);
+  if (ip) cabecerasPeticion.set("x-forwarded-for", ip);
+
   let respuesta;
   try {
     respuesta = await fetch(destino, {
       method: request.method,
-      headers: limpio(request.headers),
+      headers: cabecerasPeticion,
       body: request.method === "GET" || request.method === "HEAD" ? undefined : request.body,
       redirect: "manual"
     });
