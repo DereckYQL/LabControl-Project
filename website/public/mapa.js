@@ -11,7 +11,7 @@ const COLORES_MAPA = {
 };
 
 let labsCache = [];
-let pisoActual = 3;
+let pisoActual = 2;
 
 function mostrarPiso(piso) {
   pisoActual = piso;
@@ -69,7 +69,7 @@ cargarLaboratorios().then((labs) => {
     });
   });
 
-  mostrarPiso(3);
+  mostrarPiso(2);
 }).catch(() => showToast("No se pudieron cargar los laboratorios.", "error"));
 
 function seleccionarLab(id) {

@@ -1872,6 +1872,7 @@ tbody tr:hover { background: var(--row-hover); }
 .mapa-svg .sala-lab:focus rect { stroke: var(--accent-2); stroke-width: 4; stroke-dasharray: 6 3; }
 .mapa-svg .sala-lab.selected rect { stroke-width: 3.5; stroke: var(--accent-2); }
 .mapa-svg .sala-otra { fill: var(--map-side); stroke: var(--map-side-line); }
+.mapa-svg .escalera { fill: #fbbf24; stroke: #d97706; }
 .mapa-svg text { pointer-events: none; }
 
 .mapa-leyenda {

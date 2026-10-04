@@ -45,8 +45,8 @@
       </div>
       <div style="display:flex;gap:10px;align-items:center">
         <div class="piso-selector">
-          <button class="piso-btn" id="piso-2" data-piso="2">2° Piso</button>
-          <button class="piso-btn active" id="piso-3" data-piso="3">3° Piso</button>
+          <button class="piso-btn active" id="piso-2" data-piso="2">2° Piso</button>
+          <button class="piso-btn" id="piso-3" data-piso="3">3° Piso</button>
         </div>
       </div>
     </header>
@@ -67,8 +67,8 @@
 
     <!-- Mapa -->
     <div class="mapa-wrap">
-      <div class="piso-indicador" id="piso-indicador">3er Piso</div>
-      <svg id="mapa-svg" class="mapa-svg" viewBox="0 0 1000 600" width="100%"
+      <div class="piso-indicador" id="piso-indicador">2do Piso</div>
+      <svg id="mapa-svg" class="mapa-svg" viewBox="0 0 1200 800" width="100%"
            xmlns="http://www.w3.org/2000/svg" aria-label="Plano del liceo">
         <defs>
           <pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse">
@@ -78,287 +78,348 @@
 
         <!-- Piso 2 -->
         <g id="piso-2-group">
-          <rect x="50" y="50" width="900" height="500" rx="14"
-                fill="var(--map-floor)" stroke="var(--map-line)" stroke-width="3"/>
-          <text x="500" y="35" text-anchor="middle" font-size="14" font-weight="bold" fill="var(--color-text-muted)">PASAJE DON BOSCO</text>
-          <text x="30" y="300" text-anchor="middle" font-size="12" fill="var(--color-text-muted)" transform="rotate(-90, 30, 300)">AVENIDA ARGENTINA</text>
+          <!-- Contorno del edificio -->
+          <polygon points="80,60 1120,60 1120,740 200,740 200,680 80,680"
+                   fill="var(--map-floor)" stroke="var(--map-line)" stroke-width="3"/>
 
-          <!-- Pasillo central -->
-          <rect x="50" y="280" width="900" height="40" fill="var(--map-pasillo)"/>
-          <text x="500" y="305" text-anchor="middle" font-size="11" fill="var(--color-text-muted)">PASILLO PRINCIPAL</text>
+          <!-- Calles -->
+          <text x="600" y="35" text-anchor="middle" font-size="14" font-weight="bold" fill="var(--color-text-muted)">PASAJE DON BOSCO</text>
+          <text x="40" y="400" text-anchor="middle" font-size="12" fill="var(--color-text-muted)" transform="rotate(-90, 40, 400)">AVENIDA ARGENTINA</text>
 
           <!-- Salas B (lado izquierdo) -->
           <g class="sala-otra">
-            <rect x="70" y="70" width="80" height="60" rx="6"/>
-            <text x="110" y="95" text-anchor="middle" font-size="10" fill="var(--color-text-muted)">SALA</text>
-            <text x="110" y="110" text-anchor="middle" font-size="10" fill="var(--color-text-muted)">B-4</text>
+            <rect x="100" y="80" width="70" height="80" rx="4"/>
+            <text x="135" y="115" text-anchor="middle" font-size="10" fill="var(--color-text-muted)">SALA</text>
+            <text x="135" y="130" text-anchor="middle" font-size="10" fill="var(--color-text-muted)">B-4</text>
           </g>
           <g class="sala-otra">
-            <rect x="70" y="140" width="80" height="60" rx="6"/>
-            <text x="110" y="165" text-anchor="middle" font-size="10" fill="var(--color-text-muted)">SALA</text>
-            <text x="110" y="180" text-anchor="middle" font-size="10" fill="var(--color-text-muted)">B-3</text>
+            <rect x="100" y="170" width="70" height="80" rx="4"/>
+            <text x="135" y="205" text-anchor="middle" font-size="10" fill="var(--color-text-muted)">SALA</text>
+            <text x="135" y="220" text-anchor="middle" font-size="10" fill="var(--color-text-muted)">B-3</text>
           </g>
           <g class="sala-otra">
-            <rect x="70" y="210" width="80" height="60" rx="6"/>
-            <text x="110" y="235" text-anchor="middle" font-size="10" fill="var(--color-text-muted)">SALA</text>
-            <text x="110" y="250" text-anchor="middle" font-size="10" fill="var(--color-text-muted)">B-2</text>
+            <rect x="100" y="260" width="70" height="80" rx="4"/>
+            <text x="135" y="295" text-anchor="middle" font-size="10" fill="var(--color-text-muted)">SALA</text>
+            <text x="135" y="310" text-anchor="middle" font-size="10" fill="var(--color-text-muted)">B-2</text>
           </g>
           <g class="sala-otra">
-            <rect x="70" y="340" width="80" height="60" rx="6"/>
-            <text x="110" y="365" text-anchor="middle" font-size="10" fill="var(--color-text-muted)">SALA</text>
-            <text x="110" y="380" text-anchor="middle" font-size="10" fill="var(--color-text-muted)">B-1</text>
+            <rect x="100" y="350" width="70" height="80" rx="4"/>
+            <text x="135" y="385" text-anchor="middle" font-size="10" fill="var(--color-text-muted)">SALA</text>
+            <text x="135" y="400" text-anchor="middle" font-size="10" fill="var(--color-text-muted)">B-1</text>
           </g>
 
-          <!-- Salas 2 (parte inferior central) -->
-          <g class="sala-otra">
-            <rect x="170" y="340" width="100" height="60" rx="6"/>
-            <text x="220" y="365" text-anchor="middle" font-size="10" fill="var(--color-text-muted)">SALA</text>
-            <text x="220" y="380" text-anchor="middle" font-size="10" fill="var(--color-text-muted)">2-1</text>
+          <!-- Simuladores (arriba) -->
+          <g class="sala-lab" data-simulador="programacion">
+            <rect x="180" y="80" width="100" height="60" rx="4" stroke="#ffc300" stroke-width="3"/>
+            <text x="230" y="105" text-anchor="middle" font-size="9" font-weight="bold" fill="#fff">Simulador</text>
+            <text x="230" y="120" text-anchor="middle" font-size="9" fill="#e2e8f0">Programacion</text>
           </g>
-          <g class="sala-otra">
-            <rect x="280" y="340" width="100" height="60" rx="6"/>
-            <text x="330" y="365" text-anchor="middle" font-size="10" fill="var(--color-text-muted)">SALA</text>
-            <text x="330" y="380" text-anchor="middle" font-size="10" fill="var(--color-text-muted)">2-4</text>
-          </g>
-          <g class="sala-otra">
-            <rect x="390" y="340" width="100" height="60" rx="6"/>
-            <text x="440" y="365" text-anchor="middle" font-size="10" fill="var(--color-text-muted)">SALA</text>
-            <text x="440" y="380" text-anchor="middle" font-size="10" fill="var(--color-text-muted)">2-6</text>
-          </g>
-          <g class="sala-otra">
-            <rect x="500" y="340" width="100" height="60" rx="6"/>
-            <text x="550" y="365" text-anchor="middle" font-size="10" fill="var(--color-text-muted)">SALA</text>
-            <text x="550" y="380" text-anchor="middle" font-size="10" fill="var(--color-text-muted)">2-7</text>
+          <g class="sala-lab" data-simulador="turismo">
+            <rect x="290" y="80" width="100" height="60" rx="4" stroke="#ffc300" stroke-width="3"/>
+            <text x="340" y="105" text-anchor="middle" font-size="9" font-weight="bold" fill="#fff">Simulador</text>
+            <text x="340" y="120" text-anchor="middle" font-size="9" fill="#e2e8f0">Turismo</text>
           </g>
 
-          <!-- Salas B (parte superior) -->
+          <!-- Paradocencia 3° Medio -->
           <g class="sala-otra">
-            <rect x="170" y="70" width="80" height="60" rx="6"/>
-            <text x="210" y="95" text-anchor="middle" font-size="10" fill="var(--color-text-muted)">SALA</text>
-            <text x="210" y="110" text-anchor="middle" font-size="10" fill="var(--color-text-muted)">B-5</text>
-          </g>
-          <g class="sala-otra">
-            <rect x="260" y="70" width="80" height="60" rx="6"/>
-            <text x="300" y="95" text-anchor="middle" font-size="10" fill="var(--color-text-muted)">SALA</text>
-            <text x="300" y="110" text-anchor="middle" font-size="10" fill="var(--color-text-muted)">B-6</text>
-          </g>
-          <g class="sala-otra">
-            <rect x="350" y="70" width="80" height="60" rx="6"/>
-            <text x="390" y="95" text-anchor="middle" font-size="10" fill="var(--color-text-muted)">SALA</text>
-            <text x="390" y="110" text-anchor="middle" font-size="10" fill="var(--color-text-muted)">B-7</text>
-          </g>
-          <g class="sala-otra">
-            <rect x="440" y="70" width="80" height="60" rx="6"/>
-            <text x="480" y="95" text-anchor="middle" font-size="10" fill="var(--color-text-muted)">SALA</text>
-            <text x="480" y="110" text-anchor="middle" font-size="10" fill="var(--color-text-muted)">B-8</text>
-          </g>
-          <g class="sala-otra">
-            <rect x="530" y="70" width="80" height="60" rx="6"/>
-            <text x="570" y="95" text-anchor="middle" font-size="10" fill="var(--color-text-muted)">SALA</text>
-            <text x="570" y="110" text-anchor="middle" font-size="10" fill="var(--color-text-muted)">B-9</text>
+            <rect x="400" y="80" width="90" height="60" rx="4"/>
+            <text x="445" y="105" text-anchor="middle" font-size="9" fill="var(--color-text-muted)">Paradocencia</text>
+            <text x="445" y="120" text-anchor="middle" font-size="9" fill="var(--color-text-muted)">3° Medio</text>
           </g>
 
-          <!-- Laboratorio 1 - LAB COMP 1 -->
+          <!-- Sala Multiple -->
+          <g class="sala-otra">
+            <rect x="500" y="80" width="90" height="60" rx="4"/>
+            <text x="545" y="105" text-anchor="middle" font-size="9" fill="var(--color-text-muted)">Sala</text>
+            <text x="545" y="120" text-anchor="middle" font-size="9" fill="var(--color-text-muted)">Multiple</text>
+          </g>
+
+          <!-- Escalera 1 -->
+          <g class="escalera">
+            <rect x="600" y="80" width="60" height="60" rx="4" fill="#fbbf24"/>
+            <text x="630" y="115" text-anchor="middle" font-size="9" fill="#92400e">ESC</text>
+          </g>
+
+          <!-- Salas B (arriba derecha) -->
+          <g class="sala-otra">
+            <rect x="670" y="80" width="70" height="60" rx="4"/>
+            <text x="705" y="105" text-anchor="middle" font-size="9" fill="var(--color-text-muted)">Sala</text>
+            <text x="705" y="120" text-anchor="middle" font-size="9" fill="var(--color-text-muted)">B-5</text>
+          </g>
+          <g class="sala-otra">
+            <rect x="750" y="80" width="70" height="60" rx="4"/>
+            <text x="785" y="105" text-anchor="middle" font-size="9" fill="var(--color-text-muted)">Sala</text>
+            <text x="785" y="120" text-anchor="middle" font-size="9" fill="var(--color-text-muted)">B-6</text>
+          </g>
+          <g class="sala-otra">
+            <rect x="830" y="80" width="70" height="60" rx="4"/>
+            <text x="865" y="105" text-anchor="middle" font-size="9" fill="var(--color-text-muted)">Sala</text>
+            <text x="865" y="120" text-anchor="middle" font-size="9" fill="var(--color-text-muted)">B-7</text>
+          </g>
+          <g class="sala-otra">
+            <rect x="910" y="80" width="70" height="60" rx="4"/>
+            <text x="945" y="105" text-anchor="middle" font-size="9" fill="var(--color-text-muted)">Sala</text>
+            <text x="945" y="120" text-anchor="middle" font-size="9" fill="var(--color-text-muted)">B-8</text>
+          </g>
+          <g class="sala-otra">
+            <rect x="990" y="80" width="70" height="60" rx="4"/>
+            <text x="1025" y="105" text-anchor="middle" font-size="9" fill="var(--color-text-muted)">Sala</text>
+            <text x="1025" y="120" text-anchor="middle" font-size="9" fill="var(--color-text-muted)">B-9</text>
+          </g>
+
+          <!-- CRA (derecha) -->
+          <g class="sala-otra">
+            <rect x="1060" y="200" width="50" height="150" rx="4"/>
+            <text x="1085" y="275" text-anchor="middle" font-size="10" fill="var(--color-text-muted)" transform="rotate(-90, 1085, 275)">CRA</text>
+          </g>
+
+          <!-- Patios -->
+          <g class="sala-otra">
+            <rect x="180" y="160" width="200" height="200" rx="8" fill="var(--map-open)"/>
+            <text x="280" y="250" text-anchor="middle" font-size="12" fill="var(--color-text-muted)" transform="rotate(-90, 280, 250)">PATIO 1</text>
+          </g>
+          <g class="sala-otra">
+            <rect x="400" y="160" width="200" height="200" rx="8" fill="var(--map-open)"/>
+            <text x="500" y="250" text-anchor="middle" font-size="12" fill="var(--color-text-muted)" transform="rotate(-90, 500, 250)">PATIO 2</text>
+          </g>
+          <g class="sala-otra">
+            <rect x="620" y="160" width="200" height="200" rx="8" fill="var(--map-open)"/>
+            <text x="720" y="250" text-anchor="middle" font-size="12" fill="var(--color-text-muted)" transform="rotate(-90, 720, 250)">PATIO 3</text>
+          </g>
+
+          <!-- Sala 2-1 -->
+          <g class="sala-otra">
+            <rect x="180" y="380" width="80" height="60" rx="4"/>
+            <text x="220" y="405" text-anchor="middle" font-size="9" fill="var(--color-text-muted)">Sala</text>
+            <text x="220" y="420" text-anchor="middle" font-size="9" fill="var(--color-text-muted)">2-1</text>
+          </g>
+
+          <!-- Inspectoría General Noct -->
+          <g class="sala-otra">
+            <rect x="270" y="380" width="90" height="60" rx="4"/>
+            <text x="315" y="400" text-anchor="middle" font-size="8" fill="var(--color-text-muted)">Inspectoría</text>
+            <text x="315" y="412" text-anchor="middle" font-size="8" fill="var(--color-text-muted)">General Noct</text>
+          </g>
+
+          <!-- UTP -->
+          <g class="sala-otra">
+            <rect x="370" y="380" width="70" height="60" rx="4"/>
+            <text x="405" y="410" text-anchor="middle" font-size="10" fill="var(--color-text-muted)">UTP</text>
+          </g>
+
+          <!-- Sala 2-4 -->
+          <g class="sala-otra">
+            <rect x="450" y="380" width="80" height="60" rx="4"/>
+            <text x="490" y="405" text-anchor="middle" font-size="9" fill="var(--color-text-muted)">Sala</text>
+            <text x="490" y="420" text-anchor="middle" font-size="9" fill="var(--color-text-muted)">2-4</text>
+          </g>
+
+          <!-- Sala 2-6 -->
+          <g class="sala-otra">
+            <rect x="540" y="380" width="80" height="60" rx="4"/>
+            <text x="580" y="405" text-anchor="middle" font-size="9" fill="var(--color-text-muted)">Sala</text>
+            <text x="580" y="420" text-anchor="middle" font-size="9" fill="var(--color-text-muted)">2-6</text>
+          </g>
+
+          <!-- Sala 2-7 -->
+          <g class="sala-otra">
+            <rect x="630" y="380" width="80" height="60" rx="4"/>
+            <text x="670" y="405" text-anchor="middle" font-size="9" fill="var(--color-text-muted)">Sala</text>
+            <text x="670" y="420" text-anchor="middle" font-size="9" fill="var(--color-text-muted)">2-7</text>
+          </g>
+
+          <!-- Laboratorio 1 -->
           <g class="sala-lab" data-lab-id="1">
-            <rect x="620" y="340" width="120" height="80" rx="8" stroke="#ffc300" stroke-width="3"/>
-            <text x="680" y="370" data-mapa-texto="nombre" text-anchor="middle" font-size="12" font-weight="bold" fill="#fff">LAB COMP 1</text>
-            <text x="680" y="390" data-mapa-texto="sala" text-anchor="middle" font-size="10" fill="#e2e8f0">Laboratorio 1</text>
+            <rect x="720" y="380" width="90" height="60" rx="4" stroke="#ffc300" stroke-width="3"/>
+            <text x="765" y="405" data-mapa-texto="nombre" text-anchor="middle" font-size="10" font-weight="bold" fill="#fff">Lab 1</text>
+            <text x="765" y="420" data-mapa-texto="sala" text-anchor="middle" font-size="8" fill="#e2e8f0">Laboratorio 1</text>
           </g>
 
-          <!-- Laboratorio 3 - LAB CIENCIAS -->
+          <!-- Escalera 2 -->
+          <g class="escalera">
+            <rect x="820" y="380" width="50" height="60" rx="4" fill="#fbbf24"/>
+            <text x="845" y="415" text-anchor="middle" font-size="8" fill="#92400e">ESC</text>
+          </g>
+
+          <!-- Sala Profesores -->
+          <g class="sala-otra">
+            <rect x="180" y="460" width="150" height="60" rx="4"/>
+            <text x="255" y="495" text-anchor="middle" font-size="10" fill="var(--color-text-muted)">Sala Profesores</text>
+          </g>
+
+          <!-- Escalera 3 -->
+          <g class="escalera">
+            <rect x="340" y="460" width="60" height="60" rx="4" fill="#fbbf24"/>
+            <text x="370" y="495" text-anchor="middle" font-size="8" fill="#92400e">ESC</text>
+          </g>
+
+          <!-- Sala 2-3 -->
+          <g class="sala-otra">
+            <rect x="410" y="460" width="80" height="60" rx="4"/>
+            <text x="450" y="485" text-anchor="middle" font-size="9" fill="var(--color-text-muted)">Sala</text>
+            <text x="450" y="500" text-anchor="middle" font-size="9" fill="var(--color-text-muted)">2-3</text>
+          </g>
+
+          <!-- Paradocencia 1° Medio -->
+          <g class="sala-otra">
+            <rect x="500" y="460" width="90" height="60" rx="4"/>
+            <text x="545" y="485" text-anchor="middle" font-size="8" fill="var(--color-text-muted)">Paradocencia</text>
+            <text x="545" y="500" text-anchor="middle" font-size="8" fill="var(--color-text-muted)">1° Medio</text>
+          </g>
+
+          <!-- Sala 2-5 -->
+          <g class="sala-otra">
+            <rect x="600" y="460" width="80" height="60" rx="4"/>
+            <text x="640" y="485" text-anchor="middle" font-size="9" fill="var(--color-text-muted)">Sala</text>
+            <text x="640" y="500" text-anchor="middle" font-size="9" fill="var(--color-text-muted)">2-5</text>
+          </g>
+
+          <!-- Escalera 4 -->
+          <g class="escalera">
+            <rect x="690" y="460" width="60" height="60" rx="4" fill="#fbbf24"/>
+            <text x="720" y="495" text-anchor="middle" font-size="8" fill="#92400e">ESC</text>
+          </g>
+
+          <!-- Laboratorio 3 -->
           <g class="sala-lab" data-lab-id="3">
-            <rect x="750" y="340" width="100" height="80" rx="8" stroke="#ffc300" stroke-width="3"/>
-            <text x="800" y="370" data-mapa-texto="nombre" text-anchor="middle" font-size="11" font-weight="bold" fill="#fff">LAB CIENCIAS</text>
-            <text x="800" y="390" data-mapa-texto="sala" text-anchor="middle" font-size="9" fill="#e2e8f0">Laboratorio 3</text>
+            <rect x="760" y="460" width="80" height="60" rx="4" stroke="#ffc300" stroke-width="3"/>
+            <text x="800" y="485" data-mapa-texto="nombre" text-anchor="middle" font-size="10" font-weight="bold" fill="#fff">Lab 3</text>
+            <text x="800" y="500" data-mapa-texto="sala" text-anchor="middle" font-size="8" fill="#e2e8f0">Laboratorio 3</text>
           </g>
 
-          <!-- Espacios abiertos -->
+          <!-- Salas 2-8, 2-9, 2-10 -->
           <g class="sala-otra">
-            <rect x="170" y="160" width="150" height="100" rx="8" fill="var(--map-open)"/>
-            <text x="245" y="200" text-anchor="middle" font-size="11" fill="var(--color-text-muted)">PATIO 1</text>
-          </g>
-          <g class="sala-otra">
-            <rect x="340" y="160" width="100" height="100" rx="8" fill="var(--map-open)"/>
-            <text x="390" y="200" text-anchor="middle" font-size="11" fill="var(--color-text-muted)">PATIO 2</text>
+            <rect x="850" y="460" width="60" height="60" rx="4"/>
+            <text x="880" y="485" text-anchor="middle" font-size="8" fill="var(--color-text-muted)">Sala</text>
+            <text x="880" y="500" text-anchor="middle" font-size="8" fill="var(--color-text-muted)">2-8</text>
           </g>
           <g class="sala-otra">
-            <rect x="460" y="140" width="200" height="140" rx="8" fill="var(--map-open)"/>
-            <text x="560" y="200" text-anchor="middle" font-size="13" fill="var(--color-text-muted)">PATIO 3</text>
+            <rect x="920" y="460" width="60" height="60" rx="4"/>
+            <text x="950" y="485" text-anchor="middle" font-size="8" fill="var(--color-text-muted)">Sala</text>
+            <text x="950" y="500" text-anchor="middle" font-size="8" fill="var(--color-text-muted)">2-9</text>
           </g>
-
-          <!-- Escaleras -->
-          <g class="escalera">
-            <rect x="620" y="70" width="60" height="40" rx="4" fill="#e2e8f0"/>
-            <text x="650" y="95" text-anchor="middle" font-size="9" fill="var(--color-text-muted)">ESC 4</text>
-          </g>
-          <g class="escalera">
-            <rect x="700" y="70" width="60" height="40" rx="4" fill="#e2e8f0"/>
-            <text x="730" y="95" text-anchor="middle" font-size="9" fill="var(--color-text-muted)">ESC 5</text>
-          </g>
-          <g class="escalera">
-            <rect x="860" y="340" width="60" height="40" rx="4" fill="#e2e8f0"/>
-            <text x="890" y="365" text-anchor="middle" font-size="9" fill="var(--color-text-muted)">ESC 3</text>
-          </g>
-          <g class="escalera">
-            <rect x="170" y="420" width="60" height="40" rx="4" fill="#e2e8f0"/>
-            <text x="200" y="445" text-anchor="middle" font-size="9" fill="var(--color-text-muted)">ESC 1</text>
-          </g>
-          <g class="escalera">
-            <rect x="350" y="420" width="60" height="40" rx="4" fill="#e2e8f0"/>
-            <text x="380" y="445" text-anchor="middle" font-size="9" fill="var(--color-text-muted)">ESC 2</text>
+          <g class="sala-otra">
+            <rect x="990" y="460" width="60" height="60" rx="4"/>
+            <text x="1020" y="485" text-anchor="middle" font-size="8" fill="var(--color-text-muted)">Sala</text>
+            <text x="1020" y="500" text-anchor="middle" font-size="8" fill="var(--color-text-muted)">2-10</text>
           </g>
         </g>
 
         <!-- Piso 3 -->
         <g id="piso-3-group" style="display:none">
-          <rect x="50" y="50" width="900" height="500" rx="14"
-                fill="var(--map-floor)" stroke="var(--map-line)" stroke-width="3"/>
-          <text x="500" y="35" text-anchor="middle" font-size="14" font-weight="bold" fill="var(--color-text-muted)">PASAJE DON BOSCO</text>
-          <text x="30" y="300" text-anchor="middle" font-size="12" fill="var(--color-text-muted)" transform="rotate(-90, 30, 300)">AVENIDA ARGENTINA</text>
-
-          <!-- Pasillo central -->
-          <rect x="50" y="280" width="900" height="40" fill="var(--map-pasillo)"/>
-          <text x="500" y="305" text-anchor="middle" font-size="11" fill="var(--color-text-muted)">PASILLO PRINCIPAL</text>
+          <polygon points="80,60 1120,60 1120,740 200,740 200,680 80,680"
+                   fill="var(--map-floor)" stroke="var(--map-line)" stroke-width="3"/>
+          <text x="600" y="35" text-anchor="middle" font-size="14" font-weight="bold" fill="var(--color-text-muted)">PASAJE DON BOSCO</text>
+          <text x="40" y="400" text-anchor="middle" font-size="12" fill="var(--color-text-muted)" transform="rotate(-90, 40, 400)">AVENIDA ARGENTINA</text>
 
           <!-- Salas C (lado izquierdo) -->
           <g class="sala-otra">
-            <rect x="70" y="70" width="80" height="60" rx="6"/>
-            <text x="110" y="95" text-anchor="middle" font-size="10" fill="var(--color-text-muted)">SALA</text>
-            <text x="110" y="110" text-anchor="middle" font-size="10" fill="var(--color-text-muted)">C-4</text>
+            <rect x="100" y="80" width="70" height="80" rx="4"/>
+            <text x="135" y="115" text-anchor="middle" font-size="10" fill="var(--color-text-muted)">SALA</text>
+            <text x="135" y="130" text-anchor="middle" font-size="10" fill="var(--color-text-muted)">C-4</text>
           </g>
           <g class="sala-otra">
-            <rect x="70" y="140" width="80" height="60" rx="6"/>
-            <text x="110" y="165" text-anchor="middle" font-size="10" fill="var(--color-text-muted)">SALA</text>
-            <text x="110" y="180" text-anchor="middle" font-size="10" fill="var(--color-text-muted)">C-3</text>
+            <rect x="100" y="170" width="70" height="80" rx="4"/>
+            <text x="135" y="205" text-anchor="middle" font-size="10" fill="var(--color-text-muted)">SALA</text>
+            <text x="135" y="220" text-anchor="middle" font-size="10" fill="var(--color-text-muted)">C-3</text>
           </g>
           <g class="sala-otra">
-            <rect x="70" y="210" width="80" height="60" rx="6"/>
-            <text x="110" y="235" text-anchor="middle" font-size="10" fill="var(--color-text-muted)">SALA</text>
-            <text x="110" y="250" text-anchor="middle" font-size="10" fill="var(--color-text-muted)">C-2</text>
+            <rect x="100" y="260" width="70" height="80" rx="4"/>
+            <text x="135" y="295" text-anchor="middle" font-size="10" fill="var(--color-text-muted)">SALA</text>
+            <text x="135" y="310" text-anchor="middle" font-size="10" fill="var(--color-text-muted)">C-2</text>
           </g>
           <g class="sala-otra">
-            <rect x="70" y="340" width="80" height="60" rx="6"/>
-            <text x="110" y="365" text-anchor="middle" font-size="10" fill="var(--color-text-muted)">SALA</text>
-            <text x="110" y="380" text-anchor="middle" font-size="10" fill="var(--color-text-muted)">C-1</text>
-          </g>
-
-          <!-- Salas 3 (parte inferior central) -->
-          <g class="sala-otra">
-            <rect x="170" y="340" width="100" height="60" rx="6"/>
-            <text x="220" y="365" text-anchor="middle" font-size="10" fill="var(--color-text-muted)">SALA</text>
-            <text x="220" y="380" text-anchor="middle" font-size="10" fill="var(--color-text-muted)">3-2</text>
-          </g>
-          <g class="sala-otra">
-            <rect x="280" y="340" width="100" height="60" rx="6"/>
-            <text x="330" y="365" text-anchor="middle" font-size="10" fill="var(--color-text-muted)">SALA</text>
-            <text x="330" y="380" text-anchor="middle" font-size="10" fill="var(--color-text-muted)">3-4</text>
-          </g>
-          <g class="sala-otra">
-            <rect x="390" y="340" width="100" height="60" rx="6"/>
-            <text x="440" y="365" text-anchor="middle" font-size="10" fill="var(--color-text-muted)">SALA</text>
-            <text x="440" y="380" text-anchor="middle" font-size="10" fill="var(--color-text-muted)">3-5</text>
-          </g>
-          <g class="sala-otra">
-            <rect x="500" y="340" width="100" height="60" rx="6"/>
-            <text x="550" y="365" text-anchor="middle" font-size="10" fill="var(--color-text-muted)">SALA</text>
-            <text x="550" y="380" text-anchor="middle" font-size="10" fill="var(--color-text-muted)">3-7</text>
+            <rect x="100" y="350" width="70" height="80" rx="4"/>
+            <text x="135" y="385" text-anchor="middle" font-size="10" fill="var(--color-text-muted)">SALA</text>
+            <text x="135" y="400" text-anchor="middle" font-size="10" fill="var(--color-text-muted)">C-1</text>
           </g>
 
-          <!-- Salas C (parte superior) -->
+          <!-- Salas C (arriba) -->
           <g class="sala-otra">
-            <rect x="170" y="70" width="80" height="60" rx="6"/>
-            <text x="210" y="95" text-anchor="middle" font-size="10" fill="var(--color-text-muted)">SALA</text>
-            <text x="210" y="110" text-anchor="middle" font-size="10" fill="var(--color-text-muted)">C-6</text>
+            <rect x="180" y="80" width="70" height="60" rx="4"/>
+            <text x="215" y="105" text-anchor="middle" font-size="9" fill="var(--color-text-muted)">Sala</text>
+            <text x="215" y="120" text-anchor="middle" font-size="9" fill="var(--color-text-muted)">C-6</text>
           </g>
           <g class="sala-otra">
-            <rect x="260" y="70" width="80" height="60" rx="6"/>
-            <text x="300" y="95" text-anchor="middle" font-size="10" fill="var(--color-text-muted)">SALA</text>
-            <text x="300" y="110" text-anchor="middle" font-size="10" fill="var(--color-text-muted)">C-7</text>
+            <rect x="260" y="80" width="70" height="60" rx="4"/>
+            <text x="295" y="105" text-anchor="middle" font-size="9" fill="var(--color-text-muted)">Sala</text>
+            <text x="295" y="120" text-anchor="middle" font-size="9" fill="var(--color-text-muted)">C-7</text>
           </g>
           <g class="sala-otra">
-            <rect x="350" y="70" width="80" height="60" rx="6"/>
-            <text x="390" y="95" text-anchor="middle" font-size="10" fill="var(--color-text-muted)">SALA</text>
-            <text x="390" y="110" text-anchor="middle" font-size="10" fill="var(--color-text-muted)">C-8</text>
+            <rect x="340" y="80" width="70" height="60" rx="4"/>
+            <text x="375" y="105" text-anchor="middle" font-size="9" fill="var(--color-text-muted)">Sala</text>
+            <text x="375" y="120" text-anchor="middle" font-size="9" fill="var(--color-text-muted)">C-8</text>
           </g>
           <g class="sala-otra">
-            <rect x="440" y="70" width="80" height="60" rx="6"/>
-            <text x="480" y="95" text-anchor="middle" font-size="10" fill="var(--color-text-muted)">SALA</text>
-            <text x="480" y="110" text-anchor="middle" font-size="10" fill="var(--color-text-muted)">C-9</text>
+            <rect x="420" y="80" width="70" height="60" rx="4"/>
+            <text x="455" y="105" text-anchor="middle" font-size="9" fill="var(--color-text-muted)">Sala</text>
+            <text x="455" y="120" text-anchor="middle" font-size="9" fill="var(--color-text-muted)">C-9</text>
           </g>
           <g class="sala-otra">
-            <rect x="530" y="70" width="80" height="60" rx="6"/>
-            <text x="570" y="95" text-anchor="middle" font-size="10" fill="var(--color-text-muted)">SALA</text>
-            <text x="570" y="110" text-anchor="middle" font-size="10" fill="var(--color-text-muted)">C-10</text>
+            <rect x="500" y="80" width="70" height="60" rx="4"/>
+            <text x="535" y="105" text-anchor="middle" font-size="9" fill="var(--color-text-muted)">Sala</text>
+            <text x="535" y="120" text-anchor="middle" font-size="9" fill="var(--color-text-muted)">C-10</text>
           </g>
 
           <!-- Laboratorios 3er piso -->
           <g class="sala-lab" data-lab-id="2">
-            <rect x="620" y="340" width="100" height="70" rx="8" stroke="#ffc300" stroke-width="3"/>
-            <text x="670" y="365" data-mapa-texto="nombre" text-anchor="middle" font-size="11" font-weight="bold" fill="#fff">LAB COMP 2</text>
-            <text x="670" y="385" data-mapa-texto="sala" text-anchor="middle" font-size="9" fill="#e2e8f0">Laboratorio 2</text>
+            <rect x="620" y="380" width="100" height="70" rx="4" stroke="#ffc300" stroke-width="3"/>
+            <text x="670" y="410" data-mapa-texto="nombre" text-anchor="middle" font-size="11" font-weight="bold" fill="#fff">LAB COMP 2</text>
+            <text x="670" y="430" data-mapa-texto="sala" text-anchor="middle" font-size="9" fill="#e2e8f0">Laboratorio 2</text>
           </g>
           <g class="sala-lab" data-lab-id="4">
-            <rect x="730" y="340" width="100" height="70" rx="8" stroke="#ffc300" stroke-width="3"/>
-            <text x="780" y="365" data-mapa-texto="nombre" text-anchor="middle" font-size="11" font-weight="bold" fill="#fff">LAB COMP 4</text>
-            <text x="780" y="385" data-mapa-texto="sala" text-anchor="middle" font-size="9" fill="#e2e8f0">Laboratorio 4</text>
+            <rect x="730" y="380" width="100" height="70" rx="4" stroke="#ffc300" stroke-width="3"/>
+            <text x="780" y="410" data-mapa-texto="nombre" text-anchor="middle" font-size="11" font-weight="bold" fill="#fff">LAB COMP 4</text>
+            <text x="780" y="430" data-mapa-texto="sala" text-anchor="middle" font-size="9" fill="#e2e8f0">Laboratorio 4</text>
           </g>
           <g class="sala-lab" data-lab-id="5">
-            <rect x="840" y="340" width="100" height="70" rx="8" stroke="#ffc300" stroke-width="3"/>
-            <text x="890" y="365" data-mapa-texto="nombre" text-anchor="middle" font-size="11" font-weight="bold" fill="#fff">LAB COMP 5</text>
-            <text x="890" y="385" data-mapa-texto="sala" text-anchor="middle" font-size="9" fill="#e2e8f0">Laboratorio 5</text>
-          </g>
-          <g class="sala-lab" data-lab-id="3">
-            <rect x="620" y="420" width="100" height="70" rx="8" stroke="#ffc300" stroke-width="3"/>
-            <text x="670" y="445" data-mapa-texto="nombre" text-anchor="middle" font-size="11" font-weight="bold" fill="#fff">LAB CIENCIAS</text>
-            <text x="670" y="465" data-mapa-texto="sala" text-anchor="middle" font-size="9" fill="#e2e8f0">Laboratorio 3</text>
+            <rect x="840" y="380" width="100" height="70" rx="4" stroke="#ffc300" stroke-width="3"/>
+            <text x="890" y="410" data-mapa-texto="nombre" text-anchor="middle" font-size="11" font-weight="bold" fill="#fff">LAB COMP 5</text>
+            <text x="890" y="430" data-mapa-texto="sala" text-anchor="middle" font-size="9" fill="#e2e8f0">Laboratorio 5</text>
           </g>
 
           <!-- Otras salas -->
           <g class="sala-otra">
-            <rect x="730" y="420" width="100" height="70" rx="6"/>
-            <text x="780" y="445" text-anchor="middle" font-size="10" fill="var(--color-text-muted)">PROY</text>
-            <text x="780" y="460" text-anchor="middle" font-size="10" fill="var(--color-text-muted)">LAB</text>
+            <rect x="620" y="460" width="100" height="70" rx="4"/>
+            <text x="670" y="490" text-anchor="middle" font-size="10" fill="var(--color-text-muted)">PROY</text>
+            <text x="670" y="505" text-anchor="middle" font-size="10" fill="var(--color-text-muted)">LAB</text>
           </g>
           <g class="sala-otra">
-            <rect x="840" y="420" width="100" height="70" rx="6"/>
-            <text x="890" y="445" text-anchor="middle" font-size="10" fill="var(--color-text-muted)">CONVIV</text>
-            <text x="890" y="460" text-anchor="middle" font-size="10" fill="var(--color-text-muted)">ESCOLAR</text>
+            <rect x="730" y="460" width="100" height="70" rx="4"/>
+            <text x="780" y="490" text-anchor="middle" font-size="10" fill="var(--color-text-muted)">CONVIV</text>
+            <text x="780" y="505" text-anchor="middle" font-size="10" fill="var(--color-text-muted)">ESCOLAR</text>
           </g>
 
-          <!-- Espacios abiertos -->
+          <!-- Patios -->
           <g class="sala-otra">
-            <rect x="170" y="160" width="150" height="100" rx="8" fill="var(--map-open)"/>
-            <text x="245" y="200" text-anchor="middle" font-size="11" fill="var(--color-text-muted)">PATIO 1</text>
+            <rect x="180" y="160" width="200" height="200" rx="8" fill="var(--map-open)"/>
+            <text x="280" y="250" text-anchor="middle" font-size="12" fill="var(--color-text-muted)" transform="rotate(-90, 280, 250)">PATIO 1</text>
           </g>
           <g class="sala-otra">
-            <rect x="340" y="160" width="100" height="100" rx="8" fill="var(--map-open)"/>
-            <text x="390" y="200" text-anchor="middle" font-size="11" fill="var(--color-text-muted)">PATIO 2</text>
+            <rect x="400" y="160" width="200" height="200" rx="8" fill="var(--map-open)"/>
+            <text x="500" y="250" text-anchor="middle" font-size="12" fill="var(--color-text-muted)" transform="rotate(-90, 500, 250)">PATIO 2</text>
           </g>
           <g class="sala-otra">
-            <rect x="460" y="140" width="200" height="140" rx="8" fill="var(--map-open)"/>
-            <text x="560" y="200" text-anchor="middle" font-size="13" fill="var(--color-text-muted)">PATIO 3</text>
+            <rect x="620" y="160" width="200" height="200" rx="8" fill="var(--map-open)"/>
+            <text x="720" y="250" text-anchor="middle" font-size="12" fill="var(--color-text-muted)" transform="rotate(-90, 720, 250)">PATIO 3</text>
           </g>
 
           <!-- Escaleras -->
           <g class="escalera">
-            <rect x="620" y="70" width="60" height="40" rx="4" fill="#e2e8f0"/>
-            <text x="650" y="95" text-anchor="middle" font-size="9" fill="var(--color-text-muted)">ESC 4</text>
+            <rect x="600" y="80" width="60" height="60" rx="4" fill="#fbbf24"/>
+            <text x="630" y="115" text-anchor="middle" font-size="9" fill="#92400e">ESC</text>
           </g>
           <g class="escalera">
-            <rect x="700" y="70" width="60" height="40" rx="4" fill="#e2e8f0"/>
-            <text x="730" y="95" text-anchor="middle" font-size="9" fill="var(--color-text-muted)">ESC 5</text>
+            <rect x="820" y="380" width="50" height="60" rx="4" fill="#fbbf24"/>
+            <text x="845" y="415" text-anchor="middle" font-size="8" fill="#92400e">ESC</text>
           </g>
           <g class="escalera">
-            <rect x="860" y="340" width="60" height="40" rx="4" fill="#e2e8f0"/>
-            <text x="890" y="365" text-anchor="middle" font-size="9" fill="var(--color-text-muted)">ESC 3</text>
+            <rect x="340" y="460" width="60" height="60" rx="4" fill="#fbbf24"/>
+            <text x="370" y="495" text-anchor="middle" font-size="8" fill="#92400e">ESC</text>
           </g>
           <g class="escalera">
-            <rect x="170" y="420" width="60" height="40" rx="4" fill="#e2e8f0"/>
-            <text x="200" y="445" text-anchor="middle" font-size="9" fill="var(--color-text-muted)">ESC 1</text>
-          </g>
-          <g class="escalera">
-            <rect x="350" y="420" width="60" height="40" rx="4" fill="#e2e8f0"/>
-            <text x="380" y="445" text-anchor="middle" font-size="9" fill="var(--color-text-muted)">ESC 2</text>
+            <rect x="690" y="460" width="60" height="60" rx="4" fill="#fbbf24"/>
+            <text x="720" y="495" text-anchor="middle" font-size="8" fill="#92400e">ESC</text>
           </g>
         </g>
       </svg>
@@ -368,6 +429,7 @@
         <span><i style="background:var(--color-danger)"></i> Ocupado</span>
         <span><i style="background:var(--color-warning)"></i> Mantención</span>
         <span><i style="background:#ffc300"></i> Laboratorio</span>
+        <span><i style="background:#fbbf24"></i> Escalera</span>
       </div>
     </div>
   </main>
