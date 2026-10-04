@@ -105,11 +105,11 @@ jobs:
           echo "Despliegue actual de la API (proyecto ${PROYECTO_ID:-sin id}): ${anterior:-desconocido}."
 
           # `environmentTriggersDeploy` es la mutacion documentada para desplegar
-          # un servicio. La API publica no permite elegir el commit: si el servicio
-          # tiene apagado el despliegue automatico, Railway reconstruye el ultimo
-          # commit que ya compilo. Por eso, si el redespliegue no mueve la version,
-          # el aviso del ultimo paso dice que hay que activar el despliegue
-          # automatico del servicio en el panel de Railway.
+          # un servicio, y no permite elegir el commit: construye lo que el
+          # servicio tenga configurado. Con el despliegue automatico apagado
+          # responde "ok" pero no crea ninguna construccion, asi que lo un que
+          # decide si la API quedo al dia es el chequeo de version del ultimo
+          # paso. Por eso aqui no se falla: solo se avisa.
           disparado="$(api "{\"query\":\"mutation Desplegar(\$entorno: String!, \$proyecto: String!, \$servicio: String!) { environmentTriggersDeploy(input: { environmentId: \$entorno, projectId: \$proyecto, serviceId: \$servicio }) }\",\"variables\":{\"entorno\":\"$ENVIRONMENT_ID\",\"proyecto\":\"${PROYECTO_ID:-}\",\"servicio\":\"$SERVICE_ID\"}}")"
 
           if echo "$disparado" | grep -q '"errors"'; then
@@ -122,17 +122,17 @@ jobs:
             echo "::error::Railway no acepto el redespliegue: $disparado"
             exit 1
           fi
-          echo "API en redespliegue; esperando a que levante."
+          echo "API avisada; esperando a que aparezca una construccion nueva."
 
           # Si se devuelve el control sin esperar, el chequeo de version de mas
           # abajo correria contra la API vieja y fallaria por el motivo equivocado.
-          for intento in $(seq 1 30); do
+          for intento in $(seq 1 12); do
             sleep 10
             estado_despliegue /tmp/estado-nuevo.json
             nuevo="$(jq -r '.data.deployments.edges[0]?.node | (.id? // empty)' /tmp/estado-nuevo.json)"
             estado="$(jq -r '.data.deployments.edges[0]?.node | (.status? // empty)' /tmp/estado-nuevo.json)"
             if [ "$nuevo" = "$anterior" ]; then
-              echo "Intento $intento: todavia no aparece el despliegue nuevo en Railway."
+              echo "Intento $intento: todavia no aparece una construccion nueva en Railway."
               continue
             fi
             case "${estado:-}" in
@@ -141,8 +141,14 @@ jobs:
               *) echo "Estado de la API: ${estado:-desconocido} (intento $intento)." ;;
             esac
           done
-          echo "::error::La API no termino de desplegarse en 5 minutos."
-          exit 1
+
+          # No aparecio ninguna construccion nueva. Con el despliegue automatico
+          # apagado esto es lo normal: la API sigue con el ultimo commit que
+          # compilo. No se falla aqui porque la API puede estar perfectamente al
+          # dia; de eso se encarga el chequeo de version del ultimo paso, que si
+          # bloquea cuando el backend de verdad cambio y la API se quedo atras.
+          echo "::notice::Railway no arranco ninguna construccion nueva (el servicio tiene el despliegue automatico apagado)."
+          echo "::notice::La API se queda con el ultimo commit compilado. Si esto deberia haber deploying, activa el despliegue automatico de la rama master en el panel de Railway."
 
       - name: Comprobar la web
         run: |
