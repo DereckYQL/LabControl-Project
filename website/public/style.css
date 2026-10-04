@@ -918,7 +918,7 @@ html.texto-grande { font-size: 112.5%; }
 .ayuda-texto p { margin: 0 0 9px; }
 
 .ayuda-acerca { text-align: center; }
-.ayuda-acerca img { margin-bottom: 12px; }
+.ayuda-acerca img { margin-bottom: 4px; }
 
 /* Acerca de: quiénes somos, encargados y contacto */
 .acerca-seccion {

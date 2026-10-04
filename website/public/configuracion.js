@@ -505,7 +505,7 @@ function buildPanel(id) {
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:20px">
           <div class="cfg-sys-card">
             <div class="cfg-sys-card__label">Versión del sistema</div>
-            <div class="cfg-sys-card__value">LabControl v3.10.0</div>
+            <div class="cfg-sys-card__value">LabControl v3.10.1</div>
           </div>
           <div class="cfg-sys-card">
             <div class="cfg-sys-card__label">Total laboratorios</div>
@@ -924,7 +924,7 @@ const ENCARGADOS = [
     icono: "megaphone",
     area: "Branding, comunicación y relaciones institucionales",
     descripcion:
-      "Encargado de las estrategias de branding, la comunicación y la relación con otras entidades. Se ocupa de la publicidad y del marketing del proyecto, define los objetivos comerciales y coordina con el liceo, los profesores y las unidades externas para posicionar LabControl dentro y fuera del establecimiento. Dentro del equipo también prepara las notas de versión, las comunicaciones y la presentación del sistema.",
+      "Encargado de las estrategias de branding, la comunicación y la relación con otras entidades. Se ocupa de la publicidad y del marketing del proyecto, define los objetivos comerciales y coordina con el liceo, los profesores y las unidades externas para posicionar LabControl dentro y fuera del establecimiento. Además presenta el proyecto en el liceo y mantiene al día los materiales de difusión.",
     tareas: [
       "Branding e identidad visual del producto",
       "Relación con el liceo y entidades externas",
@@ -951,7 +951,7 @@ function contenidoAcerca() {
       <div style="font-size:.85rem;color:var(--color-text-muted)">Sistema de control y supervisión de los laboratorios de computación del liceo.</div>
       <div class="cfg-sys-card" style="margin:18px auto 0;max-width:260px">
         <div class="cfg-sys-card__label">Versión del sistema</div>
-        <div class="cfg-sys-card__value">LabControl v3.10.0</div>
+        <div class="cfg-sys-card__value">LabControl v3.10.1</div>
       </div>
       <div class="cfg-sys-card" style="margin:10px auto 0;max-width:260px">
         <div class="cfg-sys-card__label">Institución</div>
@@ -1030,7 +1030,7 @@ function contenidoAcerca() {
             <i data-lucide="megaphone"></i>
             <div>
               <div class="acerca-contacto__label">Branding, comunicación y entidades externas</div>
-              <div class="acerca-contacto__valor"><strong>Felipe Torres</strong> — ${esc(ENCARGADOS[1].area)}. Coordina la comunicación, la publicidad y los objetivos comerciales.</div>
+              <div class="acerca-contacto__valor"><strong>Felipe Torres</strong> — identidad visual y presencia institucional del proyecto. Coordina la publicidad, el marketing y los objetivos comerciales.</div>
             </div>
           </li>
         </ul>
