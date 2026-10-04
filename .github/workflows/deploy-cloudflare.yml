@@ -148,7 +148,7 @@ jobs:
           # dia; de eso se encarga el chequeo de version del ultimo paso, que si
           # bloquea cuando el backend de verdad cambio y la API se quedo atras.
           echo "::notice::Railway no arranco ninguna construccion nueva (el servicio tiene el despliegue automatico apagado)."
-          echo "::notice::La API se queda con el ultimo commit compilado. Si esto deberia haber deploying, activa el despliegue automatico de la rama master en el panel de Railway."
+          echo "::notice::La API se queda con el ultimo commit compilado. Para que siga al dia sola, activa el despliegue automatico de la rama master en el panel de Railway."
 
       - name: Comprobar la web
         run: |
