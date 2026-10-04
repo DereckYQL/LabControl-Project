@@ -20,11 +20,6 @@ sistema, no su historial.
 | **Dereck Quiñonez** | Desarrollo web, técnico e informático | CTO — Chief Technology Officer |
 | **Felipe Torres** | Branding, comunicación y relaciones institucionales | CMO — Chief Marketing Officer |
 
-- **Dereck Quiñonez** se ocupa de la estrategia tecnológica: arquitectura del sitio y de la
-  API, base de datos, despliegue, seguridad y rendimiento.
-- **Felipe Torres** se ocupa de branding e identidad visual, publicidad y marketing, objetivos
-  comerciales y la relación con el liceo y otras entidades.
-
 ---
 
 ## 1. Contenido del sistema
@@ -119,7 +114,7 @@ Si el hosting no copia `public/` junto a `backend/`, se indica la ruta con `LC_P
 ├── Abrir LabControl en el celular.bat   Inicia el servidor y muestra un QR para el celular
 ├── .github/workflows/
 │   ├── ci.yml                          Calidad y pruebas (backend, lint, tipos, interfaz)
-│   └── deploy-cloudflare.yml           Publicación de la web + redespliegue de la API
+│   └── deploy-cloudflare.yml           Publicación de la web + aviso de despliegue a la API
 ├── functions/api/[[path]].js           Pages Function que reenvía /api/* al backend
 ├── website/
 │   ├── public/                         Sitio publicado (web estática)
@@ -229,12 +224,29 @@ Hay **un solo despliegue**, disparado por `push` a `master` desde
 `.github/workflows/deploy-cloudflare.yml`:
 
 1. Publica `website/public` en Cloudflare Pages.
-2. Le pide a Railway que redespliegue la API por su API GraphQL y espera a que el despliegue
-   quede en `SUCCESS`.
+2. Avisa a Railway por su API GraphQL que despliegue el servicio y mira si aparece una
+   construcción nueva.
 3. Comprueba que las nueve páginas respondan `200`, que `robots.txt` y el `404` existan y que
-   `/api/salud` devuelva la misma versión que la web.
+   la API publicada sea compatible con el backend actual.
 
 Si alguna comprobación falla, el flujo queda en rojo.
+
+### La API y las versiones
+
+La API vive en Railway porque usa `node:sqlite` y necesita disco. El servicio tiene este
+repositorio conectado **con el despliegue automático apagado**, y la API pública de Railway no
+permite elegir el commit: un redespliegue reconstruye el último commit ya compilado. Por eso el
+paso 2 no puede garantizar que la API tome el commit nuevo; avisa y sigue.
+
+El paso 3 es el que decide. No compara la versión de la web con la de la API, sino con **la
+versión que declara el último commit que tocó `website/backend`**: si el backend no cambió desde
+la última versión, la API puede quedarse atrás sin romper nada y el flujo pasa; si el backend sí
+cambió y la API no lo recogió, el flujo falla diciendo que hay que activar el despliegue
+automático del servicio en el panel de Railway.
+
+Por eso `GET /api/salud` devuelve la versión **de la API**, no la de la web, y esa cadena solo
+sube cuando cambia el comportamiento del backend. Subirla en cada versión obligaría a
+redesplegar la API sin ningún cambio real detrás.
 
 Configuración del repositorio, una sola vez:
 
