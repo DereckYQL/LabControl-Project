@@ -848,7 +848,12 @@ function restablecerConfiguracion() {
 function abrirAyuda(opcion) {
   const titulo = document.getElementById("modal-ayuda-titulo");
   const cuerpo = document.getElementById("modal-ayuda-cuerpo");
+  const modal  = document.getElementById("modal-ayuda");
   if (!titulo || !cuerpo) return;
+
+  // La vista de Acerca de tiene tres secciones largas, asi que el modal se
+  // ensancha en escritorio (ver `#modal-ayuda[data-opcion="acerca"]`).
+  if (modal) modal.dataset.opcion = opcion;
 
   if (opcion === "faq") {
     titulo.textContent = "Ayuda / FAQ";
@@ -903,7 +908,6 @@ const ENCARGADOS = [
   {
     nombre: "Dereck Quiñonez",
     cargo: "CTO · Chief Technology Officer",
-    cargoPleno: "Oficial de Tecnología (Chief Technology Officer)",
     icono: "code-2",
     area: "Desarrollo web, técnico e informático",
     descripcion:
@@ -917,7 +921,6 @@ const ENCARGADOS = [
   {
     nombre: "Felipe Torres",
     cargo: "CMO · Chief Marketing Officer",
-    cargoPleno: "Oficial de Marketing (Chief Marketing Officer)",
     icono: "megaphone",
     area: "Branding, comunicación y relaciones institucionales",
     descripcion:
@@ -1020,14 +1023,14 @@ function contenidoAcerca() {
             <i data-lucide="code-2"></i>
             <div>
               <div class="acerca-contacto__label">Desarrollo e informática</div>
-              <div class="acerca-contacto__valor">Dereck Quiñonez — ${esc(ENCARGADOS[0].cargoPleno)}</div>
+              <div class="acerca-contacto__valor"><strong>Dereck Quiñonez</strong> — ${esc(ENCARGADOS[0].area)}. Define la estrategia tecnológica y el despliegue del sistema.</div>
             </div>
           </li>
           <li>
             <i data-lucide="megaphone"></i>
             <div>
               <div class="acerca-contacto__label">Branding, comunicación y entidades externas</div>
-              <div class="acerca-contacto__valor">Felipe Torres — ${esc(ENCARGADOS[1].cargoPleno)}</div>
+              <div class="acerca-contacto__valor"><strong>Felipe Torres</strong> — ${esc(ENCARGADOS[1].area)}. Coordina la comunicación, la publicidad y los objetivos comerciales.</div>
             </div>
           </li>
         </ul>

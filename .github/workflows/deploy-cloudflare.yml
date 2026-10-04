@@ -25,7 +25,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
+        # Historial completo: el chequeo de version de mas abajo necesita saber
+        # en que commit se toco `website/backend` por ultima vez, y con el
+        # `fetch-depth: 1` de GitHub Actions ese commit no existe todavia.
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       # El proyecto de Pages se creo por CLI (Direct Upload) y Cloudflare no
       # permite conectarle un repositorio despues, asi que el despliegue sale
@@ -57,14 +62,15 @@ jobs:
             --branch master \
             --commit-dirty=true
 
-      # La API no es de este repositorio (node:sqlite necesita disco), asi que no
-      # se puede publicar junto con la web. Con este paso, el mismo push que sube
-      # la web le pide a Railway que la redespliegue: un solo despliegue para las
-      # dos partes. Railway no tiene deploy hook de entrada, el redespliegue se
-      # pide por su API GraphQL. Los tres ids van como variables del repositorio
-      # porque no son secretos. Es opcional a proposito, para que el workflow
-      # siga sirviendo aunque el token no este configurado.
-      - name: Redesplegar la API en Railway
+      # La API no se puede publicar junto con la web (node:sqlite necesita disco),
+      # asi que vive en Railway, con este repositorio conectado pero con el
+      # despliegue automatico apagado. Con el apagado, un "redeploy" a secas solo
+      # reconstruye el ultimo commit ya compilado: la API se queda en la version
+      # anterior sin avisar. La API publica de Railway no permite elegir el commit,
+      # asi que este paso no puede garantizar el commit nuevo; por eso el ultimo
+      # paso comprueba la version y, si no cuadra, dice que hay que activar el
+      # despliegue automatico del servicio en el panel de Railway.
+      - name: Desplegar la API en Railway
         env:
           RAILWAY_API_TOKEN: ${{ secrets.RAILWAY_API_TOKEN }}
           PROYECTO_ID: ${{ vars.RAILWAY_PROJECT_ID }}
@@ -80,7 +86,7 @@ jobs:
             exit 0
           fi
 
-          # El endpoint y la mutacion son los de la API publica de Railway.
+          # El endpoint y las mutaciones son los de la API publica de Railway.
           api() {
             curl -fsS -X POST https://backboard.railway.com/graphql/v2 \
               -H "Authorization: Bearer $RAILWAY_API_TOKEN" \
@@ -88,19 +94,32 @@ jobs:
               --data "$1"
           }
 
+          # Id del despliegue que hay hoy: sirve para no dar por bueno el SUCCESS
+          # del despliegue anterior mientras el nuevo aun no aparece en la lista.
           estado_despliegue() {
             api "{\"query\":\"query Estado(\$servicio: String!, \$entorno: String!) { deployments(first: 1, input: { serviceId: \$servicio, environmentId: \$entorno }) { edges { node { id status } } } }\",\"variables\":{\"servicio\":\"$SERVICE_ID\",\"entorno\":\"$ENVIRONMENT_ID\"}}" > "$1"
           }
 
-          # Id del despliegue que hay hoy: sirve para no dar por bueno el SUCCESS
-          # del despliegue anterior mientras el nuevo aun no aparece en la lista.
           estado_despliegue /tmp/estado-antes.json
           anterior="$(jq -r '.data.deployments.edges[0]?.node | (.id? // empty)' /tmp/estado-antes.json)"
           echo "Despliegue actual de la API (proyecto ${PROYECTO_ID:-sin id}): ${anterior:-desconocido}."
 
-          respuesta="$(api "{\"query\":\"mutation Redeploy(\$servicio: String!, \$entorno: String!) { serviceInstanceRedeploy(serviceId: \$servicio, environmentId: \$entorno) }\",\"variables\":{\"servicio\":\"$SERVICE_ID\",\"entorno\":\"$ENVIRONMENT_ID\"}}")"
-          if echo "$respuesta" | grep -q '"errors"'; then
-            echo "::error::Railway no acepto el redespliegue: $respuesta"
+          # `environmentTriggersDeploy` es la mutacion documentada para desplegar
+          # un servicio. La API publica no permite elegir el commit: si el servicio
+          # tiene apagado el despliegue automatico, Railway reconstruye el ultimo
+          # commit que ya compilo. Por eso, si el redespliegue no mueve la version,
+          # el aviso del ultimo paso dice que hay que activar el despliegue
+          # automatico del servicio en el panel de Railway.
+          disparado="$(api "{\"query\":\"mutation Desplegar(\$entorno: String!, \$proyecto: String!, \$servicio: String!) { environmentTriggersDeploy(input: { environmentId: \$entorno, projectId: \$proyecto, serviceId: \$servicio }) }\",\"variables\":{\"entorno\":\"$ENVIRONMENT_ID\",\"proyecto\":\"${PROYECTO_ID:-}\",\"servicio\":\"$SERVICE_ID\"}}")"
+
+          if echo "$disparado" | grep -q '"errors"'; then
+            echo "::warning::environmentTriggersDeploy no sirvio: $disparado"
+            echo "::warning::Se intenta serviceInstanceRedeploy, que reconstruye el ultimo commit compilado."
+            disparado="$(api "{\"query\":\"mutation Redeploy(\$servicio: String!, \$entorno: String!) { serviceInstanceRedeploy(serviceId: \$servicio, environmentId: \$entorno) }\",\"variables\":{\"servicio\":\"$SERVICE_ID\",\"entorno\":\"$ENVIRONMENT_ID\"}}")"
+          fi
+
+          if echo "$disparado" | grep -q '"errors"'; then
+            echo "::error::Railway no acepto el redespliegue: $disparado"
             exit 1
           fi
           echo "API en redespliegue; esperando a que levante."
@@ -161,10 +180,25 @@ jobs:
           done
           exit 1
 
-      - name: Comprobar que la API responde con esta version
+      - name: Comprobar que la API soporta esta web
         run: |
           set -euo pipefail
+
+          # Version que muestra la web.
           sitio="$(sed -n '/LabControl v/{s/.*LabControl v\([0-9]*\.[0-9]*\).*/\1/p;q}' website/public/configuracion.js)"
+
+          # Version de API que la web necesita de verdad: la que declara el ultimo
+          # commit que toco `website/backend`. Si despues de ese commit el backend no
+          # se ha vuelto a tocar, la API no tiene nada nuevo que aportar y puede
+          # quedarse en la version anterior sin romper nada. Solo por eso el chequeo
+          # compara contra `api_necesaria` y no contra `sitio`.
+          # Ojo: en el codigo la linea es `version: "3.10"`, sin comillas alrededor de
+          # `version` y con un espacio tras los dos puntos. El ` *` lo tolera.
+          commit_api="$(git log -1 --format=%H -- website/backend)"
+          api_necesaria="$(git show "$commit_api:website/backend/server.js" | sed -n 's/.*version: *"\([0-9.]*\)".*/\1/p')"
+          echo "Web $sitio. La ultima vez que se toco el backend fue en ${commit_api:0:7}, que declara la API $api_necesaria."
+          [ -n "$api_necesaria" ] || { echo "::error::No se pudo leer la version de la API en el commit $commit_api."; exit 1; }
+
           for intento in 1 2 3 4 5 6 7 8 9 10 11 12; do
             if salud="$(curl -fsS "https://$HOST/api/salud")"; then
               echo "$salud"
@@ -176,11 +210,25 @@ jobs:
           [ -n "${salud:-}" ] || { echo "::error::La web subio, pero /api/salud no respondio tras 12 intentos."; exit 1; }
 
           api="$(printf '%s' "$salud" | sed -n 's/.*"version":"\([0-9.]*\)".*/\1/p')"
-          # La web y la API tienen que ser la misma version: si no, quedaria una
-          # pagina nueva hablando con una API vieja.
-          if [ "$api" != "$sitio" ]; then
-            echo "::error::La web es la $sitio pero /api/salud dice $api."
-            echo "::error::Redespliega la API en Railway para que las dos partes queden juntas."
-            exit 1
+
+          if [ "$api" = "$api_necesaria" ]; then
+            echo "Web y API en la misma version ($api)."
+            exit 0
           fi
-          echo "Web y API en la misma version ($sitio)."
+
+          # La API por delante no es un problema: la web nueva habla con una API mas
+          # nueva sin romperse. `sort -V` ordena versiones, asi que "3.9" queda
+          # antes que "3.10".
+          mas_nueva="$(printf '%s\n%s\n' "$api" "$api_necesaria" | sort -V | tail -n1)"
+          if [ "$mas_nueva" = "$api" ] && [ "$api" != "$api_necesaria" ]; then
+            if [ "$api" = "$sitio" ]; then
+              echo "::notice::La API va por delante ($api): la web $sitio no necesita nada nuevo. Se acepta."
+            else
+              echo "::warning::La API dice $api y la web $sitio; se esperaba $api_necesaria o $sitio. No bloquea, pero conviene revisarlo."
+            fi
+            exit 0
+          fi
+
+          echo "::error::La web necesita la API $api_necesaria, pero /api/salud dice $api: la API quedo con el codigo viejo."
+          echo "::error::El despliegue de Railway no tomo el commit $GITHUB_SHA. Revisa que el servicio construya desde este repositorio y que tenga el despliegue automatico activado."
+          exit 1

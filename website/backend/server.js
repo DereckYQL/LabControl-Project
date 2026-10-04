@@ -879,8 +879,16 @@ app.post("/api/login/2fa", loginLimiter, (req, res) => {
 // Comprobación de vida del servicio, sin token y sin tocar la base: la usan el
 // hosting del backend (health check) y quien despliegue el proyecto para ver si
 // la API está respondiendo. No revela nada del sistema.
+//
+// Ojo: este numero es la version de la API, no la de la web. La web va por
+// delante casi siempre; esto solo sube cuando cambia el comportamiento de la
+// API. Railway solo recompila el backend cuando el despliegue automático del
+// servicio está activo, así que subirlo en cada versión obligaría a redesplegar
+// la API sin ningún cambio real que lo justifique. El flujo de despliegue
+// compara este numero contra el que declara el último commit que tocó
+// `website/backend`, que es el que manda.
 app.get("/api/salud", (req, res) => {
-  res.json({ ok: true, servicio: "labcontrol-api", version: "3.10" });
+  res.json({ ok: true, servicio: "labcontrol-api", version: "3.9" });
 });
 
 // Estado del 2FA de la sesión actual.

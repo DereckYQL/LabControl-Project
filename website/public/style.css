@@ -1559,6 +1559,13 @@ tbody tr:hover { background: var(--row-hover); }
 }
 .modal--lg { max-width: 580px; }
 
+/* Acerca de tiene tres secciones largas (presentación, dos encargados y
+   contacto). En escritorio se ensancha para que el texto mida lo bastante y las
+   tarjetas de los encargados quepan en dos columnas. En el celular manda el ancho
+   del overlay (padding de 20px), asi que esto solo agranda el escritorio.
+   Ojo: `#modal-ayuda` es el overlay, el cuadro es su hijo `.modal`. */
+#modal-ayuda[data-opcion="acerca"] .modal { max-width: 820px; }
+
 @keyframes modal-in {
   from { opacity: 0; transform: translateY(16px) scale(.96); }
   to   { opacity: 1; transform: none; }
