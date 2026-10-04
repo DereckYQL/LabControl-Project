@@ -48,7 +48,6 @@
           <button class="piso-btn" id="piso-2" data-piso="2">2° Piso</button>
           <button class="piso-btn active" id="piso-3" data-piso="3">3° Piso</button>
         </div>
-        <span class="badge badge--muted" id="piso-badge">3er Piso</span>
       </div>
     </header>
 
@@ -68,6 +67,7 @@
 
     <!-- Mapa -->
     <div class="mapa-wrap">
+      <div class="piso-indicador" id="piso-indicador">3er Piso</div>
       <svg id="mapa-svg" class="mapa-svg" viewBox="0 0 1000 600" width="100%"
            xmlns="http://www.w3.org/2000/svg" aria-label="Plano del liceo">
         <defs>
@@ -165,11 +165,11 @@
             <text x="680" y="390" data-mapa-texto="sala" text-anchor="middle" font-size="10" fill="#e2e8f0">Laboratorio 1</text>
           </g>
 
-          <!-- Otras salas -->
-          <g class="sala-otra">
-            <rect x="750" y="340" width="100" height="80" rx="6"/>
-            <text x="800" y="370" text-anchor="middle" font-size="10" fill="var(--color-text-muted)">SALA</text>
-            <text x="800" y="385" text-anchor="middle" font-size="10" fill="var(--color-text-muted)">PROFESORES</text>
+          <!-- Laboratorio 3 - LAB CIENCIAS -->
+          <g class="sala-lab" data-lab-id="3">
+            <rect x="750" y="340" width="100" height="80" rx="8" stroke="#ffc300" stroke-width="3"/>
+            <text x="800" y="370" data-mapa-texto="nombre" text-anchor="middle" font-size="11" font-weight="bold" fill="#fff">LAB CIENCIAS</text>
+            <text x="800" y="390" data-mapa-texto="sala" text-anchor="middle" font-size="9" fill="#e2e8f0">Laboratorio 3</text>
           </g>
 
           <!-- Espacios abiertos -->
@@ -182,16 +182,8 @@
             <text x="390" y="200" text-anchor="middle" font-size="11" fill="var(--color-text-muted)">PATIO 2</text>
           </g>
           <g class="sala-otra">
-            <rect x="460" y="160" width="100" height="100" rx="8" fill="var(--map-open)"/>
-            <text x="510" y="200" text-anchor="middle" font-size="11" fill="var(--color-text-muted)">PATIO 3</text>
-          </g>
-          <g class="sala-otra">
-            <rect x="580" y="160" width="150" height="100" rx="8" fill="var(--map-open)"/>
-            <text x="655" y="200" text-anchor="middle" font-size="11" fill="var(--color-text-muted)">PATIO 4</text>
-          </g>
-          <g class="sala-otra">
-            <rect x="750" y="160" width="100" height="100" rx="8" fill="var(--map-open)"/>
-            <text x="800" y="200" text-anchor="middle" font-size="11" fill="var(--color-text-muted)">PATIO 5</text>
+            <rect x="460" y="140" width="200" height="140" rx="8" fill="var(--map-open)"/>
+            <text x="560" y="200" text-anchor="middle" font-size="13" fill="var(--color-text-muted)">PATIO 3</text>
           </g>
 
           <!-- Escaleras -->
@@ -343,16 +335,8 @@
             <text x="390" y="200" text-anchor="middle" font-size="11" fill="var(--color-text-muted)">PATIO 2</text>
           </g>
           <g class="sala-otra">
-            <rect x="460" y="160" width="100" height="100" rx="8" fill="var(--map-open)"/>
-            <text x="510" y="200" text-anchor="middle" font-size="11" fill="var(--color-text-muted)">PATIO 3</text>
-          </g>
-          <g class="sala-otra">
-            <rect x="580" y="160" width="150" height="100" rx="8" fill="var(--map-open)"/>
-            <text x="655" y="200" text-anchor="middle" font-size="11" fill="var(--color-text-muted)">PATIO 4</text>
-          </g>
-          <g class="sala-otra">
-            <rect x="750" y="160" width="100" height="100" rx="8" fill="var(--map-open)"/>
-            <text x="800" y="200" text-anchor="middle" font-size="11" fill="var(--color-text-muted)">PATIO 5</text>
+            <rect x="460" y="140" width="200" height="140" rx="8" fill="var(--map-open)"/>
+            <text x="560" y="200" text-anchor="middle" font-size="13" fill="var(--color-text-muted)">PATIO 3</text>
           </g>
 
           <!-- Escaleras -->

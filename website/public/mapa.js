@@ -19,20 +19,20 @@ function mostrarPiso(piso) {
   const grupo3 = document.getElementById("piso-3-group");
   const boton2 = document.getElementById("piso-2");
   const boton3 = document.getElementById("piso-3");
-  const badge = document.getElementById("piso-badge");
+  const indicador = document.getElementById("piso-indicador");
 
   if (piso === 2) {
     grupo2.style.display = "";
     grupo3.style.display = "none";
     boton2.classList.add("active");
     boton3.classList.remove("active");
-    badge.textContent = "2do Piso";
+    indicador.textContent = "2do Piso";
   } else {
     grupo2.style.display = "none";
     grupo3.style.display = "";
     boton2.classList.remove("active");
     boton3.classList.add("active");
-    badge.textContent = "3er Piso";
+    indicador.textContent = "3er Piso";
   }
 
   document.querySelectorAll(".sala-lab").forEach((g) => g.classList.remove("selected"));
@@ -76,7 +76,7 @@ function seleccionarLab(id) {
   const lab = labsCache.find((l) => l.id === id);
   if (!lab) return;
 
-  const pisoDelLab = id === 1 ? 2 : 3;
+  const pisoDelLab = id === 1 || id === 3 ? 2 : 3;
   if (pisoActual !== pisoDelLab) {
     mostrarPiso(pisoDelLab);
   }
