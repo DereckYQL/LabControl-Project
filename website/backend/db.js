@@ -221,53 +221,53 @@ const CONFIG_DEFAULT = {
 // tal como estaban.
 const LABORATORIOS = [
   {
-    id: 1, nombre: "Laboratorio 1", sala: "Sala B-201", ubicacion: "Segundo piso, ala B",
+    id: 1, nombre: "LAB COMP 1", sala: "Sala 2-7", ubicacion: "Segundo piso, ala derecha",
     equipos: 30, estado: "disponible", so: "Windows 11 Pro", procesador: "Intel Core i5-10400",
     ram: "8 GB DDR4", almacenamiento: "512 GB SSD", red: "Conectado a la red interna (VLAN 10)",
     responsable: "Juan Pérez", responsableId: "prof_juan", horario: "07:30 - 18:00",
     servicios: ["Pizarra", "Proyectos"],
-    descripcion: "Laboratorio equipado para clases de informática, programación, ofimática y navegación segura.",
-    foto: "assets/lab-generico.svg", posicion: { x: 20, y: 60, w: 180, h: 120 },
+    descripcion: "Laboratorio de Computación 1 equipado para clases de informática, programación, ofimática y navegación segura.",
+    foto: "assets/lab-generico.svg", posicion: { x: 620, y: 340, w: 120, h: 80 },
     imagenes: ["img/labs/Trasera_lab1.jpg", "img/labs/Frontal_lab1.jpg"]
   },
   {
-    id: 2, nombre: "Laboratorio 2", sala: "Sala B-202", ubicacion: "Segundo piso, ala B",
+    id: 2, nombre: "LAB COMP 2", sala: "Sala 3-8", ubicacion: "Tercer piso, ala derecha",
     equipos: 27, estado: "disponible", so: "Windows 11 Pro", procesador: "Intel Core i5-10400",
     ram: "8 GB DDR4", almacenamiento: "512 GB SSD", red: "Conectado a la red interna (VLAN 10)",
     responsable: "Ana López", responsableId: "prof_ana", horario: "07:30 - 18:00",
     servicios: ["Pizarra", "Proyector"],
-    descripcion: "Laboratorio de uso general para asignaturas de la carrera de Programación.",
-    foto: "assets/lab-generico.svg", posicion: { x: 220, y: 60, w: 180, h: 120 },
+    descripcion: "Laboratorio de Computación 2 para asignaturas de la carrera de Programación.",
+    foto: "assets/lab-generico.svg", posicion: { x: 620, y: 340, w: 100, h: 70 },
     imagenes: ["img/labs/Trasero Derecho_lab2.png", "img/labs/Frontal Derecho_lab2.png"]
   },
   {
-    id: 3, nombre: "Laboratorio 3", sala: "Sala B-203", ubicacion: "Segundo piso, ala B",
+    id: 3, nombre: "LAB CIENCIAS", sala: "Sala 3-11", ubicacion: "Tercer piso, ala derecha",
     equipos: 23, estado: "ocupado", so: "Linux Mint", procesador: "Intel Core i5-10400",
     ram: "8 GB DDR4", almacenamiento: "256 GB SSD", red: "Conectado a la red interna (VLAN 10)",
     responsable: "Diego Rojas", responsableId: "prof_diego", horario: "08:00 - 17:00",
     servicios: ["Pizarra"],
-    descripcion: "Laboratorio orientado a programación y entornos Linux.",
-    foto: "assets/lab-generico.svg", posicion: { x: 420, y: 60, w: 180, h: 120 },
+    descripcion: "Laboratorio de Ciencias orientado a programación y entornos Linux.",
+    foto: "assets/lab-generico.svg", posicion: { x: 620, y: 420, w: 100, h: 70 },
     imagenes: ["img/labs/Trasera_lab3.jpg", "img/labs/Frontal_lab3.jpg"]
   },
   {
-    id: 4, nombre: "Laboratorio 4", sala: "Sala B-205", ubicacion: "Segundo piso, ala B",
+    id: 4, nombre: "LAB COMP 4", sala: "Sala 3-9", ubicacion: "Tercer piso, ala derecha",
     equipos: 28, estado: "mantencion", so: "Windows 11 Pro", procesador: "Intel Core i3-10100",
     ram: "8 GB DDR4", almacenamiento: "256 GB SSD", red: "Conectado a la red interna (VLAN 10)",
     responsable: "Camila Soto", responsableId: "prof_camila", horario: "07:30 - 18:00",
     servicios: ["Pizarra"],
-    descripcion: "Laboratorio de apoyo para talleres y evaluaciones prácticas.",
-    foto: "assets/lab-generico.svg", posicion: { x: 620, y: 60, w: 150, h: 120 },
+    descripcion: "Laboratorio de Computación 4 de apoyo para talleres y evaluaciones prácticas.",
+    foto: "assets/lab-generico.svg", posicion: { x: 730, y: 340, w: 100, h: 70 },
     imagenes: ["img/labs/Trasera_lab4.jpg", "img/labs/Frontal_lab4.jpg"]
   },
   {
-    id: 5, nombre: "Laboratorio 5", sala: "Sala B-204", ubicacion: "Segundo piso, ala B",
+    id: 5, nombre: "LAB COMP 5", sala: "Sala 3-10", ubicacion: "Tercer piso, ala derecha",
     equipos: 30, estado: "disponible", so: "Linux Mint y Windows 10", procesador: "Intel Core i7-10700",
     ram: "16 GB DDR4", almacenamiento: "1 TB SSD NVMe", red: "Rack de switches y patch panel propio",
     responsable: "Juan Pérez", responsableId: "prof_juan", horario: "07:30 - 18:00",
     servicios: ["Pizarra", "Proyector"],
-    descripcion: "Laboratorio con doble sistema operativo (Linux Mint y Windows 10) para clases de informática, ofimática y navegación segura.",
-    foto: "assets/lab-generico.svg", posicion: { x: 220, y: 220, w: 180, h: 120 },
+    descripcion: "Laboratorio de Computación 5 con doble sistema operativo (Linux Mint y Windows 10) para clases de informática, ofimática y navegación segura.",
+    foto: "assets/lab-generico.svg", posicion: { x: 840, y: 340, w: 100, h: 70 },
     imagenes: ["img/labs/Trasera_lab5.jpg", "img/labs/Frontal_lab5.jpg"]
   }
 ];

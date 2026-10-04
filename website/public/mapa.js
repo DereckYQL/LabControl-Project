@@ -2,51 +2,86 @@
 import { ESTADOS, cargarLaboratorios } from "./data.js";
 import { renderSidebar, showToast } from "./app.js";
 
+renderSidebar("mapa.html");
 
-  renderSidebar("mapa.html");
+const COLORES_MAPA = {
+  disponible: "#16a34a",
+  ocupado: "#ef4444",
+  mantencion: "#f59e0b"
+};
 
-  const COLORES_MAPA = {
-    disponible: "#16a34a",
-    ocupado: "#ef4444",
-    mantencion: "#f59e0b"
-  };
+let labsCache = [];
+let pisoActual = 3;
 
-  let labsCache = [];
+function mostrarPiso(piso) {
+  pisoActual = piso;
+  const grupo2 = document.getElementById("piso-2-group");
+  const grupo3 = document.getElementById("piso-3-group");
+  const boton2 = document.getElementById("piso-2");
+  const boton3 = document.getElementById("piso-3");
+  const badge = document.getElementById("piso-badge");
 
-  cargarLaboratorios().then((labs) => {
-    labsCache = labs;
+  if (piso === 2) {
+    grupo2.style.display = "";
+    grupo3.style.display = "none";
+    boton2.classList.add("active");
+    boton3.classList.remove("active");
+    badge.textContent = "2do Piso";
+  } else {
+    grupo2.style.display = "none";
+    grupo3.style.display = "";
+    boton2.classList.remove("active");
+    boton3.classList.add("active");
+    badge.textContent = "3er Piso";
+  }
 
-    labs.forEach((lab) => {
-      const g = document.querySelector('[data-lab-id="' + lab.id + '"]');
-      if (!g) return;
-      const rect = g.querySelector("rect");
-      rect.style.fill = COLORES_MAPA[lab.estado];
-      rect.setAttribute("stroke", "#ffffff");
-      rect.setAttribute("stroke-width", "2");
-      rect.setAttribute("aria-hidden", "true");
-      g.setAttribute("role", "button");
-      g.setAttribute("tabindex", "0");
-      g.setAttribute("aria-label", `${lab.nombre} (${lab.sala}) — ${ESTADOS[lab.estado].label}`);
-      // El rótulo del mapa venía escrito a mano en el SVG y quedó desincronizado
-      // de la base de datos (salas distintas a las reales). La base manda.
-      const tNombre = g.querySelector('[data-mapa-texto="nombre"]');
-      const tSala = g.querySelector('[data-mapa-texto="sala"]');
-      if (tNombre) tNombre.textContent = lab.nombre;
-      if (tSala) tSala.textContent = lab.sala;
-      g.addEventListener("click", () => seleccionarLab(lab.id));
-      g.addEventListener("keydown", (e) => {
-        if (e.key === "Enter" || e.key === " ") {
-          e.preventDefault();
-          seleccionarLab(lab.id);
-        }
-      });
+  document.querySelectorAll(".sala-lab").forEach((g) => g.classList.remove("selected"));
+  document.getElementById("panel-lab").style.display = "none";
+}
+
+document.getElementById("piso-2").addEventListener("click", () => mostrarPiso(2));
+document.getElementById("piso-3").addEventListener("click", () => mostrarPiso(3));
+
+cargarLaboratorios().then((labs) => {
+  labsCache = labs;
+
+  labs.forEach((lab) => {
+    const g = document.querySelector('[data-lab-id="' + lab.id + '"]');
+    if (!g) return;
+    const rect = g.querySelector("rect");
+    rect.style.fill = COLORES_MAPA[lab.estado];
+    rect.setAttribute("stroke", "#ffc300");
+    rect.setAttribute("stroke-width", "3");
+    rect.setAttribute("aria-hidden", "true");
+    g.setAttribute("role", "button");
+    g.setAttribute("tabindex", "0");
+    g.setAttribute("aria-label", `${lab.nombre} (${lab.sala}) — ${ESTADOS[lab.estado].label}`);
+    const tNombre = g.querySelector('[data-mapa-texto="nombre"]');
+    const tSala = g.querySelector('[data-mapa-texto="sala"]');
+    if (tNombre) tNombre.textContent = lab.nombre;
+    if (tSala) tSala.textContent = lab.sala;
+    g.addEventListener("click", () => seleccionarLab(lab.id));
+    g.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        seleccionarLab(lab.id);
+      }
     });
-  }).catch(() => showToast("No se pudieron cargar los laboratorios.", "error"));
+  });
 
-  function seleccionarLab(id) {
-    const lab = labsCache.find((l) => l.id === id);
-    if (!lab) return;
+  mostrarPiso(3);
+}).catch(() => showToast("No se pudieron cargar los laboratorios.", "error"));
 
+function seleccionarLab(id) {
+  const lab = labsCache.find((l) => l.id === id);
+  if (!lab) return;
+
+  const pisoDelLab = id === 1 ? 2 : 3;
+  if (pisoActual !== pisoDelLab) {
+    mostrarPiso(pisoDelLab);
+  }
+
+  setTimeout(() => {
     document.querySelectorAll(".sala-lab").forEach((g) => g.classList.remove("selected"));
     document.querySelector('[data-lab-id="' + id + '"]').classList.add("selected");
 
@@ -61,4 +96,5 @@ import { renderSidebar, showToast } from "./app.js";
     document.getElementById("panel-link").href = "laboratorios.html?id=" + lab.id;
 
     document.getElementById("panel-lab").scrollIntoView({ behavior: "smooth", block: "nearest" });
-  }
+  }, 50);
+}

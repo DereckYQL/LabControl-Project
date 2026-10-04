@@ -1889,6 +1889,29 @@ tbody tr:hover { background: var(--row-hover); }
   display: inline-block;
 }
 
+.piso-selector {
+  display: flex;
+  gap: 0;
+  border: 2px solid var(--map-line);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.piso-btn {
+  padding: 8px 18px;
+  font-size: .85rem;
+  font-weight: 600;
+  border: none;
+  background: var(--map-floor);
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition: all .2s;
+}
+.piso-btn:hover { background: var(--map-pasillo); }
+.piso-btn.active {
+  background: var(--accent);
+  color: #fff;
+}
+
 /* EQUIPOS */
 .tech-cell { font-family: Consolas, monospace; font-size: .8rem; }
 
