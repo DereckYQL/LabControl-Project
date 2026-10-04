@@ -1,5 +1,17 @@
 # LabControl Liceo
 
+> **Novedades de la versión 3.10**
+>
+> - **Acerca de completo**: el modal de *Configuración → Ayuda → Acerca de* ya no dice "más
+>   información próximamente". Ahora presenta quiénes somos, el origen del proyecto, nuestro
+>   objetivo general y las metas futuras.
+> - **Encargados del proyecto**: Dereck Quiñonez (CTO) y Felipe Torres (CMO), cada uno con su
+>   área, la descripción de su rol y sus tareas.
+> - **Contacto**: canales de contacto con el establecimiento, el sitio web, el soporte interno y
+>   el área responsable de cada persona.
+> - Estilos nuevos para los bloques del modal, en tema claro y oscuro, y versión del sistema
+>   actualizada a `v3.10.0`.
+
 Sistema web para el control y la supervisión de los laboratorios de computación del Liceo
 INSUCO. Permite consultar y administrar la disponibilidad, el inventario de equipos, el mapa
 del establecimiento, las reservas de uso, los reportes y las cuentas de los profesores, con
@@ -8,6 +20,20 @@ autenticación por roles y base de datos real en el backend.
 **Sitio publicado:** <https://insuco-labcontrol.pages.dev>
 
 Proyecto de la asignatura *Diseño y Aplicaciones Web*.
+
+---
+
+## Autores del proyecto
+
+| Encargado | Área | Cargo |
+|---|---|---|
+| **Dereck Quiñonez** | Desarrollo web, técnico e informático | CTO — Chief Technology Officer |
+| **Felipe Torres** | Branding, comunicación y relaciones institucionales | CMO — Chief Marketing Officer |
+
+- **Dereck Quiñonez** se ocupa de la estrategia tecnológica: arquitectura del sitio y de la
+  API, base de datos, despliegue, seguridad y rendimiento.
+- **Felipe Torres** se ocupa de branding e identidad visual, publicidad y marketing, objetivos
+  comerciales y la relación con el liceo y otras entidades.
 
 ---
 

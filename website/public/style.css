@@ -920,6 +920,113 @@ html.texto-grande { font-size: 112.5%; }
 .ayuda-acerca { text-align: center; }
 .ayuda-acerca img { margin-bottom: 12px; }
 
+/* Acerca de: quiénes somos, encargados y contacto */
+.acerca-seccion {
+  margin-top: 26px;
+  padding-top: 22px;
+  border-top: 1px solid var(--color-border);
+  text-align: left;
+}
+.ayuda-acerca .acerca-seccion:first-of-type { border-top: 0; }
+.acerca-seccion__titulo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: .95rem;
+  font-weight: 800;
+  color: var(--color-text);
+  margin: 0 0 4px;
+}
+.acerca-seccion__titulo svg.lucide { width: 17px; height: 17px; color: var(--color-primary); flex: none; }
+.acerca-seccion__intro { font-size: .83rem; color: var(--color-text-muted); line-height: 1.55; margin: 6px 0 14px; }
+
+.acerca-texto { font-size: .86rem; line-height: 1.7; }
+.acerca-texto p { margin: 0 0 11px; text-align: justify; }
+.acerca-texto p:last-child { margin-bottom: 0; }
+
+/* Las tarjetas solo se ponen en dos columnas cuando el modal es realmente ancho;
+   con una sola columna la descripción larga se lee mucho mejor. */
+.acerca-encargados { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(285px, 1fr)); }
+
+.acerca-encargado {
+  border: 1px solid var(--color-border);
+  border-radius: 14px;
+  padding: 15px 16px;
+  background: var(--surface-deep);
+  box-shadow: var(--shadow-sm);
+}
+.acerca-encargado__cabecera { display: flex; align-items: center; gap: 11px; }
+.acerca-encargado__icono {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  flex: none;
+  border-radius: 11px;
+  background: var(--soft-primary);
+  color: var(--color-text);
+}
+.acerca-encargado__icono svg.lucide { width: 19px; height: 19px; }
+.acerca-encargado__nombre { font-weight: 800; font-size: .95rem; }
+.acerca-encargado__cargo {
+  font-size: .7rem;
+  font-weight: 800;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  margin-top: 2px;
+}
+.acerca-encargado__area {
+  display: inline-block;
+  font-size: .73rem;
+  font-weight: 700;
+  color: var(--color-text);
+  background: var(--chip-bg);
+  border-radius: 999px;
+  padding: 3px 10px;
+  margin: 12px 0 0;
+}
+.acerca-encargado__desc { font-size: .83rem; line-height: 1.6; margin: 10px 0 0; text-align: justify; }
+.acerca-encargado__tareas { list-style: none; margin: 12px 0 0; padding: 0; display: grid; gap: 6px; }
+.acerca-encargado__tareas li {
+  position: relative;
+  padding-left: 20px;
+  font-size: .8rem;
+  color: var(--color-text-muted);
+  line-height: 1.5;
+}
+.acerca-encargado__tareas li::before {
+  content: "";
+  position: absolute;
+  left: 4px;
+  top: .5em;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--color-primary);
+}
+
+.acerca-contacto { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.acerca-contacto li {
+  display: flex;
+  align-items: flex-start;
+  gap: 11px;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  padding: 12px 14px;
+  background: var(--surface-deep);
+}
+.acerca-contacto li > svg.lucide { width: 17px; height: 17px; flex: none; margin-top: 2px; color: var(--color-primary); }
+.acerca-contacto__label {
+  font-size: .68rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  color: var(--color-text-muted);
+}
+.acerca-contacto__valor { font-size: .84rem; line-height: 1.5; margin-top: 3px; word-break: break-word; }
+.acerca-contacto__valor a { color: var(--color-primary); font-weight: 700; }
+
 /* Formularios */
 .form-group { margin-bottom: 15px; flex: 1; min-width: 0; }
 

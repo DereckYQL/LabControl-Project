@@ -880,7 +880,7 @@ app.post("/api/login/2fa", loginLimiter, (req, res) => {
 // hosting del backend (health check) y quien despliegue el proyecto para ver si
 // la API está respondiendo. No revela nada del sistema.
 app.get("/api/salud", (req, res) => {
-  res.json({ ok: true, servicio: "labcontrol-api", version: "3.9" });
+  res.json({ ok: true, servicio: "labcontrol-api", version: "3.10" });
 });
 
 // Estado del 2FA de la sesión actual.
@@ -1906,7 +1906,7 @@ app.use((err, req, res, next) => {
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const servidor = app.listen(PORT, () => {
-    console.log(`\n  LabControl Liceo v3.9`);
+    console.log(`\n  LabControl Liceo v3.10`);
     if (sitioDentro) {
       console.log(`  API + sitio corriendo en: http://localhost:${PORT}/login.html`);
     } else {

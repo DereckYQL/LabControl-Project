@@ -505,7 +505,7 @@ function buildPanel(id) {
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:20px">
           <div class="cfg-sys-card">
             <div class="cfg-sys-card__label">Versión del sistema</div>
-            <div class="cfg-sys-card__value">LabControl v3.9.1</div>
+            <div class="cfg-sys-card__value">LabControl v3.10.0</div>
           </div>
           <div class="cfg-sys-card">
             <div class="cfg-sys-card__label">Total laboratorios</div>
@@ -899,9 +899,48 @@ function contenidoTerminos() {
     </div>`;
 }
 
+const ENCARGADOS = [
+  {
+    nombre: "Dereck Quiñonez",
+    cargo: "CTO · Chief Technology Officer",
+    cargoPleno: "Oficial de Tecnología (Chief Technology Officer)",
+    icono: "code-2",
+    area: "Desarrollo web, técnico e informático",
+    descripcion:
+      "Encargado del desarrollo web, técnico e informático del proyecto. Define la estrategia tecnológica de LabControl: diseña la arquitectura del frontend y del backend, elige las herramientas y los estándares de cada versión, y resuelve los problemas técnicos que surgen durante la implementación. También se ocupa de la base de datos, del despliegue y de mantener el sistema estable, seguro y disponible para toda la comunidad del liceo.",
+    tareas: [
+      "Arquitectura del sitio y de la API",
+      "Base de datos y modelado de información",
+      "Despliegue, seguridad y rendimiento",
+    ],
+  },
+  {
+    nombre: "Felipe Torres",
+    cargo: "CMO · Chief Marketing Officer",
+    cargoPleno: "Oficial de Marketing (Chief Marketing Officer)",
+    icono: "megaphone",
+    area: "Branding, comunicación y relaciones institucionales",
+    descripcion:
+      "Encargado de las estrategias de branding, la comunicación y la relación con otras entidades. Se ocupa de la publicidad y del marketing del proyecto, define los objetivos comerciales y coordina con el liceo, los profesores y las unidades externas para posicionar LabControl dentro y fuera del establecimiento. Dentro del equipo también prepara las notas de versión, las comunicaciones y la presentación del sistema.",
+    tareas: [
+      "Branding e identidad visual del producto",
+      "Relación con el liceo y entidades externas",
+      "Publicidad, marketing y objetivos comerciales",
+    ],
+  },
+];
+
 function contenidoAcerca() {
   const usuario  = config?.sitio?.nombreInstitucion ?? "Insuco";
   const sistema  = config?.sitio?.nombreSistema  ?? "LabControl";
+
+  const presentacion = [
+    "Somos estudiantes de la especialidad de Técnico en Programación del Liceo Insuco de Valparaíso. A partir de nuestros conocimientos en desarrollo web, bases de datos y diseño de sistemas, creamos esta plataforma con el fin de centralizar y optimizar la gestión de los equipos computacionales de nuestro establecimiento educacional.",
+    "Nuestro objetivo general es proporcionar una herramienta eficiente, confiable y funcional que permita organizar la información de los recursos tecnológicos, reducir la dependencia de procesos manuales y facilitar tanto la administración como el mantenimiento de los equipos, contribuyendo a una gestión más ordenada y accesible.",
+    "Creamos este proyecto ante la necesidad de mejorar el control de los recursos informáticos. La gestión manual o descentralizada dificultaba el seguimiento del estado, ubicación, disponibilidad y mantenimiento de los equipos. Frente a esta problemática, desarrollamos una solución tecnológica que transforma ese proceso tradicional en un sistema digital centralizado y eficiente.",
+    "En el futuro aspiramos a consolidar la plataforma como una solución integral para la administración de activos tecnológicos en establecimientos educacionales. Buscamos ampliar sus funcionalidades con herramientas de seguimiento, generación de reportes, control de mantenimiento y análisis de información, de modo que pueda adaptarse a distintos contextos educativos y evolucionar según las necesidades del establecimiento.",
+  ];
+
   return `
     <div class="ayuda-acerca">
       <img src="img/logo-insuco.png" alt="Logo del liceo">
@@ -909,13 +948,90 @@ function contenidoAcerca() {
       <div style="font-size:.85rem;color:var(--color-text-muted)">Sistema de control y supervisión de los laboratorios de computación del liceo.</div>
       <div class="cfg-sys-card" style="margin:18px auto 0;max-width:260px">
         <div class="cfg-sys-card__label">Versión del sistema</div>
-        <div class="cfg-sys-card__value">LabControl v3.9.1</div>
+        <div class="cfg-sys-card__value">LabControl v3.10.0</div>
       </div>
       <div class="cfg-sys-card" style="margin:10px auto 0;max-width:260px">
         <div class="cfg-sys-card__label">Institución</div>
         <div class="cfg-sys-card__value">${esc(usuario)}</div>
       </div>
-      <p style="font-size:.78rem;color:var(--color-text-muted);margin-top:16px">Más información disponible próximamente.</p>
+
+      <section class="acerca-seccion">
+        <h3 class="acerca-seccion__titulo"><i data-lucide="graduation-cap"></i> Quiénes somos</h3>
+        <div class="acerca-texto">
+          ${presentacion.map((p) => `<p>${esc(p)}</p>`).join("")}
+        </div>
+      </section>
+
+      <section class="acerca-seccion">
+        <h3 class="acerca-seccion__titulo"><i data-lucide="users"></i> Encargados del proyecto</h3>
+        <p class="acerca-seccion__intro">
+          El proyecto está a cargo de dos estudiantes de la especialidad, responsables de las
+          áreas técnica y de comunicación respectivamente.
+        </p>
+        <div class="acerca-encargados">
+          ${ENCARGADOS.map((e) => `
+            <article class="acerca-encargado">
+              <div class="acerca-encargado__cabecera">
+                <span class="acerca-encargado__icono"><i data-lucide="${e.icono}"></i></span>
+                <div>
+                  <div class="acerca-encargado__nombre">${esc(e.nombre)}</div>
+                  <div class="acerca-encargado__cargo">${esc(e.cargo)}</div>
+                </div>
+              </div>
+              <p class="acerca-encargado__area">${esc(e.area)}</p>
+              <p class="acerca-encargado__desc">${esc(e.descripcion)}</p>
+              <ul class="acerca-encargado__tareas">
+                ${e.tareas.map((t) => `<li>${esc(t)}</li>`).join("")}
+              </ul>
+            </article>
+          `).join("")}
+        </div>
+      </section>
+
+      <section class="acerca-seccion">
+        <h3 class="acerca-seccion__titulo"><i data-lucide="mail"></i> Contacto</h3>
+        <p class="acerca-seccion__intro">
+          Para consultas sobre el sistema, solicitudes de soporte, propuestas de mejora o
+          coordinación institucional, puedes escribirnos a través de los siguientes canales.
+        </p>
+        <ul class="acerca-contacto">
+          <li>
+            <i data-lucide="building-2"></i>
+            <div>
+              <div class="acerca-contacto__label">Establecimiento</div>
+              <div class="acerca-contacto__valor">${esc(usuario)} — Liceo Insuco de Valparaíso</div>
+            </div>
+          </li>
+          <li>
+            <i data-lucide="globe"></i>
+            <div>
+              <div class="acerca-contacto__label">Sitio web</div>
+              <div class="acerca-contacto__valor"><a href="https://insuco-labcontrol.pages.dev" target="_blank" rel="noopener noreferrer">insuco-labcontrol.pages.dev</a></div>
+            </div>
+          </li>
+          <li>
+            <i data-lucide="shield-check"></i>
+            <div>
+              <div class="acerca-contacto__label">Soporte técnico dentro del sistema</div>
+              <div class="acerca-contacto__valor">Administrador: usuario <strong>INSUCO</strong> (admin@liceo.cl). También puedes usar <em>Configuración → Ayuda / FAQ</em>.</div>
+            </div>
+          </li>
+          <li>
+            <i data-lucide="code-2"></i>
+            <div>
+              <div class="acerca-contacto__label">Desarrollo e informática</div>
+              <div class="acerca-contacto__valor">Dereck Quiñonez — ${esc(ENCARGADOS[0].cargoPleno)}</div>
+            </div>
+          </li>
+          <li>
+            <i data-lucide="megaphone"></i>
+            <div>
+              <div class="acerca-contacto__label">Branding, comunicación y entidades externas</div>
+              <div class="acerca-contacto__valor">Felipe Torres — ${esc(ENCARGADOS[1].cargoPleno)}</div>
+            </div>
+          </li>
+        </ul>
+      </section>
     </div>`;
 }
 
