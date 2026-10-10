@@ -1,4 +1,4 @@
-# LabControl Liceo
+# Insuco LabControl
 
 Sistema web para el control y la supervisión de los laboratorios de computación del Liceo
 INSUCO. Permite consultar y administrar la disponibilidad, el inventario de equipos, el mapa
@@ -110,8 +110,6 @@ Si el hosting no copia `public/` junto a `backend/`, se indica la ruta con `LC_P
 
 ```
 .
-├── Abrir LabControl.bat                Inicia el servidor y abre el sitio en el navegador
-├── Abrir LabControl en el celular.bat   Inicia el servidor y muestra un QR para el celular
 ├── .github/workflows/
 │   ├── ci.yml                          Calidad y pruebas (backend, lint, tipos, interfaz)
 │   └── deploy-cloudflare.yml           Publicación de la web + aviso de despliegue a la API
@@ -131,11 +129,18 @@ Si el hosting no copia `public/` junto a `backend/`, se indica la ruta con `LC_P
 │   │   ├── _redirects                  Sirve cada página con 200, sin redirecciones
 │   │   ├── 404.html                    Página de error
 │   │   ├── robots.txt                  Instrucciones para buscadores
-│   │   ├── style.css                   Estilos compartidos
-│   │   ├── app.js                      Navegación por rol y funciones de render
-│   │   ├── data.js                     Cliente de la API
 │   │   ├── service-worker.js           Caché y funcionamiento sin conexión
-│   │   └── manifest.webmanifest        Datos de la PWA
+│   │   ├── manifest.webmanifest        Datos de la PWA
+│   │   ├── css/
+│   │   │   └── style.css               Estilos compartidos
+│   │   ├── js/
+│   │   │   ├── app.js                  Navegación por rol y funciones de render
+│   │   │   ├── data.js                 Cliente de la API
+│   │   │   ├── datos-demo.js           Datos de ejemplo sin conexión
+│   │   │   ├── theme.js                Selector de tema (claro/oscuro)
+│   │   │   ├── <página>.js             Lógica de cada página
+│   │   │   └── vendor/lucide.min.js    Iconos
+│   │   └── img/                        Imágenes y fotos de laboratorios
 │   ├── backend/                        API y base de datos
 │   │   ├── server.js                   API REST (Express)
 │   │   ├── db.js                       Esquema, migraciones, semilla y respaldo
@@ -166,8 +171,9 @@ npm start
 El sitio queda en <http://localhost:3000>. La base de datos se crea sola la primera vez, con
 el esquema y los datos de ejemplo.
 
-También sirve `npm run dev` para recargar el servidor al guardar cambios, y en Windows los
-scripts `Abrir LabControl.bat` y `Abrir LabControl en el celular.bat` del raíz.
+También sirve `npm run dev` para recargar el servidor al guardar cambios. Para abrir el sitio
+desde el celular, con el servidor ya iniciado, ejecuta `node website/config/celular.js`: muestra
+un código QR con la dirección de la red local.
 
 Para levantar solo la interfaz estática, sin backend, alcanza con servir `website/public`
 con cualquier servidor de archivos; en ese caso el sitio funciona con los datos de ejemplo

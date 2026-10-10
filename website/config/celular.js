@@ -411,7 +411,7 @@ async function principal() {
 
   if (!(await puertoAbierto(PUERTO))) {
     console.log("  ATENCION: el servidor no responde en el puerto " + PUERTO + ".");
-    console.log("  Ejecuta antes 'Abrir LabControl.bat' y vuelve a intentar.\n");
+    console.log("  Inicia antes el servidor (npm start en website/backend) y vuelve a intentar.\n");
   }
 
   const ips = ipsLocales();
