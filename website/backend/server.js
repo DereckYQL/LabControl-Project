@@ -325,7 +325,7 @@ function usrFromRow(row) {
 
 // Vista pública del padrón: sin email. Se usa para los usuarios que no son
 // admin, que solo necesitan nombre/rol/área para resolver referencias y no
-// tienen por qué obtener el correo de terceros (dato personal superfluous).
+// tienen por qué obtener el correo de terceros (dato personal superfluo).
 function usrPublico(row) {
   const copia = usrFromRow(row);
   delete copia.email;
@@ -660,7 +660,7 @@ function sanitizarAdjuntos(adjuntos) {
     const tamano = Number(a.tamano) || 0;
     // El límite se mide sobre los bytes reales, no sobre los caracteres base64:
     // contar `data.length` rechazaba de forma silenciosa todo archivo de más de
-    // ~3,75 MB aunque el máximo announced fuera de 5 MB.
+    // ~3,75 MB aunque el máximo anunciado fuera de 5 MB.
     const cuerpo = /^data:[^,]*;base64,/.test(data) ? cuerpoBase64(data) : "";
     const bytes = cuerpo ? Buffer.from(cuerpo, "base64").length : 0;
     const valido =
@@ -880,12 +880,12 @@ app.post("/api/login/2fa", loginLimiter, (req, res) => {
 // hosting del backend (health check) y quien despliegue el proyecto para ver si
 // la API está respondiendo. No revela nada del sistema.
 //
-// Ojo: este numero es la version de la API, no la de la web. La web va por
+// Ojo: este número es la versión de la API, no la de la web. La web va por
 // delante casi siempre; esto solo sube cuando cambia el comportamiento de la
 // API. Railway solo recompila el backend cuando el despliegue automático del
 // servicio está activo, así que subirlo en cada versión obligaría a redesplegar
 // la API sin ningún cambio real que lo justifique. El flujo de despliegue
-// compara este numero contra el que declara el último commit que tocó
+// compara este número contra el que declara el último commit que tocó
 // `website/backend`, que es el que manda.
 app.get("/api/salud", (req, res) => {
   res.json({ ok: true, servicio: "labcontrol-api", version: "3.9" });
@@ -1926,7 +1926,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   });
 
   // Tiempos de espera del socket: una conexión lenta o abandonada no puede
-  // mantener undescriptor abierto indefinidamente (Slowloris).
+  // mantener un descriptor abierto indefinidamente (Slowloris).
   servidor.headersTimeout = 65_000;
   servidor.requestTimeout = 120_000;
   servidor.keepAliveTimeout = 61_000;

@@ -661,7 +661,7 @@ async function aplicarMigraciones(conexion) {
 }
 
 // Deshace las migraciones aplicadas por encima de `objetivo` (0 = ninguna).
-// Se detiene en la primera irreversible, informing de cuál es y por qué, en lugar
+// Se detiene en la primera irreversible, informando de cuál es y por qué, en lugar
 // de dejar el esquema a medias. Devuelve las versiones realmente revertidas.
 //
 // Todo el recorrido va dentro de un SAVEPOINT exterior: si una reversión falla a
@@ -892,7 +892,7 @@ async function aplicarSemilla(conexion = db) {
       }
 
       // Los equipos se completan (nunca se pisa) para que la lista cuadre con
-      // la cantidad declarada, sin tocar los que el usuario ya editó.
+      // la cantidad declarada, sin tocar lo que el usuario ya editó.
       for (let i = 1; i <= l.equipos; i++) {
         const eq = datosEquipo(l, i);
         if (hayEquipo.get(eq.id)) {

@@ -251,9 +251,9 @@ import { abrirModal, cerrarModal, esc, formatFecha, renderSidebar, showToast } f
       horaFin: fin,
       motivo
     };
-    // El modal se cerraba antes de saber el resultado y el calendario semanal
-    // no se refrescaba: solo se actualizaba la tabla. Ahora se espera la
-    // respuesta, se muestran los dos manuales y se explica el error si falla.
+    // Antes el modal se cerraba sin esperar el resultado y el calendario semanal
+    // no se refrescaba: solo se actualizaba la tabla. Ahora se espera la respuesta,
+    // se actualizan las dos vistas y se avisa al usuario si la reserva falla.
     crearReserva(nuevaRes)
       .then(() => cargarAgenda())
       .then((ag) => {

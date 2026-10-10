@@ -100,11 +100,11 @@ test("los laboratorios tienen la ficha real de inventario", async () => {
     }));
 
   expect(labs).toEqual([
-    { id: 1, nombre: "Laboratorio 1", equipos: 30, so: "Windows 11 Pro", servicios: ["Pizarra", "Proyectos"] },
-    { id: 2, nombre: "Laboratorio 2", equipos: 27, so: "Windows 11 Pro", servicios: ["Pizarra", "Proyector"] },
-    { id: 3, nombre: "Laboratorio 3", equipos: 23, so: "Linux Mint", servicios: ["Pizarra"] },
-    { id: 4, nombre: "Laboratorio 4", equipos: 28, so: "Windows 11 Pro", servicios: ["Pizarra"] },
-    { id: 5, nombre: "Laboratorio 5", equipos: 30, so: "Linux Mint y Windows 10", servicios: ["Pizarra", "Proyector"] },
+    { id: 1, nombre: "LAB COMP 1", equipos: 30, so: "Windows 11 Pro", servicios: ["Pizarra", "Proyectos"] },
+    { id: 2, nombre: "LAB COMP 2", equipos: 27, so: "Windows 11 Pro", servicios: ["Pizarra", "Proyector"] },
+    { id: 3, nombre: "LAB CIENCIAS", equipos: 23, so: "Linux Mint", servicios: ["Pizarra"] },
+    { id: 4, nombre: "LAB COMP 4", equipos: 28, so: "Windows 11 Pro", servicios: ["Pizarra"] },
+    { id: 5, nombre: "LAB COMP 5", equipos: 30, so: "Linux Mint y Windows 10", servicios: ["Pizarra", "Proyector"] },
   ]);
 
   // La lista de equipos debe cuadrar con la cantidad declarada por laboratorio.

@@ -6,7 +6,7 @@ import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 const ALFABETO = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
 const PASO_MS = 30000;
 // Tope de la ventana de verificación: sin él, un `ventana` enorme convertiría la
-// comprobación en un bucle largo y dependent del reloj, y en una vía de
+// comprobación en un bucle largo y dependiente del reloj, y en una vía de
 // amplificación para forzar el código. 10 pasos ≈ 5 minutos alrededor del
 // instante actual.
 const VENTANA_MAXIMA = 10;
