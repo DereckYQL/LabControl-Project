@@ -221,8 +221,8 @@ test("modo offline: el SW sirve el shell y los assets desde caché y degrada a d
     return (await cache.keys()).map((r) => new URL(r.url).pathname.replace(/^\//, ""));
   });
   expect(cache).toContain("index.html");
-  expect(cache).toContain("style.css");
-  expect(cache).toContain("app.js");
+  expect(cache).toContain("css/style.css");
+  expect(cache).toContain("js/app.js");
 
   // La versión se lee del propio index.html y se cruza con la del service worker.
   // Si cambia un asset hay que subir a la vez el `?v=` de las páginas y el
@@ -249,18 +249,18 @@ test("modo offline: el SW sirve el shell y los assets desde caché y degrada a d
   await context.setOffline(true);
   const offline = await page.evaluate(async (v) => {
     const resultados = {};
-    for (const r of ["index.html", `style.css?v=${v}`, `app.js?v=${v}`]) {
+    for (const r of ["index.html", `css/style.css?v=${v}`, `js/app.js?v=${v}`]) {
       try { resultados[r] = (await fetch(r)).ok; }
       catch { resultados[r] = false; }
     }
     return resultados;
   }, version);
   expect(offline["index.html"]).toBe(true);
-  expect(offline[`style.css?v=${version}`]).toBe(true);
-  expect(offline[`app.js?v=${version}`]).toBe(true);
+  expect(offline[`css/style.css?v=${version}`]).toBe(true);
+  expect(offline[`js/app.js?v=${version}`]).toBe(true);
 
   const degradacion = await page.evaluate(async () => {
-    const mod = await import("./data.js");
+    const mod = await import("./js/data.js");
     return mod.cargarLaboratorios().then(
       () => "datos",
       () => "error-capturado"

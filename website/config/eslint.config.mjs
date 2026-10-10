@@ -2,7 +2,7 @@ import globals from "globals";
 
 export default [
   {
-    ignores: ["**/public/lucide.min.js"]
+    ignores: ["**/public/js/vendor/lucide.min.js"]
   },
   {
     files: ["**/*.{js,mjs}"],
@@ -39,8 +39,9 @@ export default [
   },
   {
     // Frontend en ES modules (import/export entre data.js, app.js y las
-    // páginas). no-undef detecta referencias sin import.
-    files: ["website/public/*.js"],
+    // páginas). no-undef detecta referencias sin import. service-worker.js queda
+    // en la raíz de public/ y los módulos en public/js/.
+    files: ["website/public/*.js", "website/public/js/**/*.js"],
     languageOptions: {
       sourceType: "module",
       globals: { ...globals.browser, ...globals.serviceworker }

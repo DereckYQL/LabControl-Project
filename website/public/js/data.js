@@ -29,7 +29,9 @@ function activarModoDemo() {
       resolve();
     };
     s.onerror = () => reject(new Error("Sin API ni datos de respaldo disponibles."));
-    s.src = "datos-demo.js";
+    // Los scripts de página viven en la raíz y los módulos en js/, así que el
+    // relleno de demo se pide con la ruta desde la página, no desde este módulo.
+    s.src = "js/datos-demo.js";
     document.head.appendChild(s);
   });
 }

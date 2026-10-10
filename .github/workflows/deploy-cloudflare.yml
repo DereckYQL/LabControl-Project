@@ -191,7 +191,7 @@ jobs:
           set -euo pipefail
 
           # Version que muestra la web.
-          sitio="$(sed -n '/LabControl v/{s/.*LabControl v\([0-9]*\.[0-9]*\).*/\1/p;q}' website/public/configuracion.js)"
+          sitio="$(sed -n '/LabControl v/{s/.*LabControl v\([0-9]*\.[0-9]*\).*/\1/p;q}' website/public/js/configuracion.js)"
 
           # Version de API que la web necesita de verdad: la que declara el ultimo
           # commit que toco `website/backend`. Si despues de ese commit el backend no
