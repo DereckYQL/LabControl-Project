@@ -505,7 +505,7 @@ function buildPanel(id) {
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:20px">
           <div class="cfg-sys-card">
             <div class="cfg-sys-card__label">Versión del sistema</div>
-            <div class="cfg-sys-card__value">LabControl v4.0.0</div>
+            <div class="cfg-sys-card__value">LabControl v4.1.0</div>
           </div>
           <div class="cfg-sys-card">
             <div class="cfg-sys-card__label">Total laboratorios</div>
@@ -644,12 +644,16 @@ document.getElementById("btn-guardar-cfg").addEventListener("click", () => {
   if (usuario && esAdmin && espec !== undefined) cambioUsr.especialidad = espec;
   if (usuario && Object.keys(cambioUsr).length) {
     tareas.push(actualizarUsuario(usuario.id, cambioUsr).then((res) => {
-      if (res && res.token) {
+      // El token renovado viaja en la cookie HttpOnly; aquí solo se actualizan
+      // los datos públicos de la sesión para que el menú refleje el cambio.
+      if (res) {
         const prev = AUTH.getSesion();
         if (prev) {
           localStorage.setItem("lc_sesion", JSON.stringify({
-            ...prev, token: res.token,
-            nombre: res.nombre, apellido: res.apellido, iniciales: res.iniciales,
+            ...prev,
+            nombre: res.nombre ?? prev.nombre,
+            apellido: res.apellido ?? prev.apellido,
+            iniciales: res.iniciales ?? prev.iniciales,
             email: res.email ?? prev.email
           }));
         }
@@ -951,7 +955,7 @@ function contenidoAcerca() {
       <div style="font-size:.85rem;color:var(--color-text-muted)">Sistema de control y supervisión de los laboratorios de computación del liceo.</div>
       <div class="cfg-sys-card" style="margin:18px auto 0;max-width:260px">
         <div class="cfg-sys-card__label">Versión del sistema</div>
-        <div class="cfg-sys-card__value">LabControl v4.0.0</div>
+        <div class="cfg-sys-card__value">LabControl v4.1.0</div>
       </div>
       <div class="cfg-sys-card" style="margin:10px auto 0;max-width:260px">
         <div class="cfg-sys-card__label">Institución</div>

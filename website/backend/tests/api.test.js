@@ -18,6 +18,9 @@ beforeAll(async () => {
   process.env.LC_ESCRITURA_LIMIT = "100000";
   process.env.LC_LOGIN_LIMIT = "100000";
   process.env.LC_REGISTRO_LIMIT = "100000";
+  // Secreto compartido con el proxy de Cloudflare Pages: permite anclar la IP
+  // real del cliente (x-lc-client-ip) en el rate limiting y la auditoría.
+  process.env.LC_PROXY_SECRET = "secreto-de-prueba";
   app = (await import("../server.js")).app;
 });
 
@@ -481,6 +484,30 @@ test("auditoría: registra logins fallidos y exige rol admin", async () => {
     .get("/api/auditoria")
     .set("Authorization", `Bearer ${tokenCamila}`);
   expect(denegado.status).toBe(403);
+});
+
+/* ===== Anclaje de la IP real del cliente (rate limiting / auditoría) ===== */
+
+test("IP anclada: el proxy de confianza fija la IP real y el resto no puede falsearla", async () => {
+  const { db } = await import("../db.js");
+
+  // Con el secreto correcto, el backend adopta x-lc-client-ip como IP del cliente.
+  await request(app)
+    .post("/api/login")
+    .set("x-lc-proxy-secret", "secreto-de-prueba")
+    .set("x-lc-client-ip", "203.0.113.7")
+    .send({ usuario: "INSUCO", password: "clave-mala-anclaje" });
+  const anclado = db.prepare("SELECT ip FROM auditoria WHERE accion = 'login_fallido' ORDER BY id DESC LIMIT 1").get();
+  expect(anclado.ip).toBe("203.0.113.7");
+
+  // Con un secreto incorrecto se ignora la cabecera: la IP no es la falsificada.
+  await request(app)
+    .post("/api/login")
+    .set("x-lc-proxy-secret", "secreto-equivocado")
+    .set("x-lc-client-ip", "198.51.100.9")
+    .send({ usuario: "INSUCO", password: "clave-mala-anclaje" });
+  const falsa = db.prepare("SELECT ip FROM auditoria WHERE accion = 'login_fallido' ORDER BY id DESC LIMIT 1").get();
+  expect(falsa.ip).not.toBe("198.51.100.9");
 });
 
 /* ===== Verificación en dos pasos (2FA) ===== */

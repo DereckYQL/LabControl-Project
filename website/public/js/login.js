@@ -6,13 +6,9 @@ if (AUTH.getSesion()) {
   window.location.href = "index.html";
 }
 
-// Cuentas de demostración
-const USUARIOS_DEMO = [
-  { u: "INSUCO",     p: "Insuco1336", rol: "Administrador" },
-  { u: "prof_juan",  p: "juan123",    rol: "Prof. Programación" },
-  { u: "prof_camila",p: "camila123",  rol: "Otra área" }
-];
-
+// Las credenciales (incluidas las de demostración) NO se publican en el
+// cliente: cualquiera puede leer este archivo con "Ver código fuente". El
+// administrador entrega las cuentas de prueba por un canal aparte.
 const $ = (id) => document.getElementById(id);
 
 // ============================================================
@@ -23,14 +19,12 @@ const vistas = {
   registrar: $("vista-registrar"),
   recuperar: $("vista-recuperar")
 };
-const loginHint = $("login-hint");
 
 function cambiarVista(nombre) {
   Object.entries(vistas).forEach(([k, sec]) => {
     sec.style.display = k === nombre ? "" : "none";
     sec.setAttribute("aria-hidden", k === nombre ? "false" : "true");
   });
-  loginHint.style.display = nombre === "login" ? "" : "none";
   if (nombre === "login") $("input-user").focus();
   else if (nombre === "registrar") $("reg-nombre").focus();
   else if (nombre === "recuperar" && $("restablecer-form").style.display === "none") $("rec-email").focus();
@@ -46,12 +40,6 @@ const errorDos = $("login-2fa-error");
 const inputCodigo = $("input-2fa");
 let desafio2FA = null;
 
-function completarCredencial(cuenta) {
-  $("input-user").value = cuenta.u;
-  $("input-pass").value = cuenta.p;
-  $("input-user").focus();
-}
-
 function mostrarPaso(esSegundo) {
   pasoUno.style.display = esSegundo ? "none" : "";
   pasoDos.style.display = esSegundo ? "" : "none";
@@ -64,17 +52,6 @@ function mostrarPaso(esSegundo) {
     $("input-user").focus();
   }
 }
-
-document.querySelectorAll(".login-hint__btn").forEach((btn) => {
-  btn.addEventListener("click", () => {
-    if (desafio2FA) {
-      desafio2FA = null;
-      mostrarPaso(false);
-    }
-    if (vistas.login.style.display === "none") cambiarVista("login");
-    completarCredencial(USUARIOS_DEMO[Number(btn.dataset.demo) ?? 0]);
-  });
-});
 
 document.querySelector(".login-back")?.addEventListener("click", () => {
   desafio2FA = null;

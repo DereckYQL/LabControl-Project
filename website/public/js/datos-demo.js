@@ -56,14 +56,18 @@
     }
   ];
 
+  // Los usuarios de demostración NO incluyen contraseña: publicar credenciales
+  // (aunque sean de prueba) en un archivo que descarga cualquier visitante es
+  // el hallazgo crítico que se corrige aquí. En modo demo el inicio de sesión
+  // valida que la cuenta exista, sin comprobar contraseña (data.js).
   const USUARIOS = [
-    { id: "INSUCO", nombre: "Administrador", apellido: "Sistema", iniciales: "AD", email: "admin@liceo.cl", password: "Insuco1336", rol: "admin", area: "Administración", especialidad: "Gestión de sistemas y redes", nivelAcceso: "total", activo: true },
-    { id: "prof_juan", nombre: "Juan", apellido: "Pérez", iniciales: "JP", email: "jperez@insuco.cl", password: "juan123", rol: "programacion", area: "Programación", especialidad: "Desarrollo Web y Redes", nivelAcceso: "tecnico", activo: true },
-    { id: "prof_ana", nombre: "Ana", apellido: "López", iniciales: "AL", email: "alopez@insuco.cl", password: "ana123", rol: "programacion", area: "Programación", especialidad: "Bases de Datos y Programación", nivelAcceso: "tecnico", activo: true },
-    { id: "prof_diego", nombre: "Diego", apellido: "Rojas", iniciales: "DR", email: "drojas@insuco.cl", password: "diego123", rol: "programacion", area: "Programación", especialidad: "Sistemas Operativos y Linux", nivelAcceso: "tecnico", activo: true },
-    { id: "prof_camila", nombre: "Camila", apellido: "Soto", iniciales: "CS", email: "csoto@insuco.cl", password: "camila123", rol: "otro_area", area: "Matemáticas", especialidad: "Matemáticas y Estadística", nivelAcceso: "basico", activo: true },
-    { id: "prof_marcos", nombre: "Marcos", apellido: "Vera", iniciales: "MV", email: "mvera@insuco.cl", password: "marcos123", rol: "otro_area", area: "Ciencias", especialidad: "Física y Química", nivelAcceso: "basico", activo: true },
-    { id: "prof_lucia", nombre: "Lucía", apellido: "Fuentes", iniciales: "LF", email: "lfuentes@insuco.cl", password: "lucia123", rol: "otro_area", area: "Lenguaje", especialidad: "Lengua y Literatura", nivelAcceso: "basico", activo: true }
+    { id: "INSUCO", nombre: "Administrador", apellido: "Sistema", iniciales: "AD", email: "admin@liceo.cl", rol: "admin", area: "Administración", especialidad: "Gestión de sistemas y redes", nivelAcceso: "total", activo: true },
+    { id: "prof_juan", nombre: "Juan", apellido: "Pérez", iniciales: "JP", email: "jperez@insuco.cl", rol: "programacion", area: "Programación", especialidad: "Desarrollo Web y Redes", nivelAcceso: "tecnico", activo: true },
+    { id: "prof_ana", nombre: "Ana", apellido: "López", iniciales: "AL", email: "alopez@insuco.cl", rol: "programacion", area: "Programación", especialidad: "Bases de Datos y Programación", nivelAcceso: "tecnico", activo: true },
+    { id: "prof_diego", nombre: "Diego", apellido: "Rojas", iniciales: "DR", email: "drojas@insuco.cl", rol: "programacion", area: "Programación", especialidad: "Sistemas Operativos y Linux", nivelAcceso: "tecnico", activo: true },
+    { id: "prof_camila", nombre: "Camila", apellido: "Soto", iniciales: "CS", email: "csoto@insuco.cl", rol: "otro_area", area: "Matemáticas", especialidad: "Matemáticas y Estadística", nivelAcceso: "basico", activo: true },
+    { id: "prof_marcos", nombre: "Marcos", apellido: "Vera", iniciales: "MV", email: "mvera@insuco.cl", rol: "otro_area", area: "Ciencias", especialidad: "Física y Química", nivelAcceso: "basico", activo: true },
+    { id: "prof_lucia", nombre: "Lucía", apellido: "Fuentes", iniciales: "LF", email: "lfuentes@insuco.cl", rol: "otro_area", area: "Lenguaje", especialidad: "Lengua y Literatura", nivelAcceso: "basico", activo: true }
   ];
 
   const AGENDA = [

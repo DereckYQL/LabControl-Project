@@ -3,7 +3,7 @@
 
 import path from "node:path";
 import fs from "node:fs";
-import { randomBytes } from "node:crypto";
+import { randomBytes, timingSafeEqual } from "node:crypto";
 import { fileURLToPath } from "node:url";
 import express from "express";
 import helmet from "helmet";
@@ -59,6 +59,34 @@ if (process.env.LC_TRUST_PROXY) {
   const saltos = Number(process.env.LC_TRUST_PROXY);
   app.set("trust proxy", Number.isInteger(saltos) && saltos > 0 ? saltos : true);
 }
+
+// La web vive en Cloudflare Pages: su Function (`functions/api/[[path]].js`)
+// reenvía /api a esta API, así que sin ayuda la IP que ve el rate limiting y la
+// auditoría es la del proxy, no la del navegador. `x-forwarded-for` no sirve:
+// el hosting (Railway) la reescribe con la de su propio borde. Por eso la
+// Function envía la IP real que sí conoce (cf-connecting-ip) firmada con
+// LC_PROXY_SECRET; aquí solo se acepta si el secreto coincide (comparación en
+// tiempo constante). Un cliente que llegue directo a la API no puede falsear la
+// IP porque desconoce el secreto. Sin LC_PROXY_SECRET se usa req.ip normal.
+function igualSeguro(a, b) {
+  const ba = Buffer.from(String(a));
+  const bb = Buffer.from(String(b));
+  return ba.length === bb.length && timingSafeEqual(ba, bb);
+}
+function ipClienteAnclada(req) {
+  const secreto = process.env.LC_PROXY_SECRET;
+  if (!secreto) return null;
+  const recibido = req.headers["x-lc-proxy-secret"];
+  if (!recibido || !igualSeguro(recibido, secreto)) return null;
+  const ip = String(req.headers["x-lc-client-ip"] || "").trim();
+  if (!ip || ip.length > 45) return null; // IPv4 (15) e IPv6 (hasta 45)
+  return ip;
+}
+app.use((req, _res, next) => {
+  const ip = ipClienteAnclada(req);
+  if (ip) Object.defineProperty(req, "ip", { value: ip, writable: true, configurable: true });
+  next();
+});
 
 // Headers de seguridad (CSP, X-Frame-Options, HSTS, etc.)
 app.use(helmet({
@@ -205,7 +233,9 @@ const sensiblesLimiter = rateLimit({
 // Verifica el JWT del header y deja el payload en req.user.
 function authenticateToken(req, res, next) {
   const authHeader = req.headers["authorization"];
-  const token = authHeader && authHeader.split(" ")[1];
+  let token = authHeader && authHeader.split(" ")[1];
+  // Sin Bearer (navegador), el token de acceso viaja en la cookie HttpOnly.
+  if (!token) token = leerCookie(req, COOKIE_ACCESO);
   if (!token) return res.status(401).json({ error: "Token de autenticación requerido" });
 
   let decoded;
@@ -251,6 +281,117 @@ function requireAdmin(req, res, next) {
   }
   next();
 }
+
+/* Cookies de sesión (HttpOnly)
+   ------------------------------------------------------------------
+   El token de acceso y el de refresco viajan en cookies HttpOnly, de modo
+   que un XSS no pueda leerlos (ni del almacenamiento ni de una respuesta del
+   servidor). Los clientes de API sin navegador (curl, tests, integraciones)
+   siguen recibiendo los tokens en el cuerpo y autenticándose con Bearer, por
+   compatibilidad. La cookie de acceso no lleva Max-Age (es de sesión y el JWT
+   ya caduca); la de refresco dura 30 días como el propio token. */
+const COOKIE_ACCESO = "lc_at";
+const COOKIE_REFRESCO = "lc_rt";
+
+function leerCookies(req) {
+  const crudo = req.headers?.cookie;
+  const salida = {};
+  if (!crudo) return salida;
+  for (const parte of crudo.split(";")) {
+    const i = parte.indexOf("=");
+    if (i < 0) continue;
+    const clave = parte.slice(0, i).trim();
+    if (!clave) continue;
+    try { salida[clave] = decodeURIComponent(parte.slice(i + 1).trim()); }
+    catch { salida[clave] = parte.slice(i + 1).trim(); }
+  }
+  return salida;
+}
+
+function leerCookie(req, nombre) {
+  return leerCookies(req)[nombre] || null;
+}
+
+// ¿La conexión llega al usuario por HTTPS? Necesario para marcar Secure.
+function peticionSegura(req) {
+  if (String(process.env.LC_PUBLIC_URL || "").trim().startsWith("https://")) return true;
+  if (req.secure) return true;
+  const proto = String(req.headers["x-forwarded-proto"] || "").split(",")[0].trim().toLowerCase();
+  return proto === "https";
+}
+
+function opcionesCookie(req) {
+  return { httpOnly: true, secure: peticionSegura(req), sameSite: "lax", path: "/" };
+}
+
+function fijarCookiesSesion(req, res, token, refreshToken) {
+  res.cookie(COOKIE_ACCESO, token, opcionesCookie(req));
+  res.cookie(COOKIE_REFRESCO, refreshToken, { ...opcionesCookie(req), maxAge: REFRESH_TOKEN_TTL_MS });
+}
+
+function limpiarCookiesSesion(req, res) {
+  const opciones = opcionesCookie(req);
+  res.clearCookie(COOKIE_ACCESO, opciones);
+  res.clearCookie(COOKIE_REFRESCO, opciones);
+}
+
+// Un navegador (fetch/XHR) envía las cabeceras Sec-Fetch-*; un cliente de API
+// no. Solo a esos últimos se les devuelven los tokens en el JSON.
+function incluirTokensEnCuerpo(req) {
+  return !(req.headers["sec-fetch-mode"] || req.headers["sec-fetch-site"]);
+}
+
+// Entrega la sesión: fija las cookies y, si es un cliente de API, añade los
+// tokens al cuerpo (compatibilidad con Bearer / tests).
+function responderSesion(req, res, token, refreshToken, usuario) {
+  fijarCookiesSesion(req, res, token, refreshToken);
+  const cuerpo = { usuario };
+  if (incluirTokensEnCuerpo(req)) {
+    cuerpo.token = token;
+    cuerpo.refreshToken = refreshToken;
+  }
+  return res.json(cuerpo);
+}
+
+/* Protección CSRF
+   ------------------------------------------------------------------
+   Con la sesión en cookies, un sitio de terceros podría forzar peticiones
+   mutadoras que el navegador firmaría con la cookie. Se exige que Origin (o
+   Referer) sea del mismo sitio en toda petición de escritura autenticada por
+   cookie. Los clientes que autentican con Bearer quedan exentos: un navegador
+   no adjunta ese header por sí solo, así que no son vulnerables a CSRF. */
+function origenesPermitidos() {
+  const lista = [];
+  const pub = (process.env.LC_PUBLIC_URL || "").trim();
+  if (pub) { try { lista.push(new URL(pub).origin); } catch { /* URL inválida */ } }
+  for (const o of String(process.env.ORIGIN || "").split(",")) {
+    const t = o.trim();
+    if (!t) continue;
+    try { lista.push(new URL(t).origin); } catch { /* ignora */ }
+  }
+  return lista;
+}
+
+function mismoSitio(req, valor) {
+  let origen;
+  try { origen = new URL(valor); } catch { return false; }
+  const permitidos = origenesPermitidos();
+  if (permitidos.length) return permitidos.includes(origen.origin);
+  // Sin configuración explícita: se compara el host con el de la petición
+  // (válido cuando el frontend y la API comparten host, p. ej. en local/e2e).
+  return origen.host.toLowerCase() === String(req.get("host") || "").toLowerCase();
+}
+
+function verificarOrigen(req, res, next) {
+  const metodo = (req.method || "").toUpperCase();
+  if (metodo === "GET" || metodo === "HEAD" || metodo === "OPTIONS") return next();
+  if (req.headers["authorization"]) return next();
+  if (!leerCookie(req, COOKIE_ACCESO) && !leerCookie(req, COOKIE_REFRESCO)) return next();
+  const enviado = req.get("origin") || req.get("referer");
+  if (enviado && mismoSitio(req, enviado)) return next();
+  return res.status(403).json({ error: "Origen no permitido" });
+}
+app.use("/api", verificarOrigen);
 
 /* Paginación opcional: ?pagina=1&limite=20 */
 
@@ -835,7 +976,7 @@ app.post("/api/login", loginLimiter, async (req, res) => {
   const token = firmarAcceso(row);
   const refreshToken = emitirRefreshToken(row.id);
 
-  res.json({ token, refreshToken, usuario: usrFromRow(row) });
+  responderSesion(req, res, token, refreshToken, usrFromRow(row));
 });
 
 // Segundo paso del login con 2FA: valida el código TOTP del desafío pendiente.
@@ -871,7 +1012,7 @@ app.post("/api/login/2fa", loginLimiter, (req, res) => {
   registrarAuditoria(req, "login_ok", { usuario: row.id, con2fa: true }, { id: row.id, rol: row.rol });
   const token = firmarAcceso(row);
   const refreshToken = emitirRefreshToken(row.id);
-  res.json({ token, refreshToken, usuario: usrFromRow(row) });
+  responderSesion(req, res, token, refreshToken, usrFromRow(row));
 });
 
 /* Verificación en dos pasos (2FA) — gestión propia (entra a Configuración → Seguridad) */
@@ -888,7 +1029,7 @@ app.post("/api/login/2fa", loginLimiter, (req, res) => {
 // compara este número contra el que declara el último commit que tocó
 // `website/backend`, que es el que manda.
 app.get("/api/salud", (req, res) => {
-  res.json({ ok: true, servicio: "labcontrol-api", version: "3.9" });
+  res.json({ ok: true, servicio: "labcontrol-api", version: "4.1" });
 });
 
 // Estado del 2FA de la sesión actual.
@@ -1054,7 +1195,9 @@ app.post("/api/backups/restaurar", authenticateToken, requireAdmin,
 // token anterior y emite uno nuevo, de modo que un token robado deja de servir
 // en cuanto sea reutilizado o se cierre sesión.
 app.post("/api/refresh", refreshLimiter, (req, res) => {
-  const { refreshToken } = req.body || {};
+  // El navegador manda el refresh en la cookie HttpOnly; los clientes de API
+  // pueden seguir mandándolo en el cuerpo.
+  const refreshToken = (req.body && req.body.refreshToken) || leerCookie(req, COOKIE_REFRESCO);
   if (typeof refreshToken !== "string" || !refreshToken) {
     return res.status(400).json({ error: "Falta el token de refresco" });
   }
@@ -1063,14 +1206,19 @@ app.post("/api/refresh", refreshLimiter, (req, res) => {
   try {
     decoded = jwt.verify(refreshToken, JWT_SECRET);
   } catch {
+    limpiarCookiesSesion(req, res);
     return res.status(401).json({ error: "Sesión expirada. Inicia sesión nuevamente." });
   }
   if (decoded.tipo !== "refresh" || !decoded.id) {
+    limpiarCookiesSesion(req, res);
     return res.status(403).json({ error: "Token de refresco inválido" });
   }
 
   const fila = db.prepare("SELECT usuario_id, revocado, expira_en FROM refresh_tokens WHERE id = ?").get(decoded.id);
-  if (!fila) return res.status(401).json({ error: "Sesión expirada. Inicia sesión nuevamente." });
+  if (!fila) {
+    limpiarCookiesSesion(req, res);
+    return res.status(401).json({ error: "Sesión expirada. Inicia sesión nuevamente." });
+  }
   if (fila.revocado === 1) {
     // Se reutiliza un token ya rotado: es la señal clásica de un token robado.
     // Se cierra la familia completa de sesiones del usuario para cortar el
@@ -1084,24 +1232,30 @@ app.post("/api/refresh", refreshLimiter, (req, res) => {
       const usuarioSospechoso = db.prepare("SELECT id, rol FROM usuarios WHERE id = ?").get(fila.usuario_id);
       registrarAuditoria(req, "refresh_reutilizado", { usuario: fila.usuario_id }, usuarioSospechoso ?? null);
     }
+    limpiarCookiesSesion(req, res);
     return res.status(401).json({ error: "Sesión expirada. Inicia sesión nuevamente." });
   }
   if (fila.expira_en < Date.now()) {
+    limpiarCookiesSesion(req, res);
     return res.status(401).json({ error: "Sesión expirada. Inicia sesión nuevamente." });
   }
 
   const usuario = db.prepare("SELECT * FROM usuarios WHERE id = ? AND activo = 1").get(decoded.sub);
-  if (!usuario) return res.status(401).json({ error: "Usuario no encontrado" });
+  if (!usuario) {
+    limpiarCookiesSesion(req, res);
+    return res.status(401).json({ error: "Usuario no encontrado" });
+  }
 
   db.prepare("UPDATE refresh_tokens SET revocado = 1 WHERE id = ?").run(decoded.id);
   const nuevoRefresh = emitirRefreshToken(usuario.id);
 
-  res.json({ token: firmarAcceso(usuario), refreshToken: nuevoRefresh, usuario: usrFromRow(usuario) });
+  responderSesion(req, res, firmarAcceso(usuario), nuevoRefresh, usrFromRow(usuario));
 });
 
-// Cierre de sesión: revoca el refresh token entregado (best-effort).
+// Cierre de sesión: revoca el refresh token entregado (best-effort) y limpia
+// las cookies de sesión del navegador.
 app.post("/api/logout", refreshLimiter, (req, res) => {
-  const { refreshToken } = req.body || {};
+  const refreshToken = (req.body && req.body.refreshToken) || leerCookie(req, COOKIE_REFRESCO);
   let usuarioLogout = null;
   if (typeof refreshToken === "string" && refreshToken) {
     try {
@@ -1114,6 +1268,7 @@ app.post("/api/logout", refreshLimiter, (req, res) => {
       // Token ya inválido o vencido: no hay nada que revocar.
     }
   }
+  limpiarCookiesSesion(req, res);
   registrarAuditoria(req, "logout", { usuario: usuarioLogout });
   res.json({ ok: true });
 });
@@ -1192,18 +1347,14 @@ async function enviarCorreoReseteo(email, enlace) {
   }
 }
 
-// Base URL pública para enlaces que van en correos. En producción conviene
-// fijarla con LC_PUBLIC_URL; de lo contrario se deriva del Host de la
-// petición (rechazando valores sospechosos para evitar phishing por
-// cabeceras manipuladas).
-function urlBasePublico(req) {
+// Base URL pública para enlaces que van en correos. Se toma SIEMPRE de la
+// configuración del servidor (LC_PUBLIC_URL); nunca del header Host entrante,
+// porque un Host falsificado podría dirigir el enlace de restablecimiento a un
+// dominio ajeno (phishing o fuga del token). Si no está configurada, se asume
+// el entorno local.
+function urlBasePublico() {
   const fija = (process.env.LC_PUBLIC_URL || "").trim();
   if (fija) return fija.replace(/\/+$/, "");
-  const host = String(req.get("host") ?? "").trim().replace(/\.$/, "");
-  if (/^[a-zA-Z0-9.-]+(:\d{1,5})?$/.test(host)) {
-    const protocolo = req.protocol === "https" ? "https" : "http";
-    return `${protocolo}://${host}`;
-  }
   return `http://localhost:${PORT}`;
 }
 
@@ -1222,7 +1373,7 @@ app.post("/api/recuperar-contrasena", (req, res) => {
     db.prepare("INSERT INTO contrasena_resets (token, usuario_id, expira_en, usado) VALUES (?,?,?,0)")
       .run(token, usuario.id, Date.now() + RESET_TOKEN_TTL_MS);
     registrarAuditoria(req, "recuperacion_solicitada", { usuario: usuario.id });
-    const enlace = `${urlBasePublico(req)}/login.html?reset=${token}`;
+    const enlace = `${urlBasePublico()}/login.html?reset=${token}`;
     enviarCorreoReseteo(usuario.email, enlace)
       .catch((e) => console.error("No se pudo enviar el correo de restablecimiento:", e?.message || e));
   }
@@ -1510,7 +1661,12 @@ app.patch("/api/usuarios/:id", authenticateToken, [
   // Si el propio usuario cambió su nombre/apellido, refrescar el JWT para que el menú se actualice.
   if (esSelf && (req.body.nombre !== undefined || req.body.apellido !== undefined)) {
     const fresca = db.prepare("SELECT * FROM usuarios WHERE id = ?").get(req.user.id);
-    return res.json({ ...usrFromRow(fresca), token: firmarAcceso(fresca) });
+    const token = firmarAcceso(fresca);
+    // El navegador recibe el token renovado en la cookie; el cliente de API, en el cuerpo.
+    res.cookie(COOKIE_ACCESO, token, opcionesCookie(req));
+    const cuerpo = { ...usrFromRow(fresca) };
+    if (incluirTokensEnCuerpo(req)) cuerpo.token = token;
+    return res.json(cuerpo);
   }
 
   res.json(usrFromRow(db.prepare("SELECT * FROM usuarios WHERE id = ?").get(req.params.id)));
@@ -1608,7 +1764,11 @@ app.delete("/api/agenda/:id", authenticateToken, (req, res) => {
 /* Reportes */
 
 app.get("/api/reportes", authenticateToken, (req, res) => {
-  const rows = db.prepare("SELECT * FROM reportes ORDER BY fecha DESC").all();
+  // Solo los roles técnicos (admin/programación) ven el listado completo; el
+  // resto únicamente sus propios reportes, igual que en el resto de listados.
+  const rows = esTecnico(req.user?.rol)
+    ? db.prepare("SELECT * FROM reportes ORDER BY fecha DESC").all()
+    : db.prepare("SELECT * FROM reportes WHERE generado_por = ? ORDER BY fecha DESC").all(req.user.id);
   responderLista(req, res, rows.map(repFromRow));
 });
 
@@ -1618,6 +1778,11 @@ app.post("/api/reportes", authenticateToken, [
   body("descripcion").trim().notEmpty().withMessage("La descripción es obligatoria"),
   body("fecha").optional({ values: "falsy" }).matches(/^\d{4}-\d{2}-\d{2}$/).withMessage("La fecha debe tener formato AAAA-MM-DD")
 ], (req, res) => {
+  // Crear reportes es una tarea técnica: se exige el mismo perfil que ve la
+  // sección completa (admin o programación).
+  if (!esTecnico(req.user?.rol)) {
+    return res.status(403).json({ error: "Solo el administrador o los profesores de programación pueden crear reportes" });
+  }
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
     return res.status(400).json({ error: "Datos inválidos", details: errors.array() });
@@ -1914,7 +2079,7 @@ app.use((err, req, res, next) => {
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const servidor = app.listen(PORT, () => {
-    console.log(`\n  LabControl Liceo v3.10`);
+    console.log(`\n  LabControl Liceo v4.1`);
     if (sitioDentro) {
       console.log(`  API + sitio corriendo en: http://localhost:${PORT}/login.html`);
     } else {

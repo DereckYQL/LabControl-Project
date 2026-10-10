@@ -265,7 +265,11 @@ gh variable set RAILWAY_ENVIRONMENT_ID
 ```
 
 El backend se configura en el hosting con `LC_DB_DIR` apuntando al volumen, `JWT_SECRET`,
-`LC_TRUST_PROXY` y `LC_PUBLIC_URL`. El chequeo de vida es `GET /api/salud`.
+`LC_TRUST_PROXY` y `LC_PUBLIC_URL`. Para que el rate limiting y la auditoría usen la IP real
+del navegador (y no la del proxy), define el mismo `LC_PROXY_SECRET` en la API y en el proyecto
+de Pages: la Pages Function firma la IP que sí conoce (`cf-connecting-ip`) y el backend solo la
+acepta si el secreto coincide; sin él se sigue usando `req.ip`/`x-forwarded-for`. El proyecto de
+Pages también define `API_ORIGIN` hacia la API. El chequeo de vida es `GET /api/salud`.
 
 **Cabeceras de seguridad**: al publicarse como archivos estáticos, `helmet` deja de afectar
 al frontend, por eso `website/public/_headers` replica la misma política. Es el único punto

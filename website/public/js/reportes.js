@@ -530,7 +530,11 @@ import { abrirModal, cerrarModal, esc, fechaLocalISO, formatFecha, getQueryParam
   }
 
   function escapeCSV(val) {
-    const s = String(val ?? "");
+    let s = String(val ?? "");
+    // Neutraliza la inyección de fórmulas: si el valor empieza por =, +, - o @
+    // (o por tabulador/retorno), Excel y Sheets lo ejecutarían al abrir el CSV.
+    // Se antepone un apóstrofo y se fuerza el entrecomillado.
+    if (/^[=+\-@\t\r]/.test(s)) s = `'${s}`;
     return /[",\r\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
   }
 

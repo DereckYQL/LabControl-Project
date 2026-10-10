@@ -97,7 +97,11 @@ async function completarCorreoSesion(sesion) {
     if (!usuario?.email) return;
     const actual = AUTH.getSesion();
     if (actual) {
-      localStorage.setItem("lc_sesion", JSON.stringify({ ...actual, email: usuario.email }));
+      // Se descartan tokens heredados de versiones anteriores que los guardaban
+      // en localStorage: ahora la sesión vive en cookies HttpOnly.
+      const { token, refreshToken, ...limpia } = actual;
+      void token; void refreshToken;
+      localStorage.setItem("lc_sesion", JSON.stringify({ ...limpia, email: usuario.email }));
     }
     pintarUsuario({ ...sesion, email: usuario.email });
   } catch {}

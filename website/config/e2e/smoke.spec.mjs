@@ -43,13 +43,6 @@ test("configuracion.html muestra la versión vigente", async ({ page }) => {
   await expect(panel).toContainText("Total equipos");
 });
 
-test("login-hint autocompleta la cuenta de demostración", async ({ page }) => {
-  await page.goto("/login.html");
-  await page.click(".login-hint__btn:has-text('Admin')");
-  await expect(page.locator("#input-user")).toHaveValue("INSUCO");
-  await expect(page.locator("#input-pass")).toHaveValue("Insuco1336");
-});
-
 test("registro de cuenta propia: crea la cuenta, inicia sesión y llega al dashboard", async ({ page }) => {
   await page.goto("/login.html");
   await page.click("#btn-ir-registrar");
@@ -130,6 +123,7 @@ test("solicitud de especialidad: prof_juan la pide y el admin la aprueba", async
 
   // El admin abre la notificación y aprueba la solicitud
   await page.evaluate(() => localStorage.removeItem("lc_sesion"));
+  await page.context().clearCookies();
   await login(page, "INSUCO", "Insuco1336");
   await page.click(".notif-btn");
   const item = page.locator(".notif-item").filter({ hasText: "Solicitud de cambio de especialidad" }).first();
@@ -188,22 +182,28 @@ test("CSP estricto bloquea la ejecución de scripts inline", async ({ page }) =>
   await expect(page.locator("body")).not.toHaveAttribute("data-csp-trap", "1");
 });
 
-test("sesión de larga duración: el access token expirado se renueva solo", async ({ page }) => {
+test("sesión de larga duración: el access token expirado se renueva solo", async ({ page, context }) => {
   await login(page, "INSUCO", "Insuco1336");
   await expect(page.locator("#stat-cards .stat-card")).toHaveCount(5, { timeout: 8000 });
 
-  const tokenAntes = await page.evaluate(() => JSON.parse(localStorage.getItem("lc_sesion")).token);
-  expect(tokenAntes).toBeTruthy();
+  // La sesión vive en cookies HttpOnly; nunca en localStorage.
+  const sesionAlmacenada = await page.evaluate(() => JSON.parse(localStorage.getItem("lc_sesion")));
+  expect(sesionAlmacenada.token).toBeUndefined();
+  expect(sesionAlmacenada.refreshToken).toBeUndefined();
+
+  const atAntes = (await context.cookies()).find((c) => c.name === "lc_at");
+  expect(atAntes).toBeTruthy();
+  expect(atAntes.httpOnly).toBe(true);
 
   // El servidor e2e firma access tokens de 3s: tras esperar, el dashboard debe
-  // renovar la sesión con el refresh token y reintentar con éxito.
+  // renovar la sesión con el refresh token (cookie) y reintentar con éxito.
   await page.waitForTimeout(4000);
   await page.reload();
   await expect(page.locator("#stat-cards .stat-card")).toHaveCount(5, { timeout: 10000 });
 
-  const tokenDespues = await page.evaluate(() => JSON.parse(localStorage.getItem("lc_sesion")).token);
-  expect(tokenDespues).toBeTruthy();
-  expect(tokenDespues).not.toBe(tokenAntes);
+  const atDespues = (await context.cookies()).find((c) => c.name === "lc_at");
+  expect(atDespues).toBeTruthy();
+  expect(atDespues.value).not.toBe(atAntes.value);
 });
 
 test("modo offline: el SW sirve el shell y los assets desde caché y degrada a datos demo", async ({ page, context }) => {

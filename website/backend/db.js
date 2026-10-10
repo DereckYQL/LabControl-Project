@@ -741,14 +741,19 @@ db = await abrirConexion();
 
 const SEMILLA_VERSION = 2;
 
+// Las contraseñas de ejemplo se guardan ya hasheadas con bcrypt (coste 10):
+// así el repositorio no contiene ninguna contraseña en texto plano. Son las
+// claves documentadas del proyecto (INSUCO/Insuco1336 y los docentes demo),
+// pero como hash irreversible. `aplicarSemilla` detecta un valor que empieza
+// con "$2a$"/"$2b$" y lo inserta tal cual, sin volver a hashearlo.
 const USUARIOS = [
-  { id: "INSUCO", nombre: "Administrador", apellido: "Sistema", iniciales: "AD", email: "admin@liceo.cl", password: "Insuco1336", rol: "admin", area: "Administración", especialidad: "Gestión de sistemas y redes", nivelAcceso: "total" },
-  { id: "prof_juan", nombre: "Juan", apellido: "Pérez", iniciales: "JP", email: "jperez@liceo.cl", password: "juan123", rol: "programacion", area: "Programación", especialidad: "Desarrollo Web y Redes", nivelAcceso: "tecnico" },
-  { id: "prof_ana", nombre: "Ana", apellido: "López", iniciales: "AL", email: "alopez@liceo.cl", password: "ana123", rol: "programacion", area: "Programación", especialidad: "Bases de Datos y Programación", nivelAcceso: "tecnico" },
-  { id: "prof_diego", nombre: "Diego", apellido: "Rojas", iniciales: "DR", email: "drojas@liceo.cl", password: "diego123", rol: "programacion", area: "Programación", especialidad: "Sistemas Operativos y Linux", nivelAcceso: "tecnico" },
-  { id: "prof_camila", nombre: "Camila", apellido: "Soto", iniciales: "CS", email: "csoto@liceo.cl", password: "camila123", rol: "otro_area", area: "Matemáticas", especialidad: "Matemáticas y Estadística", nivelAcceso: "basico" },
-  { id: "prof_marcos", nombre: "Marcos", apellido: "Vera", iniciales: "MV", email: "mvera@liceo.cl", password: "marcos123", rol: "otro_area", area: "Ciencias", especialidad: "Física y Química", nivelAcceso: "basico" },
-  { id: "prof_lucia", nombre: "Lucía", apellido: "Fuentes", iniciales: "LF", email: "lfuentes@liceo.cl", password: "lucia123", rol: "otro_area", area: "Lenguaje", especialidad: "Lengua y Literatura", nivelAcceso: "basico" }
+  { id: "INSUCO", nombre: "Administrador", apellido: "Sistema", iniciales: "AD", email: "admin@liceo.cl", password: "$2a$10$LiDipTw/DKNGZQ6Fd0YjWegPqXBnLBXhF/iesNoRGu1gdff8s62e6", rol: "admin", area: "Administración", especialidad: "Gestión de sistemas y redes", nivelAcceso: "total" },
+  { id: "prof_juan", nombre: "Juan", apellido: "Pérez", iniciales: "JP", email: "jperez@liceo.cl", password: "$2a$10$QiTxzjVUWgT1Uy/FODC8fO4WOL1zl61UuJPuUNNiuBKqyL6c8giiq", rol: "programacion", area: "Programación", especialidad: "Desarrollo Web y Redes", nivelAcceso: "tecnico" },
+  { id: "prof_ana", nombre: "Ana", apellido: "López", iniciales: "AL", email: "alopez@liceo.cl", password: "$2a$10$zPDCNPfQSorhQxp7dl7Jv.KbIPVB/mV6X9.lFK7QAQgQdoV7nE7b2", rol: "programacion", area: "Programación", especialidad: "Bases de Datos y Programación", nivelAcceso: "tecnico" },
+  { id: "prof_diego", nombre: "Diego", apellido: "Rojas", iniciales: "DR", email: "drojas@liceo.cl", password: "$2a$10$c/iRL.Oi4eIs4cjr53zvLOloefjVBuqCk9AOSxH4dH5EUMCh3VmpS", rol: "programacion", area: "Programación", especialidad: "Sistemas Operativos y Linux", nivelAcceso: "tecnico" },
+  { id: "prof_camila", nombre: "Camila", apellido: "Soto", iniciales: "CS", email: "csoto@liceo.cl", password: "$2a$10$FA1/cq8EBgFtG6xCUg.82.o.LtemDH2TaZhoNxdsFQ9am6szR9GZW", rol: "otro_area", area: "Matemáticas", especialidad: "Matemáticas y Estadística", nivelAcceso: "basico" },
+  { id: "prof_marcos", nombre: "Marcos", apellido: "Vera", iniciales: "MV", email: "mvera@liceo.cl", password: "$2a$10$SsoiWOWVqhO7fQVXKF7cF.oRiX7tNJl6L0OZahFBfCYdawSOXVPpO", rol: "otro_area", area: "Ciencias", especialidad: "Física y Química", nivelAcceso: "basico" },
+  { id: "prof_lucia", nombre: "Lucía", apellido: "Fuentes", iniciales: "LF", email: "lfuentes@liceo.cl", password: "$2a$10$cQ1EpnNrTdMtygZ2nJNRKuH9qK9cFn2bUjaSPqbxw800piHywihWG", rol: "otro_area", area: "Lenguaje", especialidad: "Lengua y Literatura", nivelAcceso: "basico" }
 ];
 
 const AGENDA = [
@@ -834,7 +839,11 @@ async function aplicarSemilla(conexion = db) {
   const existeUsuario = conexion.prepare("SELECT id FROM usuarios WHERE id = ?");
   const passwords = new Map();
   for (const u of USUARIOS) {
-    if (!existeUsuario.get(u.id)) passwords.set(u.id, await bcrypt.hash(u.password, 10));
+    if (existeUsuario.get(u.id)) continue;
+    // Un valor ya hasheado (semilla) se usa tal cual; solo se hashea el texto
+    // plano, por si alguien agrega una cuenta de ejemplo sin hashear.
+    const yaHasheado = typeof u.password === "string" && /^\$2[aby]\$/.test(u.password);
+    passwords.set(u.id, yaHasheado ? u.password : await bcrypt.hash(u.password, 10));
   }
 
   conexion.exec("BEGIN");

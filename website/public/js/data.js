@@ -268,10 +268,16 @@ function demoRequest(metodo, ruta, cuerpo) {
       return null;
     }
 
-    case "GET reportes":
-      return copia(D.reportes);
+    case "GET reportes": {
+      const sesion = AUTH.getSesion();
+      const lista = demoEsTecnico ? D.reportes : D.reportes.filter((r) => r.generadoPor === sesion?.id);
+      return copia(lista);
+    }
 
     case "POST reportes": {
+      if (!demoEsTecnico) {
+        throw new Error("Solo el administrador o los profesores de programación pueden crear reportes");
+      }
       const sesion = AUTH.getSesion();
       const rep = {
         adjuntos: [],
@@ -426,10 +432,13 @@ function demoRequest(metodo, ruta, cuerpo) {
       return copia(D.config);
 
     case "POST login": {
+      // En modo demo no se guardan contraseñas (no se publican credenciales):
+      // basta con que la cuenta exista y se escriba alguna contraseña.
+      const usuario = String(cuerpo?.usuario ?? "").trim().toLowerCase();
       const usr = D.usuarios.find(
-        (u) => u.id === (cuerpo?.usuario ?? "").trim() && u.password === cuerpo?.password
+        (u) => u.id.toLowerCase() === usuario || String(u.email).toLowerCase() === usuario
       );
-      if (!usr) throw new Error("Credenciales incorrectas");
+      if (!usr || !String(cuerpo?.password ?? "").trim()) throw new Error("Credenciales incorrectas");
       const { password, ...sinPassword } = usr;
       if (demo2faEstado()) {
         D._2faChallengeUsuario = usr.id;
@@ -442,8 +451,9 @@ function demoRequest(metodo, ruta, cuerpo) {
       const sesion = AUTH.getSesion();
       const usr = D.usuarios.find((u) => u.id === sesion?.id);
       if (!usr) throw new Error("Usuario no encontrado");
-      if (usr.password !== cuerpo?.currentPassword) throw new Error("La contraseña actual es incorrecta");
-      usr.password = cuerpo.newPassword;
+      const nueva = String(cuerpo?.newPassword ?? "");
+      if (nueva.length < 8) throw new Error("La nueva contraseña debe tener al menos 8 caracteres");
+      // El modo demo no almacena contraseñas reales; el cambio es simbólico.
       return { ok: true };
     }
 
@@ -517,29 +527,55 @@ function demoRequest(metodo, ruta, cuerpo) {
 // Renovación de sesión (single-flight): evita refrescar dos veces en paralelo.
 let _refrescando = null;
 
+// Guarda solo los datos públicos de la sesión (id, rol, nombre…). Los tokens
+// viajan en cookies HttpOnly y NO se guardan en localStorage: así un XSS no
+// puede robarlos del almacenamiento del navegador.
+function actualizarSesion(usuario) {
+  const sesion = {
+    id: usuario.id,
+    rol: usuario.rol,
+    nombre: usuario.nombre,
+    apellido: usuario.apellido,
+    iniciales: usuario.iniciales,
+    email: usuario.email,
+    nivelAcceso: usuario.nivelAcceso
+  };
+  try { localStorage.setItem("lc_sesion", JSON.stringify(sesion)); } catch { /* sin almacenamiento */ }
+  return sesion;
+}
+
 async function renovarSesion() {
   if (_refrescando) return _refrescando;
-  _refrescando = pedirRefresh().finally(() => { _refrescando = null; });
+  // Web Locks serializa el refresh entre pestañas del mismo origen: evita que
+  // dos pestañas roten el token a la vez. Sin esto, la segunda usaría el token
+  // ya revocado, el servidor lo leería como reuso y cerraría todas las sesiones.
+  const ejecutar = async () => {
+    if (globalThis.navigator?.locks?.request) {
+      let ok = false;
+      await navigator.locks.request("lc_refresh", async () => { ok = await pedirRefresh(); });
+      return ok;
+    }
+    return pedirRefresh();
+  };
+  _refrescando = ejecutar().finally(() => { _refrescando = null; });
   return _refrescando;
 }
 
 async function pedirRefresh() {
+  // La sesión mínima (id/rol) es lo que decide si vale la pena refrescar; el
+  // token de refresco lo aporta la cookie HttpOnly que envía el navegador.
   const sesion = AUTH.getSesion();
-  if (!sesion?.refreshToken) return false;
+  if (!sesion) return false;
   try {
     const res = await fetch(`${API_BASE}/refresh`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ refreshToken: sesion.refreshToken })
+      credentials: "same-origin"
     });
     if (!res.ok) return false;
     const data = await res.json();
-    if (!data?.token || !data?.refreshToken) return false;
-    localStorage.setItem("lc_sesion", JSON.stringify({
-      ...sesion,
-      token: data.token,
-      refreshToken: data.refreshToken
-    }));
+    if (!data?.usuario) return false;
+    actualizarSesion(data.usuario);
     return true;
   } catch {
     return false;
@@ -557,7 +593,7 @@ async function pedir(ruta, opciones = {}, _reintentado = false) {
 
   if (!MODO_DEMO) {
     try {
-      const res = await fetch(`${API_BASE}${ruta}`, opciones);
+      const res = await fetch(`${API_BASE}${ruta}`, { credentials: "same-origin", ...opciones });
 
       // Token de acceso expirado: se renueva una sola vez con el refresh token
       // y se reintenta la petición original antes de cerrar la sesión.
@@ -604,18 +640,10 @@ async function pedir(ruta, opciones = {}, _reintentado = false) {
   return demoRequest(metodo, ruta, cuerpo);
 }
 
-function getToken() {
-  try {
-    const sesion = JSON.parse(localStorage.getItem("lc_sesion"));
-    return sesion?.token || null;
-  } catch { return null; }
-}
-
+// Cabeceras para las peticiones a la API. Ya no se adjunta el token de acceso:
+// viaja en la cookie HttpOnly que el navegador añade solo (credentials).
 function authHeaders(extra = {}) {
-  const token = getToken();
-  const headers = { "Content-Type": "application/json", ...extra };
-  if (token) headers["Authorization"] = `Bearer ${token}`;
-  return headers;
+  return { "Content-Type": "application/json", ...extra };
 }
 
 export async function apiGet(path) {
@@ -782,7 +810,7 @@ export function desactivar2FA(codigo) {
 
 // Descarga el respaldo de la BD como blob binario.
 export async function exportarBackup() {
-  const res = await fetch(`${API_BASE}/backups/exportar`, { headers: authHeaders() });
+  const res = await fetch(`${API_BASE}/backups/exportar`, { headers: authHeaders(), credentials: "same-origin" });
   if (!res.ok) throw new Error("No se pudo generar el respaldo");
   return res.blob();
 }
@@ -792,7 +820,8 @@ export async function restaurarBackup(archivo) {
   try {
     const res = await fetch(`${API_BASE}/backups/restaurar`, {
       method: "POST",
-      headers: { Authorization: `Bearer ${getToken()}`, "Content-Type": "application/octet-stream" },
+      headers: { "Content-Type": "application/octet-stream" },
+      credentials: "same-origin",
       body: archivo
     });
     if (!res.ok) {
@@ -830,19 +859,8 @@ export const AUTH = {
       const data = await apiSend("POST", "/login", { usuario: username, password });
       if (!data) throw new Error("No se pudo iniciar sesión.");
       if (data.requires2FA) return data;
-      if (!data.token) throw new Error("La respuesta del servidor no incluyó un token de acceso.");
-      const sesion = {
-        token: data.token,
-        refreshToken: data.refreshToken,
-        id: data.usuario.id,
-        rol: data.usuario.rol,
-        nombre: data.usuario.nombre,
-        apellido: data.usuario.apellido,
-        iniciales: data.usuario.iniciales,
-        email: data.usuario.email,
-        nivelAcceso: data.usuario.nivelAcceso
-      };
-      localStorage.setItem("lc_sesion", JSON.stringify(sesion));
+      if (!data.usuario) throw new Error("La respuesta del servidor no incluyó la sesión.");
+      actualizarSesion(data.usuario);
       return data.usuario;
     } catch (err) {
       if (err instanceof TypeError) await activarModoDemo();
@@ -855,23 +873,13 @@ export const AUTH = {
     try {
       if (MODO_DEMO) {
         const data = await demoRequest("POST", "/login/2fa", { loginId, codigo: String(codigo).trim() });
-        const sesion = {
-          token: data.token,
-          refreshToken: data.refreshToken,
-          id: data.usuario.id,
-          rol: data.usuario.rol,
-          nombre: data.usuario.nombre,
-          apellido: data.usuario.apellido,
-          iniciales: data.usuario.iniciales,
-          email: data.usuario.email,
-          nivelAcceso: data.usuario.nivelAcceso
-        };
-        localStorage.setItem("lc_sesion", JSON.stringify(sesion));
+        actualizarSesion(data.usuario);
         return data.usuario;
       }
       const res = await fetch(`${API_BASE}/login/2fa`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "same-origin",
         body: JSON.stringify({ loginId, codigo: String(codigo).trim() })
       });
       if (res.status === 401 || res.status === 429) {
@@ -880,18 +888,8 @@ export const AUTH = {
       }
       if (!res.ok) throw new Error("No se pudo completar la verificación");
       const data = await res.json();
-      const sesion = {
-        token: data.token,
-        refreshToken: data.refreshToken,
-        id: data.usuario.id,
-        rol: data.usuario.rol,
-        nombre: data.usuario.nombre,
-        apellido: data.usuario.apellido,
-        iniciales: data.usuario.iniciales,
-        email: data.usuario.email,
-        nivelAcceso: data.usuario.nivelAcceso
-      };
-      localStorage.setItem("lc_sesion", JSON.stringify(sesion));
+      if (!data.usuario) throw new Error("No se pudo completar la verificación");
+      actualizarSesion(data.usuario);
       return data.usuario;
     } catch (err) {
       if (err instanceof TypeError) await activarModoDemo();
@@ -918,16 +916,14 @@ export const AUTH = {
   },
 
   logout() {
-    // Revoca el refresh token en el servidor (best-effort) antes de cerrar.
-    const sesion = this.getSesion();
-    if (sesion?.refreshToken) {
-      fetch(`${API_BASE}/logout`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ refreshToken: sesion.refreshToken })
-      }).catch(() => {});
-    }
-    localStorage.removeItem("lc_sesion");
+    // Revoca la sesión en el servidor (best-effort) y limpia las cookies
+    // HttpOnly; el refresh token ya no se guarda en el navegador.
+    fetch(`${API_BASE}/logout`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "same-origin"
+    }).catch(() => {});
+    try { localStorage.removeItem("lc_sesion"); } catch { /* sin almacenamiento */ }
     window.location.href = "login.html";
   },
 
